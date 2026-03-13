@@ -266,7 +266,7 @@ export default function AccountsPage() {
       title: t('common.id'),
       width: '60px',
       render: (row) => (
-        <span style={{ fontFamily: 'var(--ag-font-mono)' }}>
+        <span className="font-mono">
           {row.id}
         </span>
       ),
@@ -300,7 +300,7 @@ export default function AccountsPage() {
       title: t('accounts.priority'),
       width: '80px',
       render: (row) => (
-        <span style={{ fontFamily: 'var(--ag-font-mono)' }}>
+        <span className="font-mono">
           {row.priority}
         </span>
       ),
@@ -310,7 +310,7 @@ export default function AccountsPage() {
       title: t('accounts.concurrency'),
       width: '80px',
       render: (row) => (
-        <span style={{ fontFamily: 'var(--ag-font-mono)' }}>
+        <span className="font-mono">
           {row.max_concurrency}
         </span>
       ),
@@ -320,7 +320,7 @@ export default function AccountsPage() {
       title: t('accounts.rate_multiplier'),
       width: '80px',
       render: (row) => (
-        <span style={{ fontFamily: 'var(--ag-font-mono)', color: 'var(--ag-primary)' }}>
+        <span className="font-mono" style={{ color: 'var(--ag-primary)' }}>
           {row.rate_multiplier}x
         </span>
       ),
@@ -331,7 +331,7 @@ export default function AccountsPage() {
       width: '80px',
       render: (row) =>
         row.proxy_id ? (
-          <span className="inline-flex items-center gap-1" style={{ fontFamily: 'var(--ag-font-mono)' }}>
+          <span className="inline-flex items-center gap-1 font-mono">
             <Shield className="w-3 h-3" style={{ color: 'var(--ag-text-tertiary)' }} />
             #{row.proxy_id}
           </span>
@@ -710,7 +710,7 @@ function SchemaCredentialsForm({
             }))}
           />
           {selectedType?.description && (
-            <p className="text-xs text-[var(--ag-text-tertiary)] -mt-2">
+            <p className="text-xs text-text-tertiary -mt-2">
               {selectedType.description}
             </p>
           )}

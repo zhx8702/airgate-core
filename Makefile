@@ -59,6 +59,7 @@ lint: ## 代码检查（需要安装 golangci-lint）
 		exit 1; \
 	fi
 	@cd $(BACKEND_DIR) && golangci-lint run ./...
+	@cd $(WEB_DIR) && npx tsc -b --noEmit
 	@echo "代码检查通过"
 
 fmt: ## 格式化代码

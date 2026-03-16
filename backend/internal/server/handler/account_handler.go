@@ -16,6 +16,7 @@ import (
 	"github.com/DouDOU-start/airgate-core/ent"
 	"github.com/DouDOU-start/airgate-core/ent/account"
 	"github.com/DouDOU-start/airgate-core/ent/group"
+	"github.com/DouDOU-start/airgate-core/ent/predicate"
 	"github.com/DouDOU-start/airgate-core/ent/proxy"
 	"github.com/DouDOU-start/airgate-core/ent/usagelog"
 	"github.com/DouDOU-start/airgate-core/internal/plugin"
@@ -730,7 +731,7 @@ func (h *AccountHandler) RefreshQuota(c *gin.Context) {
 	})
 }
 
-// GetAccountStats 获取单个账号的使用统计
+// GetAccountStats 获取单个账号的使用统计（含每日趋势和模型分布）
 func (h *AccountHandler) GetAccountStats(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -744,54 +745,200 @@ func (h *AccountHandler) GetAccountStats(c *gin.Context) {
 		return
 	}
 
-	// 统计时间范围
+	ctx := c.Request.Context()
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	last7d := today.AddDate(0, 0, -7)
-	last30d := today.AddDate(0, 0, -30)
 
-	type statsRow struct {
-		Count        int     `json:"count"`
-		InputTokens  int     `json:"input_tokens"`
-		OutputTokens int     `json:"output_tokens"`
-		TotalCost    float64 `json:"total_cost"`
+	// 解析可选的日期范围参数，默认近 30 天
+	var startDate, endDate time.Time
+	if sd := c.Query("start_date"); sd != "" {
+		if t, err := time.Parse("2006-01-02", sd); err == nil {
+			startDate = t
+		}
+	}
+	if ed := c.Query("end_date"); ed != "" {
+		if t, err := time.Parse("2006-01-02", ed); err == nil {
+			endDate = time.Date(t.Year(), t.Month(), t.Day(), 23, 59, 59, 0, t.Location())
+		}
+	}
+	if startDate.IsZero() {
+		startDate = today.AddDate(0, 0, -29) // 近 30 天 = 今天 + 前 29 天
+	}
+	if endDate.IsZero() {
+		endDate = now
 	}
 
-	queryStats := func(since time.Time) statsRow {
-		var result []struct {
-			Count        int     `json:"count"`
-			InputTokens  int     `json:"input_tokens"`
-			OutputTokens int     `json:"output_tokens"`
-			TotalCost    float64 `json:"total_cost"`
+	// 计算查询范围的天数
+	totalDays := int(endDate.Sub(startDate).Hours()/24) + 1
+
+	// 查询范围内所有记录（仅取需要的字段）
+	predicates := []predicate.UsageLog{
+		usagelog.HasAccountWith(account.IDEQ(id)),
+		usagelog.CreatedAtGTE(startDate),
+		usagelog.CreatedAtLTE(endDate),
+	}
+	logs, err := h.db.UsageLog.Query().
+		Where(predicates...).
+		Select(
+			usagelog.FieldModel,
+			usagelog.FieldInputTokens,
+			usagelog.FieldOutputTokens,
+			usagelog.FieldTotalCost,
+			usagelog.FieldActualCost,
+			usagelog.FieldDurationMs,
+			usagelog.FieldCreatedAt,
+		).
+		All(ctx)
+	if err != nil {
+		slog.Error("查询账号统计失败", "error", err, "account_id", id)
+		response.InternalError(c, "查询统计失败")
+		return
+	}
+
+	// 在内存中聚合
+	type periodStats struct {
+		Count        int     `json:"count"`
+		InputTokens  int64   `json:"input_tokens"`
+		OutputTokens int64   `json:"output_tokens"`
+		TotalCost    float64 `json:"total_cost"`
+		ActualCost   float64 `json:"actual_cost"`
+	}
+	type dailyStats struct {
+		Date       string  `json:"date"`
+		Count      int     `json:"count"`
+		TotalCost  float64 `json:"total_cost"`
+		ActualCost float64 `json:"actual_cost"`
+	}
+	type modelStats struct {
+		Model        string  `json:"model"`
+		Count        int     `json:"count"`
+		InputTokens  int64   `json:"input_tokens"`
+		OutputTokens int64   `json:"output_tokens"`
+		TotalCost    float64 `json:"total_cost"`
+		ActualCost   float64 `json:"actual_cost"`
+	}
+
+	var todayStats, rangeStats periodStats
+	dailyMap := make(map[string]*dailyStats)
+	modelMap := make(map[string]*modelStats)
+	var totalDurationMs int64
+
+	for _, l := range logs {
+		dateKey := l.CreatedAt.Format("2006-01-02")
+
+		// 范围汇总
+		rangeStats.Count++
+		rangeStats.InputTokens += int64(l.InputTokens)
+		rangeStats.OutputTokens += int64(l.OutputTokens)
+		rangeStats.TotalCost += l.TotalCost
+		rangeStats.ActualCost += l.ActualCost
+		totalDurationMs += l.DurationMs
+
+		// 今日汇总
+		if !l.CreatedAt.Before(today) {
+			todayStats.Count++
+			todayStats.InputTokens += int64(l.InputTokens)
+			todayStats.OutputTokens += int64(l.OutputTokens)
+			todayStats.TotalCost += l.TotalCost
+			todayStats.ActualCost += l.ActualCost
 		}
-		err := h.db.UsageLog.Query().
-			Where(
-				usagelog.HasAccountWith(account.IDEQ(id)),
-				usagelog.CreatedAtGTE(since),
-			).
-			Aggregate(
-				ent.Count(),
-				ent.Sum(usagelog.FieldInputTokens),
-				ent.Sum(usagelog.FieldOutputTokens),
-				ent.Sum(usagelog.FieldTotalCost),
-			).
-			Scan(c, &result)
-		if err != nil || len(result) == 0 {
-			return statsRow{}
+
+		// 每日趋势
+		if d, ok := dailyMap[dateKey]; ok {
+			d.Count++
+			d.TotalCost += l.TotalCost
+			d.ActualCost += l.ActualCost
+		} else {
+			dailyMap[dateKey] = &dailyStats{
+				Date:       dateKey,
+				Count:      1,
+				TotalCost:  l.TotalCost,
+				ActualCost: l.ActualCost,
+			}
 		}
-		return statsRow{
-			Count:        result[0].Count,
-			InputTokens:  result[0].InputTokens,
-			OutputTokens: result[0].OutputTokens,
-			TotalCost:    result[0].TotalCost,
+
+		// 模型分布
+		if m, ok := modelMap[l.Model]; ok {
+			m.Count++
+			m.InputTokens += int64(l.InputTokens)
+			m.OutputTokens += int64(l.OutputTokens)
+			m.TotalCost += l.TotalCost
+			m.ActualCost += l.ActualCost
+		} else {
+			modelMap[l.Model] = &modelStats{
+				Model:        l.Model,
+				Count:        1,
+				InputTokens:  int64(l.InputTokens),
+				OutputTokens: int64(l.OutputTokens),
+				TotalCost:    l.TotalCost,
+				ActualCost:   l.ActualCost,
+			}
+		}
+	}
+
+	// 构建每日趋势（补齐无数据的日期）
+	dailyTrend := make([]dailyStats, 0, totalDays)
+	for d := startDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
+		key := d.Format("2006-01-02")
+		if ds, ok := dailyMap[key]; ok {
+			dailyTrend = append(dailyTrend, *ds)
+		} else {
+			dailyTrend = append(dailyTrend, dailyStats{Date: key})
+		}
+	}
+
+	// 构建模型分布列表（按请求数降序）
+	models := make([]modelStats, 0, len(modelMap))
+	for _, m := range modelMap {
+		models = append(models, *m)
+	}
+	for i := 0; i < len(models); i++ {
+		for j := i + 1; j < len(models); j++ {
+			if models[j].Count > models[i].Count {
+				models[i], models[j] = models[j], models[i]
+			}
+		}
+	}
+
+	// 计算活跃天数和平均响应时间
+	activeDays := len(dailyMap)
+	var avgDurationMs int64
+	if rangeStats.Count > 0 {
+		avgDurationMs = totalDurationMs / int64(rangeStats.Count)
+	}
+
+	// 找出最高费用日和最高请求日
+	type peakDay struct {
+		Date       string  `json:"date"`
+		Count      int     `json:"count"`
+		TotalCost  float64 `json:"total_cost"`
+		ActualCost float64 `json:"actual_cost"`
+	}
+	var peakCostDay, peakRequestDay peakDay
+	for _, ds := range dailyMap {
+		if ds.TotalCost > peakCostDay.TotalCost {
+			peakCostDay = peakDay{Date: ds.Date, Count: ds.Count, TotalCost: ds.TotalCost, ActualCost: ds.ActualCost}
+		}
+		if ds.Count > peakRequestDay.Count {
+			peakRequestDay = peakDay{Date: ds.Date, Count: ds.Count, TotalCost: ds.TotalCost, ActualCost: ds.ActualCost}
 		}
 	}
 
 	response.Success(c, gin.H{
-		"account_id": a.ID,
-		"platform":   a.Platform,
-		"today":      queryStats(today),
-		"last_7d":    queryStats(last7d),
-		"last_30d":   queryStats(last30d),
+		"account_id":       a.ID,
+		"name":             a.Name,
+		"platform":         a.Platform,
+		"status":           a.Status.String(),
+		"start_date":       startDate.Format("2006-01-02"),
+		"end_date":         endDate.Format("2006-01-02"),
+		"total_days":       totalDays,
+		"today":            todayStats,
+		"range":            rangeStats,
+		"daily_trend":      dailyTrend,
+		"models":           models,
+		"active_days":      activeDays,
+		"avg_duration_ms":  avgDurationMs,
+		"peak_cost_day":    peakCostDay,
+		"peak_request_day": peakRequestDay,
 	})
 }

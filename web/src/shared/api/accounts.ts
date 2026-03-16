@@ -24,14 +24,56 @@ export const accountsApi = {
   // 手动刷新账号额度（调用插件 QueryQuota）
   refreshQuota: (id: number) =>
     post<{ plan_type?: string; email?: string; subscription_active_until?: string }>(`/api/v1/admin/accounts/${id}/refresh-quota`),
-  // 获取账号使用统计
-  stats: (id: number) =>
-    get<{ account_id: number; platform: string; today: AccountStats; last_7d: AccountStats; last_30d: AccountStats }>(`/api/v1/admin/accounts/${id}/stats`),
+  // 获取账号使用统计（可选时间范围）
+  stats: (id: number, params?: { start_date?: string; end_date?: string }) =>
+    get<AccountStatsResp>(`/api/v1/admin/accounts/${id}/stats`, params),
 };
 
-export interface AccountStats {
+export interface AccountPeriodStats {
   count: number;
   input_tokens: number;
   output_tokens: number;
   total_cost: number;
+  actual_cost: number;
+}
+
+export interface AccountDailyStats {
+  date: string;
+  count: number;
+  total_cost: number;
+  actual_cost: number;
+}
+
+export interface AccountModelStats {
+  model: string;
+  count: number;
+  input_tokens: number;
+  output_tokens: number;
+  total_cost: number;
+  actual_cost: number;
+}
+
+export interface AccountPeakDay {
+  date: string;
+  count: number;
+  total_cost: number;
+  actual_cost: number;
+}
+
+export interface AccountStatsResp {
+  account_id: number;
+  name: string;
+  platform: string;
+  status: string;
+  start_date: string;
+  end_date: string;
+  total_days: number;
+  today: AccountPeriodStats;
+  range: AccountPeriodStats;
+  daily_trend: AccountDailyStats[];
+  models: AccountModelStats[];
+  active_days: number;
+  avg_duration_ms: number;
+  peak_cost_day: AccountPeakDay;
+  peak_request_day: AccountPeakDay;
 }

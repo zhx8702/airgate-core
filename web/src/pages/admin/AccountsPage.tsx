@@ -31,6 +31,7 @@ import { groupsApi } from '../../shared/api/groups';
 import { proxiesApi } from '../../shared/api/proxies';
 import { pluginsApi } from '../../shared/api/plugins';
 import { AccountTestModal } from './AccountTestModal';
+import { AccountStatsModal } from './AccountStatsModal';
 import { usePlatforms } from '../../shared/hooks/usePlatforms';
 import {
   loadPluginFrontend,
@@ -1500,59 +1501,3 @@ function EditAccountModal({
   );
 }
 
-// ==================== 账号统计弹窗 ====================
-
-function AccountStatsModal({
-  accountId,
-  onClose,
-}: {
-  accountId: number;
-  onClose: () => void;
-}) {
-  const { t } = useTranslation();
-  const { data, isLoading } = useQuery({
-    queryKey: ['account-stats', accountId],
-    queryFn: () => accountsApi.stats(accountId),
-  });
-
-  const periods = [
-    { key: 'today', label: t('accounts.stats_today') },
-    { key: 'last_7d', label: t('accounts.stats_7d') },
-    { key: 'last_30d', label: t('accounts.stats_30d') },
-  ] as const;
-
-  return (
-    <Modal open onClose={onClose} title={t('accounts.view_stats')}>
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12 text-text-tertiary text-sm">
-          {t('common.loading')}
-        </div>
-      ) : data ? (
-        <div className="space-y-4">
-          {periods.map(({ key, label }) => {
-            const s = data[key];
-            return (
-              <div key={key} className="rounded-lg border border-border-subtle p-4 space-y-2">
-                <div className="text-xs font-semibold text-text-tertiary uppercase tracking-wide">{label}</div>
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <div className="text-lg font-bold text-text">{s.count.toLocaleString()}</div>
-                    <div className="text-[11px] text-text-tertiary">{t('accounts.stats_requests')}</div>
-                  </div>
-                  <div>
-                    <div className="text-lg font-bold text-text">{(s.input_tokens + s.output_tokens).toLocaleString()}</div>
-                    <div className="text-[11px] text-text-tertiary">{t('accounts.stats_tokens')}</div>
-                  </div>
-                  <div>
-                    <div className="text-lg font-bold text-text">${s.total_cost.toFixed(4)}</div>
-                    <div className="text-[11px] text-text-tertiary">{t('accounts.stats_cost')}</div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
-    </Modal>
-  );
-}

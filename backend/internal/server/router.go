@@ -100,6 +100,8 @@ func (s *Server) registerRoutes() {
 		adminGroup.PATCH("/accounts/:id/toggle", accountHandler.ToggleScheduling)
 		adminGroup.GET("/accounts/:id/models", accountHandler.GetAccountModels)
 		adminGroup.GET("/accounts/credentials-schema/:platform", accountHandler.GetCredentialsSchema)
+		adminGroup.POST("/accounts/:id/refresh-quota", accountHandler.RefreshQuota)
+		adminGroup.GET("/accounts/:id/stats", accountHandler.GetAccountStats)
 
 		// 分组管理
 		adminGroup.GET("/groups", groupHandler.ListGroups)

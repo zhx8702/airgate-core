@@ -53,7 +53,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 
 	var req dto.UpdateProfileReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -80,7 +80,7 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 
 	var req dto.ChangePasswordReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -120,7 +120,7 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 func (h *UserHandler) ListUsers(c *gin.Context) {
 	var page dto.PageReq
 	if err := c.ShouldBindQuery(&page); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -178,7 +178,7 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 func (h *UserHandler) CreateUser(c *gin.Context) {
 	var req dto.CreateUserReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -235,7 +235,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 
 	var req dto.UpdateUserReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -281,7 +281,7 @@ func (h *UserHandler) AdjustBalance(c *gin.Context) {
 
 	var req dto.AdjustBalanceReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 

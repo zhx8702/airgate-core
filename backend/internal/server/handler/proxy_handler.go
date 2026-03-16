@@ -36,7 +36,7 @@ func NewProxyHandler(db *ent.Client) *ProxyHandler {
 func (h *ProxyHandler) ListProxies(c *gin.Context) {
 	var page dto.PageReq
 	if err := c.ShouldBindQuery(&page); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -82,7 +82,7 @@ func (h *ProxyHandler) ListProxies(c *gin.Context) {
 func (h *ProxyHandler) CreateProxy(c *gin.Context) {
 	var req dto.CreateProxyReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -119,7 +119,7 @@ func (h *ProxyHandler) UpdateProxy(c *gin.Context) {
 
 	var req dto.UpdateProxyReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 

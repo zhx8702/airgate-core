@@ -48,7 +48,8 @@
     "page_info": "共 {{total}} 条 · 第 {{page}}/{{totalPages}} 页",
     "copied": "已复制到剪贴板",
     "copy_failed": "复制失败，请手动复制",
-    "fill_required": "请填写必填项"
+    "fill_required": "请填写必填项",
+    "more": "更多"
   },
 
   "status": {
@@ -154,6 +155,7 @@
     "select_platform": "请选择平台",
     "credentials": "凭证信息",
     "priority": "优先级",
+    "priority_hint": "优先级（0-999，越大越优先）",
     "concurrency": "并发数",
     "rate_multiplier": "费率倍率",
     "proxy": "代理",
@@ -190,7 +192,26 @@
     "platform_type": "平台/类型",
     "expires_at": "过期时间",
     "no_proxy": "不使用代理",
-    "usage_window": "用量窗口"
+    "usage_window": "用量窗口",
+    "refresh_quota": "刷新令牌",
+    "refresh_quota_success": "令牌刷新成功",
+    "view_stats": "账号统计",
+    "stats_today": "今日",
+    "stats_7d": "近 7 天",
+    "stats_30d": "近 30 天",
+    "stats_requests": "请求数",
+    "stats_tokens": "Token",
+    "stats_cost": "费用",
+    "leave_empty_to_keep": "留空则不修改",
+    "enable_dispatch": "启用调度",
+    "select_groups": "选择分组",
+    "all_groups": "全部分组",
+    "all_proxies": "全部代理",
+    "delete_title": "删除账号",
+    "delete_confirm": "确定要删除账号「{{name}}」吗？删除后该账号将不再参与调度。",
+    "auto_refresh": "自动刷新 ",
+    "auto_refresh_off": "关闭自动刷新",
+    "search_placeholder": "搜索账号名称..."
   },
 
   "groups": {

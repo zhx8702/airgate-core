@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -13,6 +15,9 @@ import (
 
 	"github.com/DouDOU-start/airgate-core/ent"
 	"github.com/DouDOU-start/airgate-core/ent/account"
+	"github.com/DouDOU-start/airgate-core/ent/group"
+	"github.com/DouDOU-start/airgate-core/ent/proxy"
+	"github.com/DouDOU-start/airgate-core/ent/usagelog"
 	"github.com/DouDOU-start/airgate-core/internal/plugin"
 	"github.com/DouDOU-start/airgate-core/internal/scheduler"
 	"github.com/DouDOU-start/airgate-core/internal/server/dto"
@@ -35,7 +40,7 @@ func NewAccountHandler(db *ent.Client, pluginMgr *plugin.Manager, concurrency *s
 func (h *AccountHandler) ListAccounts(c *gin.Context) {
 	var page dto.PageReq
 	if err := c.ShouldBindQuery(&page); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -54,6 +59,20 @@ func (h *AccountHandler) ListAccounts(c *gin.Context) {
 	// 状态筛选
 	if status := c.Query("status"); status != "" {
 		query = query.Where(account.StatusEQ(account.Status(status)))
+	}
+
+	// 分组筛选
+	if groupID := c.Query("group_id"); groupID != "" {
+		if gid, err := strconv.Atoi(groupID); err == nil {
+			query = query.Where(account.HasGroupsWith(group.ID(gid)))
+		}
+	}
+
+	// 代理筛选
+	if proxyID := c.Query("proxy_id"); proxyID != "" {
+		if pid, err := strconv.Atoi(proxyID); err == nil {
+			query = query.Where(account.HasProxyWith(proxy.IDEQ(pid)))
+		}
 	}
 
 	// 总数
@@ -99,7 +118,7 @@ func (h *AccountHandler) ListAccounts(c *gin.Context) {
 func (h *AccountHandler) CreateAccount(c *gin.Context) {
 	var req dto.CreateAccountReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -158,7 +177,7 @@ func (h *AccountHandler) UpdateAccount(c *gin.Context) {
 
 	var req dto.UpdateAccountReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -653,4 +672,126 @@ func toAccountResp(a *ent.Account) dto.AccountResp {
 	resp.GroupIDs = groupIDs
 
 	return resp
+}
+
+// RefreshQuota 手动刷新账号额度（调用插件 QueryQuota）
+func (h *AccountHandler) RefreshQuota(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "无效的账号 ID")
+		return
+	}
+
+	a, err := h.db.Account.Query().Where(account.IDEQ(id)).WithProxy().WithGroups().Only(c)
+	if err != nil {
+		response.NotFound(c, "账号不存在")
+		return
+	}
+
+	// 查找对应平台的插件
+	inst := h.pluginMgr.GetPluginByPlatform(a.Platform)
+	if inst == nil || inst.Gateway == nil {
+		response.BadRequest(c, "该平台不支持刷新额度")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
+	defer cancel()
+
+	quota, err := inst.Gateway.QueryQuota(ctx, a.Credentials)
+	if err != nil {
+		response.InternalError(c, fmt.Sprintf("刷新额度失败: %v", err))
+		return
+	}
+
+	// 将 extra 中的更新写回 credentials
+	updated := false
+	for k, v := range quota.Extra {
+		if v != "" && a.Credentials[k] != v {
+			a.Credentials[k] = v
+			updated = true
+		}
+	}
+	if quota.ExpiresAt != "" {
+		a.Credentials["subscription_active_until"] = quota.ExpiresAt
+		updated = true
+	}
+
+	if updated {
+		if err := h.db.Account.UpdateOneID(id).SetCredentials(a.Credentials).Exec(c); err != nil {
+			slog.Error("刷新额度后保存凭证失败", "id", id, "error", err)
+		}
+	}
+
+	response.Success(c, gin.H{
+		"plan_type":                 a.Credentials["plan_type"],
+		"email":                     a.Credentials["email"],
+		"subscription_active_until": a.Credentials["subscription_active_until"],
+	})
+}
+
+// GetAccountStats 获取单个账号的使用统计
+func (h *AccountHandler) GetAccountStats(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "无效的账号 ID")
+		return
+	}
+
+	a, err := h.db.Account.Get(c, id)
+	if err != nil {
+		response.NotFound(c, "账号不存在")
+		return
+	}
+
+	// 统计时间范围
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	last7d := today.AddDate(0, 0, -7)
+	last30d := today.AddDate(0, 0, -30)
+
+	type statsRow struct {
+		Count        int     `json:"count"`
+		InputTokens  int     `json:"input_tokens"`
+		OutputTokens int     `json:"output_tokens"`
+		TotalCost    float64 `json:"total_cost"`
+	}
+
+	queryStats := func(since time.Time) statsRow {
+		var result []struct {
+			Count        int     `json:"count"`
+			InputTokens  int     `json:"input_tokens"`
+			OutputTokens int     `json:"output_tokens"`
+			TotalCost    float64 `json:"total_cost"`
+		}
+		err := h.db.UsageLog.Query().
+			Where(
+				usagelog.HasAccountWith(account.IDEQ(id)),
+				usagelog.CreatedAtGTE(since),
+			).
+			Aggregate(
+				ent.Count(),
+				ent.Sum(usagelog.FieldInputTokens),
+				ent.Sum(usagelog.FieldOutputTokens),
+				ent.Sum(usagelog.FieldTotalCost),
+			).
+			Scan(c, &result)
+		if err != nil || len(result) == 0 {
+			return statsRow{}
+		}
+		return statsRow{
+			Count:        result[0].Count,
+			InputTokens:  result[0].InputTokens,
+			OutputTokens: result[0].OutputTokens,
+			TotalCost:    result[0].TotalCost,
+		}
+	}
+
+	response.Success(c, gin.H{
+		"account_id": a.ID,
+		"platform":   a.Platform,
+		"today":      queryStats(today),
+		"last_7d":    queryStats(last7d),
+		"last_30d":   queryStats(last30d),
+	})
 }

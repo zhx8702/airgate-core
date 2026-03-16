@@ -30,7 +30,7 @@ func NewAuthHandler(db *ent.Client, jwtMgr *auth.JWTManager) *AuthHandler {
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req dto.LoginReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -85,7 +85,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req dto.RegisterReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -186,7 +186,7 @@ func (h *AuthHandler) TOTPVerify(c *gin.Context) {
 
 	var req dto.TOTPVerifyReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -214,7 +214,7 @@ func (h *AuthHandler) TOTPDisable(c *gin.Context) {
 
 	var req dto.TOTPVerifyReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 

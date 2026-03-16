@@ -53,7 +53,7 @@ var (
 		{Name: "type", Type: field.TypeString, Nullable: true, Default: ""},
 		{Name: "credentials", Type: field.TypeJSON},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "error", "disabled"}, Default: "active"},
-		{Name: "priority", Type: field.TypeInt, Default: 0},
+		{Name: "priority", Type: field.TypeInt, Default: 50},
 		{Name: "max_concurrency", Type: field.TypeInt, Default: 5},
 		{Name: "rate_multiplier", Type: field.TypeFloat64, Default: 1},
 		{Name: "error_msg", Type: field.TypeString, Default: ""},

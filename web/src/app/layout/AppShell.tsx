@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../providers/AuthProvider';
 import { pluginsApi } from '../../shared/api/plugins';
+import { loadPluginFrontend, registerPlatformIcon } from '../plugin-loader';
 import { useTheme } from '../providers/ThemeProvider';
 import {
   LayoutDashboard,
@@ -46,6 +47,7 @@ const adminMenuItems: MenuItem[] = [
   { path: '/admin/accounts', labelKey: 'nav.accounts', icon: <KeyRound className="w-5 h-5" /> },
   { path: '/admin/proxies', labelKey: 'nav.proxies', icon: <Globe className="w-5 h-5" /> },
   { path: '/admin/usage', labelKey: 'nav.usage', icon: <BarChart3 className="w-5 h-5" /> },
+  { path: '/admin/plugins', labelKey: 'nav.plugins', icon: <Puzzle className="w-5 h-5" /> },
   { path: '/admin/settings', labelKey: 'nav.settings', icon: <Settings className="w-5 h-5" /> },
 ];
 
@@ -55,12 +57,27 @@ const userMenuItems: MenuItem[] = [
   { path: '/profile', labelKey: 'nav.profile', icon: <User className="w-5 h-5" /> },
 ];
 
+/** 已预加载过图标的插件集合，避免重复加载 */
+const preloadedIcons = new Set<string>();
+
 function usePluginMenuItems(): MenuItem[] {
   const { data } = useQuery({
     queryKey: ['plugins-menu'],
     queryFn: () => pluginsApi.list(),
     staleTime: 60_000,
   });
+
+  // 插件列表拿到后，预加载所有平台图标
+  useEffect(() => {
+    if (!data?.list) return;
+    for (const p of data.list) {
+      if (!p.platform || preloadedIcons.has(p.name)) continue;
+      preloadedIcons.add(p.name);
+      loadPluginFrontend(p.name).then((mod) => {
+        if (mod?.platformIcon) registerPlatformIcon(p.platform, mod.platformIcon);
+      });
+    }
+  }, [data?.list]);
 
   if (!data?.list) return [];
 

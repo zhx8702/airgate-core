@@ -2,6 +2,7 @@
 package response
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -34,6 +35,12 @@ func Error(c *gin.Context, httpCode int, code int, msg string) {
 // BadRequest 返回 400 错误
 func BadRequest(c *gin.Context, msg string) {
 	Error(c, http.StatusBadRequest, 400, msg)
+}
+
+// BindError 处理参数绑定错误，返回友好提示，内部错误仅记日志
+func BindError(c *gin.Context, err error) {
+	slog.Debug("请求参数绑定失败", "path", c.FullPath(), "error", err)
+	BadRequest(c, "请求参数格式不正确，请检查输入")
 }
 
 // Unauthorized 返回 401 错误

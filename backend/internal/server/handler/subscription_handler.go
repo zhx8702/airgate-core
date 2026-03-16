@@ -35,7 +35,7 @@ func (h *SubscriptionHandler) UserSubscriptions(c *gin.Context) {
 
 	var page dto.PageReq
 	if err := c.ShouldBindQuery(&page); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -110,7 +110,7 @@ func (h *SubscriptionHandler) SubscriptionProgress(c *gin.Context) {
 func (h *SubscriptionHandler) AdminListSubscriptions(c *gin.Context) {
 	var page dto.PageReq
 	if err := c.ShouldBindQuery(&page); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -163,7 +163,7 @@ func (h *SubscriptionHandler) AdminListSubscriptions(c *gin.Context) {
 func (h *SubscriptionHandler) AdminAssign(c *gin.Context) {
 	var req dto.AssignSubscriptionReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -210,7 +210,7 @@ func (h *SubscriptionHandler) AdminAssign(c *gin.Context) {
 func (h *SubscriptionHandler) AdminBulkAssign(c *gin.Context) {
 	var req dto.BulkAssignReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -254,7 +254,7 @@ func (h *SubscriptionHandler) AdminAdjust(c *gin.Context) {
 
 	var req dto.AdjustSubscriptionReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 

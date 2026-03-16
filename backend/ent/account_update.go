@@ -357,6 +357,11 @@ func (au *AccountUpdate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Account.status": %w`, err)}
 		}
 	}
+	if v, ok := au.mutation.Priority(); ok {
+		if err := account.PriorityValidator(v); err != nil {
+			return &ValidationError{Name: "priority", err: fmt.Errorf(`ent: validator failed for field "Account.priority": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -896,6 +901,11 @@ func (auo *AccountUpdateOne) check() error {
 	if v, ok := auo.mutation.Status(); ok {
 		if err := account.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Account.status": %w`, err)}
+		}
+	}
+	if v, ok := auo.mutation.Priority(); ok {
+		if err := account.PriorityValidator(v); err != nil {
+			return &ValidationError{Name: "priority", err: fmt.Errorf(`ent: validator failed for field "Account.priority": %w`, err)}
 		}
 	}
 	return nil

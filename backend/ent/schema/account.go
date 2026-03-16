@@ -18,7 +18,7 @@ func (Account) Fields() []ent.Field {
 		field.String("type").Default("").Optional(), // 账号类型，由插件定义（如 "apikey", "oauth"）
 		field.JSON("credentials", map[string]string{}).Default(map[string]string{}),
 		field.Enum("status").Values("active", "error", "disabled").Default("active"),
-		field.Int("priority").Default(0),
+		field.Int("priority").Default(50).Min(0).Max(999),
 		field.Int("max_concurrency").Default(5),
 		field.Float("rate_multiplier").Default(1.0),
 		field.String("error_msg").Default(""),

@@ -37,6 +37,8 @@ export interface PluginFrontendModule {
   routes?: Array<{ path: string; component: ComponentType }>;
   menuItems?: Array<{ path: string; title: string; icon: string }>;
   accountForm?: ComponentType<AccountFormProps>;
+  /** 插件提供的平台图标组件，接收 className 和 style */
+  platformIcon?: ComponentType<{ className?: string; style?: React.CSSProperties }>;
 }
 
 function wrapPluginComponent<TProps extends object>(
@@ -56,6 +58,9 @@ function normalizePluginFrontendModule(
     ...mod,
     accountForm: mod.accountForm
       ? wrapPluginComponent(mod.accountForm)
+      : undefined,
+    platformIcon: mod.platformIcon
+      ? wrapPluginComponent(mod.platformIcon)
       : undefined,
     routes: mod.routes?.map((route) => ({
       ...route,
@@ -149,6 +154,30 @@ export async function loadPluginFrontend(
     // 插件可能没有前端模块，静默忽略
     return null;
   }
+}
+
+/** 全局平台图标注册表：platform → Icon 组件 */
+const platformIconRegistry = new Map<string, ComponentType<{ className?: string; style?: React.CSSProperties }>>();
+
+/** 图标注册变更监听器 */
+const iconListeners = new Set<() => void>();
+
+/** 注册插件提供的平台图标 */
+export function registerPlatformIcon(platform: string, icon: ComponentType<{ className?: string; style?: React.CSSProperties }>) {
+  platformIconRegistry.set(platform.toLowerCase(), icon);
+  // 通知所有监听者图标已更新
+  iconListeners.forEach((fn) => fn());
+}
+
+/** 获取插件提供的平台图标 */
+export function getPluginPlatformIcon(platform: string): ComponentType<{ className?: string; style?: React.CSSProperties }> | undefined {
+  return platformIconRegistry.get(platform.toLowerCase());
+}
+
+/** 订阅图标注册变更，返回取消订阅函数 */
+export function onPlatformIconChange(listener: () => void): () => void {
+  iconListeners.add(listener);
+  return () => iconListeners.delete(listener);
 }
 
 /**

@@ -73,6 +73,22 @@ func init() {
 	accountDescPriority := accountFields[5].Descriptor()
 	// account.DefaultPriority holds the default value on creation for the priority field.
 	account.DefaultPriority = accountDescPriority.Default.(int)
+	// account.PriorityValidator is a validator for the "priority" field. It is called by the builders before save.
+	account.PriorityValidator = func() func(int) error {
+		validators := accountDescPriority.Validators
+		fns := [...]func(int) error{
+			validators[0].(func(int) error),
+			validators[1].(func(int) error),
+		}
+		return func(priority int) error {
+			for _, fn := range fns {
+				if err := fn(priority); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	// accountDescMaxConcurrency is the schema descriptor for max_concurrency field.
 	accountDescMaxConcurrency := accountFields[6].Descriptor()
 	// account.DefaultMaxConcurrency holds the default value on creation for the max_concurrency field.

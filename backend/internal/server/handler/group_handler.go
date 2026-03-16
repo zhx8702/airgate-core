@@ -26,7 +26,7 @@ func NewGroupHandler(db *ent.Client) *GroupHandler {
 func (h *GroupHandler) ListGroups(c *gin.Context) {
 	var page dto.PageReq
 	if err := c.ShouldBindQuery(&page); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -96,7 +96,7 @@ func (h *GroupHandler) GetGroup(c *gin.Context) {
 func (h *GroupHandler) CreateGroup(c *gin.Context) {
 	var req dto.CreateGroupReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -135,7 +135,7 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 
 	var req dto.UpdateGroupReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 

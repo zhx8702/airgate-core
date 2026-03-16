@@ -48,7 +48,8 @@
     "page_info": "{{total}} items · Page {{page}}/{{totalPages}}",
     "copied": "Copied to clipboard",
     "copy_failed": "Copy failed, please copy manually",
-    "fill_required": "Please fill in required fields"
+    "fill_required": "Please fill in required fields",
+    "more": "More"
   },
 
   "status": {
@@ -154,6 +155,7 @@
     "select_platform": "Select platform",
     "credentials": "Credentials",
     "priority": "Priority",
+    "priority_hint": "Priority (0-999, higher = preferred)",
     "concurrency": "Concurrency",
     "rate_multiplier": "Rate Multiplier",
     "proxy": "Proxy",
@@ -190,7 +192,26 @@
     "platform_type": "Platform/Type",
     "expires_at": "Expires",
     "no_proxy": "No Proxy",
-    "usage_window": "Usage Window"
+    "usage_window": "Usage Window",
+    "refresh_quota": "Refresh Token",
+    "refresh_quota_success": "Token refreshed successfully",
+    "view_stats": "Account Stats",
+    "stats_today": "Today",
+    "stats_7d": "Last 7 Days",
+    "stats_30d": "Last 30 Days",
+    "stats_requests": "Requests",
+    "stats_tokens": "Tokens",
+    "stats_cost": "Cost",
+    "leave_empty_to_keep": "Leave empty to keep current value",
+    "enable_dispatch": "Enable Dispatch",
+    "select_groups": "Select groups",
+    "all_groups": "All groups",
+    "all_proxies": "All proxies",
+    "delete_title": "Delete Account",
+    "delete_confirm": "Are you sure you want to delete account \"{{name}}\"? It will no longer participate in dispatch.",
+    "auto_refresh": "Auto refresh ",
+    "auto_refresh_off": "Auto refresh off",
+    "search_placeholder": "Search account name..."
   },
 
   "groups": {

@@ -83,6 +83,16 @@
   background: var(--ag-text-tertiary);
 }
 
+/* 隐藏 number 输入框的加减按钮 */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 html {
   font-size: 14px;
 }
@@ -210,4 +220,26 @@ body {
       var(--ag-bg-surface) 75%);
   background-size: 200% 100%;
   animation: ag-shimmer 1.5s infinite;
+}
+
+/* 固定列背景 */
+.ag-sticky-cell-header {
+  background: var(--ag-bg-surface) !important;
+}
+
+.ag-sticky-cell {
+  background: var(--ag-bg-elevated) !important;
+}
+
+tr:hover > .ag-sticky-cell {
+  background: var(--ag-bg-hover) !important;
+}
+
+/* 固定列滚动阴影 */
+.ag-sticky-shadow-right {
+  box-shadow: 4px 0 8px -2px rgba(0, 0, 0, 0.15);
+}
+
+.ag-sticky-shadow-left {
+  box-shadow: -4px 0 8px -2px rgba(0, 0, 0, 0.15);
 }

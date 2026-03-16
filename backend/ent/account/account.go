@@ -123,6 +123,8 @@ var (
 	DefaultCredentials map[string]string
 	// DefaultPriority holds the default value on creation for the "priority" field.
 	DefaultPriority int
+	// PriorityValidator is a validator for the "priority" field. It is called by the builders before save.
+	PriorityValidator func(int) error
 	// DefaultMaxConcurrency holds the default value on creation for the "max_concurrency" field.
 	DefaultMaxConcurrency int
 	// DefaultRateMultiplier holds the default value on creation for the "rate_multiplier" field.

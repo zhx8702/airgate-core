@@ -1,24 +1,45 @@
 import { useQuery } from '@tanstack/react-query';
 import { pluginsApi } from '../api/plugins';
 
+/** 从插件 display_name 中提取平台显示名（去掉"网关""Gateway"等后缀） */
+function extractPlatformName(displayName: string): string {
+  return displayName
+    .replace(/\s*(网关|Gateway|Plugin|插件)\s*$/i, '')
+    .trim();
+}
+
+function capitalize(s: string) {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
 /**
  * 从已安装的 gateway 插件中动态获取可用平台列表。
- * 没有安装任何插件时返回空数组。
+ * 同时返回 platform → 显示名的映射。
  */
 export function usePlatforms() {
   const { data, isLoading } = useQuery({
     queryKey: ['installed-platforms'],
     queryFn: async () => {
       const resp = await pluginsApi.list({ page: 1, page_size: 100 });
-      // 所有运行中的插件平台
-      const platforms = resp.list
-        .map((p) => p.platform)
-        .filter(Boolean);
-      // 去重
-      return [...new Set(platforms)];
+      const platformSet = new Set<string>();
+      const nameMap: Record<string, string> = {};
+      for (const p of resp.list) {
+        if (!p.platform) continue;
+        platformSet.add(p.platform);
+        if (!nameMap[p.platform]) {
+          const raw = p.display_name || p.name || '';
+          nameMap[p.platform] = raw ? extractPlatformName(raw) : capitalize(p.platform);
+        }
+      }
+      return { platforms: [...platformSet], nameMap };
     },
-    staleTime: 60_000, // 平台列表不会频繁变化，缓存 1 分钟
+    staleTime: 60_000,
   });
 
-  return { platforms: data ?? [], isLoading };
+  return {
+    platforms: data?.platforms ?? [],
+    /** platform 标识符 → 显示名（如 "openai" → "OpenAI"） */
+    platformName: (platform: string) => data?.nameMap[platform] || capitalize(platform),
+    isLoading,
+  };
 }

@@ -34,7 +34,7 @@ func (h *UsageHandler) UserUsage(c *gin.Context) {
 
 	var q dto.UsageQuery
 	if err := c.ShouldBindQuery(&q); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -74,7 +74,7 @@ func (h *UsageHandler) UserUsage(c *gin.Context) {
 func (h *UsageHandler) AdminUsage(c *gin.Context) {
 	var q dto.UsageQuery
 	if err := c.ShouldBindQuery(&q); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 

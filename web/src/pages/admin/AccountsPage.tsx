@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, type ComponentType } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -6,18 +7,24 @@ import {
   Pencil,
   Trash2,
   Zap,
-  Server,
   Hash,
   Gauge,
   Layers,
   Shield,
+  MoreHorizontal,
+  BarChart3,
+  RefreshCw,
+  ChevronDown,
+  Search,
 } from 'lucide-react';
 import { PageHeader } from '../../shared/components/PageHeader';
 import { Button } from '../../shared/components/Button';
 import { Input, Textarea, Select } from '../../shared/components/Input';
+import { Switch } from '../../shared/components/Switch';
 import { Table, type Column } from '../../shared/components/Table';
 import { Modal, ConfirmModal } from '../../shared/components/Modal';
 import { StatusBadge } from '../../shared/components/Badge';
+import { PlatformIcon } from '../../shared/components/PlatformIcon';
 import { useToast } from '../../shared/components/Toast';
 import { accountsApi } from '../../shared/api/accounts';
 import { groupsApi } from '../../shared/api/groups';
@@ -172,17 +179,17 @@ function createPluginOAuthBridge(pluginId: string): PluginOAuthBridge | undefine
   };
 }
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE_OPTIONS = [20, 50, 100];
 
 export default function AccountsPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { platforms } = usePlatforms();
+  const { platforms, platformName } = usePlatforms();
 
   const PLATFORM_OPTIONS = [
     { value: '', label: t('accounts.all_platforms') },
-    ...platforms.map((p) => ({ value: p, label: p })),
+    ...platforms.map((p) => ({ value: p, label: platformName(p) })),
   ];
 
   const STATUS_OPTIONS = [
@@ -194,8 +201,42 @@ export default function AccountsPage() {
 
   // 筛选状态
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [keyword, setKeyword] = useState('');
   const [platformFilter, setPlatformFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [groupFilter, setGroupFilter] = useState('');
+  const [proxyFilter, setProxyFilter] = useState('');
+
+  // 自动刷新
+  const AUTO_REFRESH_OPTIONS = [0, 5, 10, 15, 30];
+  const [autoRefresh, setAutoRefresh] = useState(0); // 秒，0=关闭
+  const [showRefreshMenu, setShowRefreshMenu] = useState(false);
+  const refreshMenuRef = useRef<HTMLDivElement>(null);
+  const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (refreshMenuRef.current && !refreshMenuRef.current.contains(e.target as Node)) setShowRefreshMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  useEffect(() => {
+    if (!autoRefresh) { setCountdown(0); return; }
+    setCountdown(autoRefresh);
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          queryClient.invalidateQueries({ queryKey: ['accounts'] });
+          return autoRefresh;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [autoRefresh, queryClient]);
 
   // 弹窗状态
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -205,13 +246,16 @@ export default function AccountsPage() {
 
   // 查询账号列表
   const { data, isLoading } = useQuery({
-    queryKey: ['accounts', page, platformFilter, statusFilter],
+    queryKey: ['accounts', page, pageSize, keyword, platformFilter, statusFilter, groupFilter, proxyFilter],
     queryFn: () =>
       accountsApi.list({
         page,
-        page_size: PAGE_SIZE,
+        page_size: pageSize,
+        keyword: keyword || undefined,
         platform: platformFilter || undefined,
         status: statusFilter || undefined,
+        group_id: groupFilter ? Number(groupFilter) : undefined,
+        proxy_id: proxyFilter ? Number(proxyFilter) : undefined,
       }),
   });
 
@@ -222,6 +266,15 @@ export default function AccountsPage() {
   });
   const groupMap = new Map(
     (allGroupsData?.list ?? []).map((g) => [g.id, g.name]),
+  );
+
+  // 查询代理列表（用于表格中 ID→名称映射）
+  const { data: allProxiesData } = useQuery({
+    queryKey: ['proxies-all'],
+    queryFn: () => proxiesApi.list({ page: 1, page_size: 100 }),
+  });
+  const proxyMap = new Map(
+    (allProxiesData?.list ?? []).map((p) => [p.id, p.name]),
   );
 
   // 查询用量窗口
@@ -272,41 +325,88 @@ export default function AccountsPage() {
     onError: (err: Error) => toast('error', err.message),
   });
 
+  // 刷新令牌
+  const refreshQuotaMutation = useMutation({
+    mutationFn: (id: number) => accountsApi.refreshQuota(id),
+    onSuccess: () => {
+      toast('success', t('accounts.refresh_quota_success'));
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+    },
+    onError: (err: Error) => toast('error', err.message),
+  });
+
+  // 更多菜单状态（合并 id 和位置为单一状态，避免分步更新导致闪跳）
+  const [moreMenu, setMoreMenu] = useState<{ id: number; top: number; left: number } | null>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+  const moreMenuBtnRef = useRef<HTMLButtonElement>(null);
+
+  // 统计弹窗
+  const [statsAccountId, setStatsAccountId] = useState<number | null>(null);
+
+  // 点击外部关闭更多菜单
+  useEffect(() => {
+    if (!moreMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node) &&
+        moreMenuBtnRef.current && !moreMenuBtnRef.current.contains(e.target as Node)
+      ) {
+        setMoreMenu(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [moreMenu]);
+
   // 表格列定义
   const columns: Column<AccountResp>[] = [
     {
-      key: 'id',
-      title: t('common.id'),
-      width: '60px',
-      render: (row) => (
-        <span className="font-mono">
-          {row.id}
-        </span>
-      ),
-    },
-    {
       key: 'name',
       title: t('common.name'),
-      render: (row) => (
-        <span style={{ color: 'var(--ag-text)' }} className="font-medium">
-          {row.name}
-        </span>
-      ),
+      width: '150px',
+      fixed: 'left',
+      render: (row) => {
+        const email = row.credentials?.email;
+        return (
+          <div className="flex flex-col">
+            <span style={{ color: 'var(--ag-text)' }} className="font-medium">
+              {row.name}
+            </span>
+            {email && (
+              <span className="text-[11px]" style={{ color: 'var(--ag-text-tertiary)' }}>
+                {email}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'platform',
       title: t('accounts.platform_type'),
-      render: (row) => (
-        <span className="inline-flex items-center gap-1.5">
-          <Server className="w-3.5 h-3.5" style={{ color: 'var(--ag-text-tertiary)' }} />
-          <span>{row.platform}</span>
-          {row.type && (
-            <span className="text-[10px] px-1 py-0 rounded" style={{ background: 'var(--ag-bg-surface)', border: '1px solid var(--ag-glass-border)', color: 'var(--ag-text-secondary)' }}>
-              {row.type}
+      render: (row) => {
+        const planType = row.credentials?.plan_type;
+        return (
+          <div className="flex flex-col items-center gap-1.5">
+            <span className="inline-flex items-center gap-1">
+              <PlatformIcon platform={row.platform} className="w-3.5 h-3.5" style={{ color: 'var(--ag-text-tertiary)' }} />
+              <span>{platformName(row.platform)}</span>
             </span>
-          )}
-        </span>
-      ),
+            <div className="flex items-center gap-1">
+              {row.type && (
+                <span className="text-[10px] px-1 py-0 rounded" style={{ background: 'var(--ag-bg-surface)', border: '1px solid var(--ag-glass-border)', color: 'var(--ag-text-secondary)' }}>
+                  {row.type.charAt(0).toUpperCase() + row.type.slice(1)}
+                </span>
+              )}
+              {planType && (
+                <span className="text-[10px] px-1 py-0 rounded font-medium" style={{ background: 'var(--ag-primary)', color: 'var(--ag-text-inverse)', opacity: 0.85 }}>
+                  {planType.charAt(0).toUpperCase() + planType.slice(1)}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      },
     },
     {
       key: 'capacity',
@@ -369,9 +469,9 @@ export default function AccountsPage() {
       width: '80px',
       render: (row) =>
         row.proxy_id ? (
-          <span className="inline-flex items-center gap-1 font-mono">
+          <span className="inline-flex items-center gap-1">
             <Shield className="w-3 h-3" style={{ color: 'var(--ag-text-tertiary)' }} />
-            #{row.proxy_id}
+            {proxyMap.get(row.proxy_id) ?? `#${row.proxy_id}`}
           </span>
         ) : (
           <span style={{ color: 'var(--ag-text-tertiary)' }}>-</span>
@@ -431,19 +531,36 @@ export default function AccountsPage() {
           return 'var(--ag-danger)';
         };
 
+        // 简化 label：取最后一段（如 "GPT-5.3-Codex-Spark" → "Spark"）
+        const shortLabel = (label: string) => {
+          const parts = label.split(/[\s]+/);
+          // 第一部分是时间窗口（如 "5h"、"7d"），后面是模型名
+          const timePart = parts[0];
+          if (parts.length <= 1) return timePart;
+          const modelPart = parts.slice(1).join(' ');
+          const segments = modelPart.split('-');
+          return `${timePart} ${segments[segments.length - 1]}`;
+        };
+
         const badgeStyle = { background: 'var(--ag-bg-surface)', border: '1px solid var(--ag-glass-border)', minWidth: 24 };
 
         return (
-          <div className="flex flex-col gap-0.5 text-[11px]" style={{ fontFamily: 'var(--ag-font-mono)' }}>
+          <div className="flex flex-col gap-1.5 text-[11px]" style={{ fontFamily: 'var(--ag-font-mono)', minWidth: 160 }}>
             {windows.map((w, i) => (
-              <div key={i} className="flex items-center gap-1">
-                <span className="inline-flex items-center justify-center px-1 py-0 rounded text-[10px] font-medium" style={badgeStyle}>
-                  {w.label}
+              <div key={i} className="flex items-center gap-1.5">
+                <span className="inline-flex items-center justify-center px-1 py-0 rounded text-[10px] font-medium shrink-0" style={badgeStyle}>
+                  {shortLabel(w.label)}
                 </span>
-                <span style={{ color: usageColor(w.used_percent) }}>
+                <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--ag-glass-border)', minWidth: 40 }}>
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${Math.min(100, Math.round(w.used_percent))}%`, background: usageColor(w.used_percent) }}
+                  />
+                </div>
+                <span className="shrink-0" style={{ color: usageColor(w.used_percent), fontSize: 10 }}>
                   {Math.round(w.used_percent)}%
                 </span>
-                <span style={{ color: 'var(--ag-text-tertiary)', fontSize: 10 }}>
+                <span className="shrink-0" style={{ color: 'var(--ag-text-tertiary)', fontSize: 10 }}>
                   {formatReset(w.reset_seconds)}
                 </span>
               </div>
@@ -510,33 +627,42 @@ export default function AccountsPage() {
     {
       key: 'actions',
       title: t('common.actions'),
+      fixed: 'right',
       render: (row) => (
-        <div className="flex gap-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={<Pencil className="w-3.5 h-3.5" />}
+        <div className="flex items-center justify-center gap-0.5">
+          <button
+            className="p-1.5 rounded hover:bg-bg-hover transition-colors"
+            style={{ color: 'var(--ag-text-secondary)' }}
+            title={t('common.edit')}
             onClick={() => setEditingAccount(row)}
           >
-            {t('common.edit')}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={<Zap className="w-3.5 h-3.5" />}
-            onClick={() => setTestingAccount(row)}
-          >
-            {t('accounts.test_connection')}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={<Trash2 className="w-3.5 h-3.5" />}
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+          <button
+            className="p-1.5 rounded hover:bg-bg-hover transition-colors"
             style={{ color: 'var(--ag-danger)' }}
+            title={t('common.delete')}
             onClick={() => setDeletingAccount(row)}
           >
-            {t('common.delete')}
-          </Button>
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            ref={moreMenu?.id === row.id ? moreMenuBtnRef : undefined}
+            className="p-1.5 rounded hover:bg-bg-hover transition-colors"
+            style={{ color: 'var(--ag-text-secondary)' }}
+            title={t('common.more')}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (moreMenu?.id === row.id) {
+                setMoreMenu(null);
+              } else {
+                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                setMoreMenu({ id: row.id, top: rect.bottom + 4, left: rect.right });
+              }
+            }}
+          >
+            <MoreHorizontal className="w-3.5 h-3.5" />
+          </button>
         </div>
       ),
     },
@@ -555,25 +681,88 @@ export default function AccountsPage() {
       />
 
       {/* 筛选 */}
-      <div className="flex items-center gap-3 mb-5">
+      <div className="flex items-end gap-3 mb-5 flex-wrap">
+        <Input
+          value={keyword}
+          onChange={(e) => { setKeyword(e.target.value); setPage(1); }}
+          placeholder={t('common.search')}
+          icon={<Search className="w-4 h-4" />}
+          style={{ width: 200 }}
+        />
         <Select
           value={platformFilter}
-          onChange={(e) => {
-            setPlatformFilter(e.target.value);
-            setPage(1);
-          }}
+          onChange={(e) => { setPlatformFilter(e.target.value); setPage(1); }}
           options={PLATFORM_OPTIONS}
           label={t('accounts.platform')}
         />
         <Select
           value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value);
-            setPage(1);
-          }}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
           options={STATUS_OPTIONS}
           label={t('common.status')}
         />
+        <Select
+          value={groupFilter}
+          onChange={(e) => { setGroupFilter(e.target.value); setPage(1); }}
+          options={[
+            { value: '', label: t('accounts.all_groups') },
+            ...(allGroupsData?.list ?? []).map((g) => ({ value: String(g.id), label: g.name })),
+          ]}
+          label={t('accounts.groups')}
+        />
+        <Select
+          value={proxyFilter}
+          onChange={(e) => { setProxyFilter(e.target.value); setPage(1); }}
+          options={[
+            { value: '', label: t('accounts.all_proxies') },
+            ...(allProxiesData?.list ?? []).map((p) => ({ value: String(p.id), label: p.name })),
+          ]}
+          label={t('accounts.proxy')}
+        />
+
+        {/* 刷新 & 自动刷新 */}
+        <div className="flex items-center gap-1.5 ml-auto">
+          <button
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['accounts'] })}
+            className="flex items-center justify-center w-8 h-8 rounded-lg text-text-tertiary hover:text-text-secondary hover:bg-bg-hover transition-colors"
+            title={t('common.refresh')}
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+          <div className="relative" ref={refreshMenuRef}>
+            <button
+              onClick={() => setShowRefreshMenu(!showRefreshMenu)}
+              className={`flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs transition-colors ${
+                autoRefresh ? 'text-primary bg-primary-subtle' : 'text-text-tertiary hover:text-text-secondary hover:bg-bg-hover'
+              }`}
+            >
+              {autoRefresh ? (
+                <span>{t('accounts.auto_refresh')}{countdown}s</span>
+              ) : (
+                <span>{t('accounts.auto_refresh_off')}</span>
+              )}
+              <ChevronDown className={`w-3 h-3 transition-transform ${showRefreshMenu ? 'rotate-180' : ''}`} />
+            </button>
+            {showRefreshMenu && (
+              <div
+                className="absolute right-0 mt-1 w-40 rounded-lg border shadow-lg py-1 z-50"
+                style={{ background: 'var(--ag-bg-elevated)', borderColor: 'var(--ag-glass-border)' }}
+              >
+                {AUTO_REFRESH_OPTIONS.map((sec) => (
+                  <button
+                    key={sec}
+                    onClick={() => { setAutoRefresh(sec); setShowRefreshMenu(false); }}
+                    className="flex items-center justify-between w-full px-3 py-2 text-sm hover:bg-bg-hover transition-colors text-left"
+                    style={{ color: 'var(--ag-text)' }}
+                  >
+                    <span>{sec === 0 ? t('accounts.auto_refresh_off') : `${sec}s`}</span>
+                    {autoRefresh === sec && <span className="text-primary">✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* 表格 */}
@@ -583,9 +772,11 @@ export default function AccountsPage() {
         loading={isLoading}
         rowKey={(row) => row.id}
         page={page}
-        pageSize={PAGE_SIZE}
+        pageSize={pageSize}
         total={data?.total ?? 0}
         onPageChange={setPage}
+        pageSizeOptions={PAGE_SIZE_OPTIONS}
+        onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
       />
 
       {/* 创建弹窗 */}
@@ -610,6 +801,58 @@ export default function AccountsPage() {
         />
       )}
 
+      {/* 更多操作下拉菜单 (Portal) */}
+      {moreMenu && createPortal(
+        <div
+          ref={moreMenuRef}
+          className="fixed py-1 rounded-lg shadow-lg min-w-[140px]"
+          style={{
+            top: moreMenu.top,
+            left: moreMenu.left,
+            transform: 'translateX(-100%)',
+            zIndex: 9999,
+            background: 'var(--ag-bg-elevated)',
+            border: '1px solid var(--ag-glass-border)',
+          }}
+        >
+          {(() => {
+            const row = data?.list?.find((a) => a.id === moreMenu.id);
+            if (!row) return null;
+            return (
+              <>
+                <button
+                  className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-bg-hover transition-colors text-left"
+                  style={{ color: 'var(--ag-text-secondary)' }}
+                  onClick={() => { setTestingAccount(row); setMoreMenu(null); }}
+                >
+                  <Zap className="w-3.5 h-3.5" style={{ color: 'var(--ag-warning)' }} />
+                  {t('accounts.test_connection')}
+                </button>
+                <button
+                  className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-bg-hover transition-colors text-left"
+                  style={{ color: 'var(--ag-text-secondary)' }}
+                  onClick={() => { setStatsAccountId(row.id); setMoreMenu(null); }}
+                >
+                  <BarChart3 className="w-3.5 h-3.5" style={{ color: 'var(--ag-primary)' }} />
+                  {t('accounts.view_stats')}
+                </button>
+                {row.type === 'oauth' && (
+                  <button
+                    className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-bg-hover transition-colors text-left"
+                    style={{ color: 'var(--ag-text-secondary)' }}
+                    onClick={() => { refreshQuotaMutation.mutate(row.id); setMoreMenu(null); }}
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" style={{ color: 'var(--ag-success)' }} />
+                    {t('accounts.refresh_quota')}
+                  </button>
+                )}
+              </>
+            );
+          })()}
+        </div>,
+        document.body,
+      )}
+
       {/* 删除确认 */}
       <ConfirmModal
         open={!!deletingAccount}
@@ -627,6 +870,14 @@ export default function AccountsPage() {
         account={testingAccount}
         onClose={() => setTestingAccount(null)}
       />
+
+      {/* 账号统计 */}
+      {statsAccountId !== null && (
+        <AccountStatsModal
+          accountId={statsAccountId}
+          onClose={() => setStatsAccountId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -647,6 +898,7 @@ function CreateAccountModal({
   platforms: string[];
 }) {
   const { t } = useTranslation();
+  const { platformName: pName } = usePlatforms();
   const [platform, setPlatform] = useState('');
   const [accountType, setAccountType] = useState('');
   const [form, setForm] = useState<Omit<CreateAccountReq, 'platform' | 'credentials' | 'type'>>({
@@ -739,7 +991,7 @@ function CreateAccountModal({
           onChange={(e) => handlePlatformChange(e.target.value)}
           options={[
             { value: '', label: t('accounts.select_platform') },
-            ...platforms.map((p) => ({ value: p, label: p })),
+            ...platforms.map((p) => ({ value: p, label: pName(p) })),
           ]}
         />
 
@@ -780,12 +1032,16 @@ function CreateAccountModal({
         ) : null}
 
         <Input
-          label={t('accounts.priority')}
+          label={t('accounts.priority_hint')}
           type="number"
-          value={String(form.priority ?? 0)}
-          onChange={(e) =>
-            setForm({ ...form, priority: Number(e.target.value) })
-          }
+          min={0}
+          max={999}
+          step={1}
+          value={String(form.priority ?? 50)}
+          onChange={(e) => {
+            const v = Math.round(Number(e.target.value));
+            setForm({ ...form, priority: Math.max(0, Math.min(999, v)) });
+          }}
           icon={<Hash className="w-4 h-4" />}
         />
         <Input
@@ -830,6 +1086,16 @@ function GroupCheckboxList({
   onChange: (ids: number[]) => void;
 }) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   if (groups.length === 0) return null;
 
@@ -841,38 +1107,59 @@ function GroupCheckboxList({
     );
   };
 
+  const selectedGroups = groups.filter((g) => selectedIds.includes(g.id));
+
   return (
-    <div>
+    <div ref={ref} className="relative">
       <label
         className="block text-xs font-medium mb-1.5"
         style={{ color: 'var(--ag-text-secondary)' }}
       >
         {t('accounts.groups')}
       </label>
-      <div
-        className="flex flex-wrap gap-2 p-3 rounded-lg border max-h-32 overflow-y-auto"
-        style={{ borderColor: 'var(--ag-glass-border)', background: 'var(--ag-bg-surface)' }}
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-between w-full px-3 py-2 rounded-lg border text-sm text-left transition-colors"
+        style={{ borderColor: 'var(--ag-glass-border)', background: 'var(--ag-bg-surface)', color: 'var(--ag-text)' }}
       >
-        {groups.map((g) => (
-          <label
-            key={g.id}
-            className="inline-flex items-center gap-1.5 cursor-pointer text-xs"
-            style={{ color: 'var(--ag-text)' }}
-          >
-            <input
-              type="checkbox"
-              checked={selectedIds.includes(g.id)}
-              onChange={() => toggle(g.id)}
-              className="rounded"
-              style={{ accentColor: 'var(--ag-primary)' }}
-            />
-            <span>{g.name}</span>
-            <span className="text-[10px]" style={{ color: 'var(--ag-text-tertiary)' }}>
-              {g.platform}
-            </span>
-          </label>
-        ))}
-      </div>
+        <span className="truncate" style={selectedGroups.length === 0 ? { color: 'var(--ag-text-tertiary)' } : undefined}>
+          {selectedGroups.length === 0
+            ? t('accounts.select_groups')
+            : selectedGroups.map((g) => g.name).join('、')}
+        </span>
+        <ChevronDown className={`w-4 h-4 flex-shrink-0 ml-2 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} style={{ color: 'var(--ag-text-tertiary)' }} />
+      </button>
+      {open && (
+        <div
+          className="absolute z-50 mt-1 w-full rounded-lg border shadow-lg max-h-48 overflow-y-auto py-1"
+          style={{ borderColor: 'var(--ag-glass-border)', background: 'var(--ag-bg-elevated)' }}
+        >
+          {groups.map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => toggle(g.id)}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-bg-hover transition-colors text-left"
+              style={{ color: 'var(--ag-text)' }}
+            >
+              <span
+                className="flex items-center justify-center w-4 h-4 rounded border flex-shrink-0 transition-colors"
+                style={{
+                  borderColor: selectedIds.includes(g.id) ? 'var(--ag-primary)' : 'var(--ag-glass-border)',
+                  background: selectedIds.includes(g.id) ? 'var(--ag-primary)' : 'transparent',
+                }}
+              >
+                {selectedIds.includes(g.id) && (
+                  <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none"><path d="M2.5 6l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                )}
+              </span>
+              <span>{g.name}</span>
+              <span className="text-[10px]" style={{ color: 'var(--ag-text-tertiary)' }}>{g.platform}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -884,18 +1171,22 @@ function CredentialFieldInput({
   value,
   onChange,
   disabled,
+  placeholder,
 }: {
   field: CredentialField;
   value: string;
   onChange: (val: string) => void;
   disabled?: boolean;
+  placeholder?: string;
 }) {
+  const hint = placeholder ?? field.placeholder;
+
   if (field.type === 'textarea') {
     return (
       <Textarea
         label={field.label}
         required={field.required}
-        placeholder={field.placeholder}
+        placeholder={hint}
         value={value}
         rows={3}
         onChange={(e) => onChange(e.target.value)}
@@ -905,15 +1196,19 @@ function CredentialFieldInput({
   }
 
   // text 和 password 都使用 Input
+  // 密码字段使用 type="text" + CSS 遮蔽，避免浏览器检测到 password 字段自动填充
+  const isPassword = field.type === 'password';
   return (
     <Input
       label={field.label}
-      type={field.type === 'password' ? 'password' : 'text'}
+      type="text"
       required={field.required}
-      placeholder={field.placeholder}
+      placeholder={hint}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
+      autoComplete="off"
+      style={isPassword ? { WebkitTextSecurity: 'disc', textSecurity: 'disc' } as React.CSSProperties : undefined}
     />
   );
 }
@@ -979,6 +1274,7 @@ function SchemaCredentialsForm({
             onChange={(val) =>
               onCredentialsChange({ ...credentials, [field.key]: val })
             }
+            placeholder={mode === 'edit' && field.type === 'password' ? t('accounts.leave_empty_to_keep') : undefined}
           />
         ))}
     </div>
@@ -1001,6 +1297,7 @@ function EditAccountModal({
   loading: boolean;
 }) {
   const { t } = useTranslation();
+  const { platformName: pName } = usePlatforms();
   const initialAccountType = account.type || detectCredentialAccountType(account.credentials);
   const [accountType, setAccountType] = useState(initialAccountType);
   const [form, setForm] = useState<UpdateAccountReq>({
@@ -1023,9 +1320,27 @@ function EditAccountModal({
   const { Form: PluginAccountForm, pluginId } = usePluginAccountForm(account.platform);
   const pluginOAuth = createPluginOAuthBridge(pluginId);
 
+  // 保留原始凭证，用于提交时回填未修改的密码字段
+  const origCredentials = useRef(account.credentials);
   const [credentials, setCredentials] = useState<Record<string, string>>(
     account.credentials,
   );
+
+  // schema 加载后，清空密码字段的显示值（避免回填）
+  const passwordFieldsCleared = useRef(false);
+  useEffect(() => {
+    if (!schema || passwordFieldsCleared.current) return;
+    const passwordKeys = getSchemaVisibleFields(schema, accountType)
+      .filter((f) => f.type === 'password')
+      .map((f) => f.key);
+    if (passwordKeys.length === 0) return;
+    passwordFieldsCleared.current = true;
+    setCredentials((prev) => {
+      const next = { ...prev };
+      for (const key of passwordKeys) next[key] = '';
+      return next;
+    });
+  }, [schema, accountType]);
   const [groupIds, setGroupIds] = useState<number[]>(account.group_ids ?? []);
 
   // 查询分组列表
@@ -1070,7 +1385,14 @@ function EditAccountModal({
             {t('common.cancel')}
           </Button>
           <Button
-            onClick={() => onSubmit({ ...form, type: accountType || undefined, credentials, group_ids: groupIds })}
+            onClick={() => {
+              // 提交时：用户未修改的密码字段回填原值
+              const merged = { ...credentials };
+              for (const [k, v] of Object.entries(origCredentials.current)) {
+                if (merged[k] === '' && v) merged[k] = v;
+              }
+              onSubmit({ ...form, type: accountType || undefined, credentials: merged, group_ids: groupIds });
+            }}
             loading={loading}
           >
             {t('common.save')}
@@ -1079,7 +1401,7 @@ function EditAccountModal({
       }
     >
       <div className="space-y-4">
-        <Input label={t('accounts.platform')} value={account.platform} disabled />
+        <Input label={t('accounts.platform')} value={pName(account.platform)} disabled />
         <Input
           label={t('common.name')}
           value={form.name ?? ''}
@@ -1113,27 +1435,22 @@ function EditAccountModal({
           />
         ) : null}
 
-        <Select
-          label={t('common.status')}
-          value={form.status ?? 'active'}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              status: e.target.value as 'active' | 'disabled',
-            })
-          }
-          options={[
-            { value: 'active', label: t('status.active') },
-            { value: 'disabled', label: t('status.disabled') },
-          ]}
+        <Switch
+          label={t('accounts.enable_dispatch')}
+          checked={form.status !== 'disabled'}
+          onChange={(on) => setForm({ ...form, status: on ? 'active' : 'disabled' })}
         />
         <Input
-          label={t('accounts.priority')}
+          label={t('accounts.priority_hint')}
           type="number"
-          value={String(form.priority ?? 0)}
-          onChange={(e) =>
-            setForm({ ...form, priority: Number(e.target.value) })
-          }
+          min={0}
+          max={999}
+          step={1}
+          value={String(form.priority ?? 50)}
+          onChange={(e) => {
+            const v = Math.round(Number(e.target.value));
+            setForm({ ...form, priority: Math.max(0, Math.min(999, v)) });
+          }}
           icon={<Hash className="w-4 h-4" />}
         />
         <Input
@@ -1179,6 +1496,63 @@ function EditAccountModal({
           onChange={setGroupIds}
         />
       </div>
+    </Modal>
+  );
+}
+
+// ==================== 账号统计弹窗 ====================
+
+function AccountStatsModal({
+  accountId,
+  onClose,
+}: {
+  accountId: number;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const { data, isLoading } = useQuery({
+    queryKey: ['account-stats', accountId],
+    queryFn: () => accountsApi.stats(accountId),
+  });
+
+  const periods = [
+    { key: 'today', label: t('accounts.stats_today') },
+    { key: 'last_7d', label: t('accounts.stats_7d') },
+    { key: 'last_30d', label: t('accounts.stats_30d') },
+  ] as const;
+
+  return (
+    <Modal open onClose={onClose} title={t('accounts.view_stats')}>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12 text-text-tertiary text-sm">
+          {t('common.loading')}
+        </div>
+      ) : data ? (
+        <div className="space-y-4">
+          {periods.map(({ key, label }) => {
+            const s = data[key];
+            return (
+              <div key={key} className="rounded-lg border border-border-subtle p-4 space-y-2">
+                <div className="text-xs font-semibold text-text-tertiary uppercase tracking-wide">{label}</div>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <div className="text-lg font-bold text-text">{s.count.toLocaleString()}</div>
+                    <div className="text-[11px] text-text-tertiary">{t('accounts.stats_requests')}</div>
+                  </div>
+                  <div>
+                    <div className="text-lg font-bold text-text">{(s.input_tokens + s.output_tokens).toLocaleString()}</div>
+                    <div className="text-[11px] text-text-tertiary">{t('accounts.stats_tokens')}</div>
+                  </div>
+                  <div>
+                    <div className="text-lg font-bold text-text">${s.total_cost.toFixed(4)}</div>
+                    <div className="text-[11px] text-text-tertiary">{t('accounts.stats_cost')}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
     </Modal>
   );
 }

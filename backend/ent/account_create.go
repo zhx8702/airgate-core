@@ -321,6 +321,11 @@ func (ac *AccountCreate) check() error {
 	if _, ok := ac.mutation.Priority(); !ok {
 		return &ValidationError{Name: "priority", err: errors.New(`ent: missing required field "Account.priority"`)}
 	}
+	if v, ok := ac.mutation.Priority(); ok {
+		if err := account.PriorityValidator(v); err != nil {
+			return &ValidationError{Name: "priority", err: fmt.Errorf(`ent: validator failed for field "Account.priority": %w`, err)}
+		}
+	}
 	if _, ok := ac.mutation.MaxConcurrency(); !ok {
 		return &ValidationError{Name: "max_concurrency", err: errors.New(`ent: missing required field "Account.max_concurrency"`)}
 	}

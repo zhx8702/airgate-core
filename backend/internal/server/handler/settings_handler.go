@@ -53,7 +53,7 @@ func (h *SettingsHandler) GetSettings(c *gin.Context) {
 func (h *SettingsHandler) UpdateSettings(c *gin.Context) {
 	var req dto.UpdateSettingsReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 

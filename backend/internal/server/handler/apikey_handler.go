@@ -41,7 +41,7 @@ func (h *APIKeyHandler) ListKeys(c *gin.Context) {
 
 	var page dto.PageReq
 	if err := c.ShouldBindQuery(&page); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -93,7 +93,7 @@ func (h *APIKeyHandler) CreateKey(c *gin.Context) {
 
 	var req dto.CreateAPIKeyReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -193,7 +193,7 @@ func (h *APIKeyHandler) UpdateKey(c *gin.Context) {
 
 	var req dto.UpdateAPIKeyReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -295,7 +295,7 @@ func (h *APIKeyHandler) AdminUpdateKey(c *gin.Context) {
 
 	var req dto.AdminUpdateAPIKeyReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 

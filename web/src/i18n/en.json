@@ -259,7 +259,7 @@
     "select_platform": "Select platform",
     "rate_multiplier": "Rate Multiplier",
     "exclusive": "Exclusive",
-    "exclusive_hint": "Exclusive group (requires subscription)",
+    "exclusive_hint": "Exclusive group (only assigned users can access)",
     "subscription_type": "Subscription Type",
     "type_standard": "Standard",
     "type_subscription": "Subscription",

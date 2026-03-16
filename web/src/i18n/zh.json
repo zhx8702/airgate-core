@@ -259,7 +259,7 @@
     "select_platform": "请选择平台",
     "rate_multiplier": "费率倍率",
     "exclusive": "专属",
-    "exclusive_hint": "专属分组（需要订阅才能使用）",
+    "exclusive_hint": "专属分组（仅分配了该分组的用户可用）",
     "subscription_type": "订阅类型",
     "type_standard": "标准",
     "type_subscription": "订阅制",

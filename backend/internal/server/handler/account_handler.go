@@ -7,9 +7,11 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 
 	sdk "github.com/DouDOU-start/airgate-sdk"
 
@@ -177,9 +179,19 @@ func (h *AccountHandler) UpdateAccount(c *gin.Context) {
 	}
 
 	var req dto.UpdateAccountReq
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBindBodyWith(&req, binding.JSON); err != nil {
 		response.BindError(c, err)
 		return
+	}
+
+	var rawPayload map[string]json.RawMessage
+	if rawBody, ok := c.Get(gin.BodyBytesKey); ok {
+		if bodyBytes, ok := rawBody.([]byte); ok && len(bodyBytes) > 0 {
+			if err := json.Unmarshal(bodyBytes, &rawPayload); err != nil {
+				response.BadRequest(c, "请求体格式错误")
+				return
+			}
+		}
 	}
 
 	builder := h.db.Account.UpdateOneID(id)
@@ -218,9 +230,13 @@ func (h *AccountHandler) UpdateAccount(c *gin.Context) {
 		}
 	}
 
-	// 更新代理关联
-	if req.ProxyID != nil {
-		builder = builder.ClearProxy().SetProxyID(int(*req.ProxyID))
+	// 更新代理关联，支持显式清空代理（proxy_id: null）
+	if rawProxyID, ok := rawPayload["proxy_id"]; ok {
+		if strings.TrimSpace(string(rawProxyID)) == "null" {
+			builder = builder.ClearProxy()
+		} else if req.ProxyID != nil {
+			builder = builder.ClearProxy().SetProxyID(int(*req.ProxyID))
+		}
 	}
 
 	a, err := builder.Save(c.Request.Context())

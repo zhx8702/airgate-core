@@ -1383,10 +1383,15 @@ function EditAccountModal({
           </Button>
           <Button
             onClick={() => {
-              // 提交时：用户未修改的密码字段回填原值
+              // 提交时：仅将未修改的密码字段回填原值，允许普通字段被清空
               const merged = { ...credentials };
+              const passwordKeys = new Set(
+                getSchemaVisibleFields(schema, accountType)
+                  .filter((field) => field.type === 'password')
+                  .map((field) => field.key),
+              );
               for (const [k, v] of Object.entries(origCredentials.current)) {
-                if (merged[k] === '' && v) merged[k] = v;
+                if (passwordKeys.has(k) && merged[k] === '' && v) merged[k] = v;
               }
               onSubmit({ ...form, type: accountType || undefined, credentials: merged, group_ids: groupIds });
             }}
@@ -1470,11 +1475,11 @@ function EditAccountModal({
         />
         <Select
           label={t('accounts.proxy')}
-          value={String(form.proxy_id ?? '')}
+          value={form.proxy_id == null ? '' : String(form.proxy_id)}
           onChange={(e) =>
             setForm({
               ...form,
-              proxy_id: e.target.value ? Number(e.target.value) : undefined,
+              proxy_id: e.target.value ? Number(e.target.value) : null,
             })
           }
           options={[
@@ -1496,4 +1501,3 @@ function EditAccountModal({
     </Modal>
   );
 }
-

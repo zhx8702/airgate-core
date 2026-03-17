@@ -153,7 +153,7 @@ export interface UpdateAccountReq {
   status?: 'active' | 'disabled';
   priority?: number;
   max_concurrency?: number;
-  proxy_id?: number;
+  proxy_id?: number | null;
   rate_multiplier?: number;
   group_ids?: number[];
 }

@@ -52,6 +52,7 @@ const adminMenuItems: MenuItem[] = [
 const userMenuItems: MenuItem[] = [
   { path: '/profile', labelKey: 'nav.profile', icon: <User className="w-[18px] h-[18px]" />, sectionKey: 'nav.personal' },
   { path: '/keys', labelKey: 'nav.my_keys', icon: <Key className="w-[18px] h-[18px]" /> },
+  { path: '/usage', labelKey: 'nav.my_usage', icon: <BarChart3 className="w-[18px] h-[18px]" /> },
 ];
 
 function usePluginMenuItems(): MenuItem[] {

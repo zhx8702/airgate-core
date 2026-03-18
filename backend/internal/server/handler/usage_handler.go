@@ -70,6 +70,70 @@ func (h *UsageHandler) UserUsage(c *gin.Context) {
 	response.Success(c, response.PagedData(list, int64(total), q.Page, q.PageSize))
 }
 
+// UserUsageStats 用户聚合统计（支持筛选条件）
+func (h *UsageHandler) UserUsageStats(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	uid, ok := userID.(int)
+	if !ok {
+		response.Unauthorized(c, "用户未认证")
+		return
+	}
+
+	var q dto.UsageFilterQuery
+	if err := c.ShouldBindQuery(&q); err != nil {
+		response.BindError(c, err)
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	query := h.db.UsageLog.Query().
+		Where(usagelog.HasUserWith(user.IDEQ(uid)))
+	query = applyFilterQuery(query, &q)
+
+	totalRequests, err := query.Count(ctx)
+	if err != nil {
+		slog.Error("统计用户请求数失败", "error", err)
+		response.InternalError(c, "统计失败")
+		return
+	}
+
+	// 重新构建 query 进行聚合（Count 会消费 query）
+	aggQuery := h.db.UsageLog.Query().
+		Where(usagelog.HasUserWith(user.IDEQ(uid)))
+	aggQuery = applyFilterQuery(aggQuery, &q)
+
+	var results []struct {
+		InputTokens  int64   `json:"input_tokens"`
+		OutputTokens int64   `json:"output_tokens"`
+		TotalCost    float64 `json:"total_cost"`
+		ActualCost   float64 `json:"actual_cost"`
+	}
+	err = aggQuery.
+		Aggregate(
+			ent.As(ent.Sum(usagelog.FieldInputTokens), "input_tokens"),
+			ent.As(ent.Sum(usagelog.FieldOutputTokens), "output_tokens"),
+			ent.As(ent.Sum(usagelog.FieldTotalCost), "total_cost"),
+			ent.As(ent.Sum(usagelog.FieldActualCost), "actual_cost"),
+		).
+		Scan(ctx, &results)
+
+	var totalTokens int64
+	var totalCost, totalActualCost float64
+	if err == nil && len(results) > 0 {
+		totalTokens = results[0].InputTokens + results[0].OutputTokens
+		totalCost = results[0].TotalCost
+		totalActualCost = results[0].ActualCost
+	}
+
+	response.Success(c, dto.UsageStatsResp{
+		TotalRequests:   int64(totalRequests),
+		TotalTokens:     totalTokens,
+		TotalCost:       totalCost,
+		TotalActualCost: totalActualCost,
+	})
+}
+
 // AdminUsage 管理员查看全局使用记录
 func (h *UsageHandler) AdminUsage(c *gin.Context) {
 	var q dto.UsageQuery
@@ -162,8 +226,8 @@ func (h *UsageHandler) AdminUsageStats(c *gin.Context) {
 	})
 }
 
-// applyUsageFilters 应用使用记录的通用筛选条件
-func applyUsageFilters(query *ent.UsageLogQuery, q *dto.UsageQuery) *ent.UsageLogQuery {
+// applyFilterQuery 应用筛选条件（不含分页）
+func applyFilterQuery(query *ent.UsageLogQuery, q *dto.UsageFilterQuery) *ent.UsageLogQuery {
 	if q.Platform != "" {
 		query = query.Where(usagelog.PlatformEQ(q.Platform))
 	}
@@ -179,11 +243,20 @@ func applyUsageFilters(query *ent.UsageLogQuery, q *dto.UsageQuery) *ent.UsageLo
 	if q.EndDate != "" {
 		t, err := time.Parse("2006-01-02", q.EndDate)
 		if err == nil {
-			// 结束日期包含当天，所以加一天
 			query = query.Where(usagelog.CreatedAtLT(t.AddDate(0, 0, 1)))
 		}
 	}
 	return query
+}
+
+// applyUsageFilters 应用使用记录的通用筛选条件
+func applyUsageFilters(query *ent.UsageLogQuery, q *dto.UsageQuery) *ent.UsageLogQuery {
+	return applyFilterQuery(query, &dto.UsageFilterQuery{
+		Platform:  q.Platform,
+		Model:     q.Model,
+		StartDate: q.StartDate,
+		EndDate:   q.EndDate,
+	})
 }
 
 // toUsageLogResp 将 ent.UsageLog 转换为 dto.UsageLogResp

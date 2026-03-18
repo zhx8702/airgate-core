@@ -40,6 +40,14 @@ type UsageQuery struct {
 	EndDate   string `form:"end_date"`
 }
 
+// UsageFilterQuery 使用记录筛选参数（不含分页，用于聚合统计）
+type UsageFilterQuery struct {
+	Platform  string `form:"platform"`
+	Model     string `form:"model"`
+	StartDate string `form:"start_date"`
+	EndDate   string `form:"end_date"`
+}
+
 // UsageStatsResp 聚合统计响应
 type UsageStatsResp struct {
 	TotalRequests   int64          `json:"total_requests"`

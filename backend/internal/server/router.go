@@ -25,7 +25,7 @@ func (s *Server) registerRoutes() {
 	userHandler := handler.NewUserHandler(s.db)
 	accountHandler := handler.NewAccountHandler(s.db, s.pluginMgr, s.concurrency)
 	groupHandler := handler.NewGroupHandler(s.db)
-	apikeyHandler := handler.NewAPIKeyHandler(s.db, s.cfg.JWT.Secret)
+	apikeyHandler := handler.NewAPIKeyHandler(s.db, s.cfg.APIKeySecret())
 	subscriptionHandler := handler.NewSubscriptionHandler(s.db)
 	usageHandler := handler.NewUsageHandler(s.db)
 	proxyHandler := handler.NewProxyHandler(s.db)
@@ -77,6 +77,7 @@ func (s *Server) registerRoutes() {
 
 		// 使用记录
 		userGroup.GET("/usage", usageHandler.UserUsage)
+		userGroup.GET("/usage/stats", usageHandler.UserUsageStats)
 
 		// 仪表盘
 		userGroup.GET("/dashboard/stats", dashboardHandler.Stats)

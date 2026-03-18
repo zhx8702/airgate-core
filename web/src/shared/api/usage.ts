@@ -5,6 +5,8 @@ export const usageApi = {
   // 用户接口
   list: (params: UsageQuery) =>
     get<PagedData<UsageLogResp>>('/api/v1/usage', params),
+  userStats: (params: Omit<UsageQuery, 'page' | 'page_size'>) =>
+    get<UsageStatsResp>('/api/v1/usage/stats', params),
 
   // 管理员接口
   adminList: (params: UsageQuery) =>

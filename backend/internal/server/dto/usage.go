@@ -95,6 +95,9 @@ type GroupStats struct {
 // UsageStatsQuery 统计查询参数
 type UsageStatsQuery struct {
 	GroupBy   string `form:"group_by" binding:"required,oneof=model user account group"` // 聚合维度
+	UserID    *int64 `form:"user_id"`
+	Platform  string `form:"platform"`
+	Model     string `form:"model"`
 	StartDate string `form:"start_date"`
 	EndDate   string `form:"end_date"`
 }

@@ -1,12 +1,15 @@
 package handler
 
 import (
+	"context"
 	"log/slog"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/DouDOU-start/airgate-core/ent"
+	"github.com/DouDOU-start/airgate-core/ent/account"
+	"github.com/DouDOU-start/airgate-core/ent/group"
 	"github.com/DouDOU-start/airgate-core/ent/usagelog"
 	"github.com/DouDOU-start/airgate-core/ent/user"
 	"github.com/DouDOU-start/airgate-core/internal/server/dto"
@@ -183,48 +186,243 @@ func (h *UsageHandler) AdminUsage(c *gin.Context) {
 	response.Success(c, response.PagedData(list, int64(total), q.Page, q.PageSize))
 }
 
-// AdminUsageStats 管理员聚合统计
+// AdminUsageStats 管理员聚合统计（支持 group_by 分组）
 func (h *UsageHandler) AdminUsageStats(c *gin.Context) {
+	var q dto.UsageStatsQuery
+	if err := c.ShouldBindQuery(&q); err != nil {
+		response.BindError(c, err)
+		return
+	}
+
 	ctx := c.Request.Context()
 
+	// 构建基础查询（应用所有筛选条件）
+	baseQuery := h.db.UsageLog.Query()
+	if q.UserID != nil {
+		baseQuery = baseQuery.Where(usagelog.HasUserWith(user.IDEQ(int(*q.UserID))))
+	}
+	baseQuery = applyFilterQuery(baseQuery, &dto.UsageFilterQuery{
+		Platform:  q.Platform,
+		Model:     q.Model,
+		StartDate: q.StartDate,
+		EndDate:   q.EndDate,
+	})
+
 	// 总请求数
-	totalRequests, err := h.db.UsageLog.Query().Count(ctx)
+	totalRequests, err := baseQuery.Clone().Count(ctx)
 	if err != nil {
 		slog.Error("统计总请求数失败", "error", err)
 		response.InternalError(c, "统计失败")
 		return
 	}
 
-	// 使用 Ent 聚合查询获取总计
-	var results []struct {
+	// 全局汇总
+	var agg []struct {
 		InputTokens  int64   `json:"input_tokens"`
 		OutputTokens int64   `json:"output_tokens"`
 		TotalCost    float64 `json:"total_cost"`
 		ActualCost   float64 `json:"actual_cost"`
 	}
-	err = h.db.UsageLog.Query().
+	err = baseQuery.Clone().
 		Aggregate(
 			ent.As(ent.Sum(usagelog.FieldInputTokens), "input_tokens"),
 			ent.As(ent.Sum(usagelog.FieldOutputTokens), "output_tokens"),
 			ent.As(ent.Sum(usagelog.FieldTotalCost), "total_cost"),
 			ent.As(ent.Sum(usagelog.FieldActualCost), "actual_cost"),
 		).
-		Scan(ctx, &results)
+		Scan(ctx, &agg)
 
 	var totalTokens int64
 	var totalCost, totalActualCost float64
-	if err == nil && len(results) > 0 {
-		totalTokens = results[0].InputTokens + results[0].OutputTokens
-		totalCost = results[0].TotalCost
-		totalActualCost = results[0].ActualCost
+	if err == nil && len(agg) > 0 {
+		totalTokens = agg[0].InputTokens + agg[0].OutputTokens
+		totalCost = agg[0].TotalCost
+		totalActualCost = agg[0].ActualCost
 	}
 
-	response.Success(c, dto.UsageStatsResp{
+	resp := dto.UsageStatsResp{
 		TotalRequests:   int64(totalRequests),
 		TotalTokens:     totalTokens,
 		TotalCost:       totalCost,
 		TotalActualCost: totalActualCost,
-	})
+	}
+
+	// 分组聚合
+	switch q.GroupBy {
+	case "model":
+		resp.ByModel, err = h.statsByModel(ctx, baseQuery.Clone())
+	case "user":
+		resp.ByUser, err = h.statsByUser(ctx, baseQuery.Clone())
+	case "account":
+		resp.ByAccount, err = h.statsByAccount(ctx, baseQuery.Clone())
+	case "group":
+		resp.ByGroup, err = h.statsByGroup(ctx, baseQuery.Clone())
+	}
+	if err != nil {
+		slog.Error("分组统计失败", "group_by", q.GroupBy, "error", err)
+		response.InternalError(c, "统计失败")
+		return
+	}
+
+	response.Success(c, resp)
+}
+
+// statsByModel 按模型分组统计
+func (h *UsageHandler) statsByModel(ctx context.Context, query *ent.UsageLogQuery) ([]dto.ModelStats, error) {
+	var rows []struct {
+		Model        string  `json:"model"`
+		Count        int     `json:"count"`
+		InputTokens  int64   `json:"input_tokens"`
+		OutputTokens int64   `json:"output_tokens"`
+		TotalCost    float64 `json:"total_cost"`
+	}
+	err := query.GroupBy(usagelog.FieldModel).
+		Aggregate(
+			ent.Count(),
+			ent.As(ent.Sum(usagelog.FieldInputTokens), "input_tokens"),
+			ent.As(ent.Sum(usagelog.FieldOutputTokens), "output_tokens"),
+			ent.As(ent.Sum(usagelog.FieldTotalCost), "total_cost"),
+		).
+		Scan(ctx, &rows)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]dto.ModelStats, 0, len(rows))
+	for _, r := range rows {
+		result = append(result, dto.ModelStats{
+			Model:     r.Model,
+			Requests:  int64(r.Count),
+			Tokens:    r.InputTokens + r.OutputTokens,
+			TotalCost: r.TotalCost,
+		})
+	}
+	return result, nil
+}
+
+// statsByUser 按用户分组统计
+func (h *UsageHandler) statsByUser(ctx context.Context, query *ent.UsageLogQuery) ([]dto.UserStats, error) {
+	var rows []struct {
+		UserID    int     `json:"user_usage_logs"`
+		Count     int     `json:"count"`
+		TotalCost float64 `json:"total_cost"`
+	}
+	err := query.GroupBy("user_usage_logs").
+		Aggregate(
+			ent.Count(),
+			ent.As(ent.Sum(usagelog.FieldTotalCost), "total_cost"),
+		).
+		Scan(ctx, &rows)
+	if err != nil {
+		return nil, err
+	}
+	// 批量查询用户 email
+	userIDs := make([]int, 0, len(rows))
+	for _, r := range rows {
+		if r.UserID > 0 {
+			userIDs = append(userIDs, r.UserID)
+		}
+	}
+	emailMap := make(map[int]string)
+	if len(userIDs) > 0 {
+		users, _ := h.db.User.Query().Where(user.IDIn(userIDs...)).All(ctx)
+		for _, u := range users {
+			emailMap[u.ID] = u.Email
+		}
+	}
+	result := make([]dto.UserStats, 0, len(rows))
+	for _, r := range rows {
+		result = append(result, dto.UserStats{
+			UserID:    int64(r.UserID),
+			Email:     emailMap[r.UserID],
+			Requests:  int64(r.Count),
+			TotalCost: r.TotalCost,
+		})
+	}
+	return result, nil
+}
+
+// statsByAccount 按账号分组统计
+func (h *UsageHandler) statsByAccount(ctx context.Context, query *ent.UsageLogQuery) ([]dto.AccountStats, error) {
+	var rows []struct {
+		AccountID int     `json:"account_usage_logs"`
+		Count     int     `json:"count"`
+		TotalCost float64 `json:"total_cost"`
+	}
+	err := query.GroupBy("account_usage_logs").
+		Aggregate(
+			ent.Count(),
+			ent.As(ent.Sum(usagelog.FieldTotalCost), "total_cost"),
+		).
+		Scan(ctx, &rows)
+	if err != nil {
+		return nil, err
+	}
+	// 批量查询账号名称
+	accountIDs := make([]int, 0, len(rows))
+	for _, r := range rows {
+		if r.AccountID > 0 {
+			accountIDs = append(accountIDs, r.AccountID)
+		}
+	}
+	nameMap := make(map[int]string)
+	if len(accountIDs) > 0 {
+		accounts, _ := h.db.Account.Query().Where(account.IDIn(accountIDs...)).All(ctx)
+		for _, a := range accounts {
+			nameMap[a.ID] = a.Name
+		}
+	}
+	result := make([]dto.AccountStats, 0, len(rows))
+	for _, r := range rows {
+		result = append(result, dto.AccountStats{
+			AccountID: int64(r.AccountID),
+			Name:      nameMap[r.AccountID],
+			Requests:  int64(r.Count),
+			TotalCost: r.TotalCost,
+		})
+	}
+	return result, nil
+}
+
+// statsByGroup 按分组统计
+func (h *UsageHandler) statsByGroup(ctx context.Context, query *ent.UsageLogQuery) ([]dto.GroupStats, error) {
+	var rows []struct {
+		GroupID   int     `json:"group_usage_logs"`
+		Count     int     `json:"count"`
+		TotalCost float64 `json:"total_cost"`
+	}
+	err := query.GroupBy("group_usage_logs").
+		Aggregate(
+			ent.Count(),
+			ent.As(ent.Sum(usagelog.FieldTotalCost), "total_cost"),
+		).
+		Scan(ctx, &rows)
+	if err != nil {
+		return nil, err
+	}
+	// 批量查询分组名称
+	groupIDs := make([]int, 0, len(rows))
+	for _, r := range rows {
+		if r.GroupID > 0 {
+			groupIDs = append(groupIDs, r.GroupID)
+		}
+	}
+	nameMap := make(map[int]string)
+	if len(groupIDs) > 0 {
+		groups, _ := h.db.Group.Query().Where(group.IDIn(groupIDs...)).All(ctx)
+		for _, g := range groups {
+			nameMap[g.ID] = g.Name
+		}
+	}
+	result := make([]dto.GroupStats, 0, len(rows))
+	for _, r := range rows {
+		result = append(result, dto.GroupStats{
+			GroupID:   int64(r.GroupID),
+			Name:      nameMap[r.GroupID],
+			Requests:  int64(r.Count),
+			TotalCost: r.TotalCost,
+		})
+	}
+	return result, nil
 }
 
 // applyFilterQuery 应用筛选条件（不含分页）
@@ -233,7 +431,7 @@ func applyFilterQuery(query *ent.UsageLogQuery, q *dto.UsageFilterQuery) *ent.Us
 		query = query.Where(usagelog.PlatformEQ(q.Platform))
 	}
 	if q.Model != "" {
-		query = query.Where(usagelog.ModelEQ(q.Model))
+		query = query.Where(usagelog.ModelContains(q.Model))
 	}
 	if q.StartDate != "" {
 		t, err := time.Parse("2006-01-02", q.StartDate)

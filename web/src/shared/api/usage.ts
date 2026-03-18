@@ -11,6 +11,6 @@ export const usageApi = {
   // 管理员接口
   adminList: (params: UsageQuery) =>
     get<PagedData<UsageLogResp>>('/api/v1/admin/usage', params),
-  stats: (params: { group_by: string; start_date?: string; end_date?: string }) =>
+  stats: (params: { group_by: string; start_date?: string; end_date?: string; platform?: string; model?: string; user_id?: number }) =>
     get<UsageStatsResp>('/api/v1/admin/usage/stats', params),
 };

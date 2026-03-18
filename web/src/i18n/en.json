@@ -442,6 +442,7 @@
     "model": "Model",
     "model_placeholder": "e.g. gpt-4",
     "user_id": "User ID",
+    "search_user": "Search user",
     "total_requests": "Total Requests",
     "total_tokens": "Total Tokens",
     "total_cost": "Total Cost",

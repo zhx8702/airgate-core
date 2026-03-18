@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { usageApi } from '../../shared/api/usage';
+import { usersApi } from '../../shared/api/users';
 import { usePagination } from '../../shared/hooks/usePagination';
 import { Table, type Column } from '../../shared/components/Table';
 import { Input, Select } from '../../shared/components/Input';
+import { SearchSelect, type SearchSelectOption } from '../../shared/components/SearchSelect';
 import { DatePicker } from '../../shared/components/DatePicker';
 import { Card, StatCard } from '../../shared/components/Card';
 import { Badge } from '../../shared/components/Badge';
@@ -35,6 +37,20 @@ export default function UsagePage() {
   const [statsGroupBy, setStatsGroupBy] = useState<string>('model');
   const { platforms, platformName } = usePlatforms();
 
+  // 用户搜索（有关键词才发请求）
+  const [userKeyword, setUserKeyword] = useState('');
+  const { data: usersData, isLoading: usersLoading } = useQuery({
+    queryKey: ['admin-users-search', userKeyword],
+    queryFn: () => usersApi.list({ page: 1, page_size: 20, keyword: userKeyword }),
+    enabled: userKeyword.length > 0,
+  });
+  const userOptions: SearchSelectOption[] = (usersData?.list ?? []).map((u) => ({
+    value: String(u.id),
+    label: u.username || u.email,
+    description: u.username ? u.email : undefined,
+  }));
+  const handleUserSearch = useCallback((kw: string) => setUserKeyword(kw), []);
+
   // 构建查询参数
   const queryParams: UsageQuery = {
     page,
@@ -50,12 +66,15 @@ export default function UsagePage() {
 
   // 聚合统计
   const { data: stats } = useQuery({
-    queryKey: ['admin-usage-stats', statsGroupBy, filters.start_date, filters.end_date],
+    queryKey: ['admin-usage-stats', statsGroupBy, filters.start_date, filters.end_date, filters.platform, filters.model, filters.user_id],
     queryFn: () =>
       usageApi.stats({
         group_by: statsGroupBy,
         start_date: filters.start_date,
         end_date: filters.end_date,
+        platform: filters.platform,
+        model: filters.model,
+        user_id: filters.user_id ? Number(filters.user_id) : undefined,
       }),
   });
 
@@ -189,12 +208,14 @@ export default function UsagePage() {
             icon={<Search className="w-4 h-4" />}
           />
         </div>
-        <div className="w-36">
-          <Input
-            type="number"
-            placeholder={t('usage.user_id')}
-            value={filters.user_id ?? ''}
-            onChange={(e) => updateFilter('user_id', e.target.value)}
+        <div className="w-48">
+          <SearchSelect
+            placeholder={t('usage.search_user')}
+            value={filters.user_id ? String(filters.user_id) : ''}
+            onChange={(v) => updateFilter('user_id', v)}
+            onSearch={handleUserSearch}
+            options={userOptions}
+            loading={usersLoading}
           />
         </div>
       </div>

@@ -3,6 +3,8 @@ package handler
 import (
 	"context"
 	"log/slog"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -247,21 +249,26 @@ func (h *UsageHandler) AdminUsageStats(c *gin.Context) {
 		TotalActualCost: totalActualCost,
 	}
 
-	// 分组聚合
-	switch q.GroupBy {
-	case "model":
-		resp.ByModel, err = h.statsByModel(ctx, baseQuery.Clone())
-	case "user":
-		resp.ByUser, err = h.statsByUser(ctx, baseQuery.Clone())
-	case "account":
-		resp.ByAccount, err = h.statsByAccount(ctx, baseQuery.Clone())
-	case "group":
-		resp.ByGroup, err = h.statsByGroup(ctx, baseQuery.Clone())
-	}
-	if err != nil {
-		slog.Error("分组统计失败", "group_by", q.GroupBy, "error", err)
-		response.InternalError(c, "统计失败")
-		return
+	// 分组聚合（支持逗号分隔多维度）
+	for _, gb := range strings.Split(q.GroupBy, ",") {
+		gb = strings.TrimSpace(gb)
+		switch gb {
+		case "model":
+			resp.ByModel, err = h.statsByModel(ctx, baseQuery.Clone())
+		case "user":
+			resp.ByUser, err = h.statsByUser(ctx, baseQuery.Clone())
+		case "account":
+			resp.ByAccount, err = h.statsByAccount(ctx, baseQuery.Clone())
+		case "group":
+			resp.ByGroup, err = h.statsByGroup(ctx, baseQuery.Clone())
+		default:
+			continue
+		}
+		if err != nil {
+			slog.Error("分组统计失败", "group_by", gb, "error", err)
+			response.InternalError(c, "统计失败")
+			return
+		}
 	}
 
 	response.Success(c, resp)
@@ -275,6 +282,7 @@ func (h *UsageHandler) statsByModel(ctx context.Context, query *ent.UsageLogQuer
 		InputTokens  int64   `json:"input_tokens"`
 		OutputTokens int64   `json:"output_tokens"`
 		TotalCost    float64 `json:"total_cost"`
+		ActualCost   float64 `json:"actual_cost"`
 	}
 	err := query.GroupBy(usagelog.FieldModel).
 		Aggregate(
@@ -282,6 +290,7 @@ func (h *UsageHandler) statsByModel(ctx context.Context, query *ent.UsageLogQuer
 			ent.As(ent.Sum(usagelog.FieldInputTokens), "input_tokens"),
 			ent.As(ent.Sum(usagelog.FieldOutputTokens), "output_tokens"),
 			ent.As(ent.Sum(usagelog.FieldTotalCost), "total_cost"),
+			ent.As(ent.Sum(usagelog.FieldActualCost), "actual_cost"),
 		).
 		Scan(ctx, &rows)
 	if err != nil {
@@ -290,10 +299,11 @@ func (h *UsageHandler) statsByModel(ctx context.Context, query *ent.UsageLogQuer
 	result := make([]dto.ModelStats, 0, len(rows))
 	for _, r := range rows {
 		result = append(result, dto.ModelStats{
-			Model:     r.Model,
-			Requests:  int64(r.Count),
-			Tokens:    r.InputTokens + r.OutputTokens,
-			TotalCost: r.TotalCost,
+			Model:      r.Model,
+			Requests:   int64(r.Count),
+			Tokens:     r.InputTokens + r.OutputTokens,
+			TotalCost:  r.TotalCost,
+			ActualCost: r.ActualCost,
 		})
 	}
 	return result, nil
@@ -302,14 +312,20 @@ func (h *UsageHandler) statsByModel(ctx context.Context, query *ent.UsageLogQuer
 // statsByUser 按用户分组统计
 func (h *UsageHandler) statsByUser(ctx context.Context, query *ent.UsageLogQuery) ([]dto.UserStats, error) {
 	var rows []struct {
-		UserID    int     `json:"user_usage_logs"`
-		Count     int     `json:"count"`
-		TotalCost float64 `json:"total_cost"`
+		UserID       int     `json:"user_usage_logs"`
+		Count        int     `json:"count"`
+		InputTokens  int64   `json:"input_tokens"`
+		OutputTokens int64   `json:"output_tokens"`
+		TotalCost    float64 `json:"total_cost"`
+		ActualCost   float64 `json:"actual_cost"`
 	}
 	err := query.GroupBy("user_usage_logs").
 		Aggregate(
 			ent.Count(),
+			ent.As(ent.Sum(usagelog.FieldInputTokens), "input_tokens"),
+			ent.As(ent.Sum(usagelog.FieldOutputTokens), "output_tokens"),
 			ent.As(ent.Sum(usagelog.FieldTotalCost), "total_cost"),
+			ent.As(ent.Sum(usagelog.FieldActualCost), "actual_cost"),
 		).
 		Scan(ctx, &rows)
 	if err != nil {
@@ -332,10 +348,12 @@ func (h *UsageHandler) statsByUser(ctx context.Context, query *ent.UsageLogQuery
 	result := make([]dto.UserStats, 0, len(rows))
 	for _, r := range rows {
 		result = append(result, dto.UserStats{
-			UserID:    int64(r.UserID),
-			Email:     emailMap[r.UserID],
-			Requests:  int64(r.Count),
-			TotalCost: r.TotalCost,
+			UserID:     int64(r.UserID),
+			Email:      emailMap[r.UserID],
+			Requests:   int64(r.Count),
+			Tokens:     r.InputTokens + r.OutputTokens,
+			TotalCost:  r.TotalCost,
+			ActualCost: r.ActualCost,
 		})
 	}
 	return result, nil
@@ -344,14 +362,20 @@ func (h *UsageHandler) statsByUser(ctx context.Context, query *ent.UsageLogQuery
 // statsByAccount 按账号分组统计
 func (h *UsageHandler) statsByAccount(ctx context.Context, query *ent.UsageLogQuery) ([]dto.AccountStats, error) {
 	var rows []struct {
-		AccountID int     `json:"account_usage_logs"`
-		Count     int     `json:"count"`
-		TotalCost float64 `json:"total_cost"`
+		AccountID    int     `json:"account_usage_logs"`
+		Count        int     `json:"count"`
+		InputTokens  int64   `json:"input_tokens"`
+		OutputTokens int64   `json:"output_tokens"`
+		TotalCost    float64 `json:"total_cost"`
+		ActualCost   float64 `json:"actual_cost"`
 	}
 	err := query.GroupBy("account_usage_logs").
 		Aggregate(
 			ent.Count(),
+			ent.As(ent.Sum(usagelog.FieldInputTokens), "input_tokens"),
+			ent.As(ent.Sum(usagelog.FieldOutputTokens), "output_tokens"),
 			ent.As(ent.Sum(usagelog.FieldTotalCost), "total_cost"),
+			ent.As(ent.Sum(usagelog.FieldActualCost), "actual_cost"),
 		).
 		Scan(ctx, &rows)
 	if err != nil {
@@ -374,10 +398,12 @@ func (h *UsageHandler) statsByAccount(ctx context.Context, query *ent.UsageLogQu
 	result := make([]dto.AccountStats, 0, len(rows))
 	for _, r := range rows {
 		result = append(result, dto.AccountStats{
-			AccountID: int64(r.AccountID),
-			Name:      nameMap[r.AccountID],
-			Requests:  int64(r.Count),
-			TotalCost: r.TotalCost,
+			AccountID:  int64(r.AccountID),
+			Name:       nameMap[r.AccountID],
+			Requests:   int64(r.Count),
+			Tokens:     r.InputTokens + r.OutputTokens,
+			TotalCost:  r.TotalCost,
+			ActualCost: r.ActualCost,
 		})
 	}
 	return result, nil
@@ -386,14 +412,20 @@ func (h *UsageHandler) statsByAccount(ctx context.Context, query *ent.UsageLogQu
 // statsByGroup 按分组统计
 func (h *UsageHandler) statsByGroup(ctx context.Context, query *ent.UsageLogQuery) ([]dto.GroupStats, error) {
 	var rows []struct {
-		GroupID   int     `json:"group_usage_logs"`
-		Count     int     `json:"count"`
-		TotalCost float64 `json:"total_cost"`
+		GroupID      int     `json:"group_usage_logs"`
+		Count        int     `json:"count"`
+		InputTokens  int64   `json:"input_tokens"`
+		OutputTokens int64   `json:"output_tokens"`
+		TotalCost    float64 `json:"total_cost"`
+		ActualCost   float64 `json:"actual_cost"`
 	}
 	err := query.GroupBy("group_usage_logs").
 		Aggregate(
 			ent.Count(),
+			ent.As(ent.Sum(usagelog.FieldInputTokens), "input_tokens"),
+			ent.As(ent.Sum(usagelog.FieldOutputTokens), "output_tokens"),
 			ent.As(ent.Sum(usagelog.FieldTotalCost), "total_cost"),
+			ent.As(ent.Sum(usagelog.FieldActualCost), "actual_cost"),
 		).
 		Scan(ctx, &rows)
 	if err != nil {
@@ -416,10 +448,12 @@ func (h *UsageHandler) statsByGroup(ctx context.Context, query *ent.UsageLogQuer
 	result := make([]dto.GroupStats, 0, len(rows))
 	for _, r := range rows {
 		result = append(result, dto.GroupStats{
-			GroupID:   int64(r.GroupID),
-			Name:      nameMap[r.GroupID],
-			Requests:  int64(r.Count),
-			TotalCost: r.TotalCost,
+			GroupID:    int64(r.GroupID),
+			Name:       nameMap[r.GroupID],
+			Requests:   int64(r.Count),
+			Tokens:     r.InputTokens + r.OutputTokens,
+			TotalCost:  r.TotalCost,
+			ActualCost: r.ActualCost,
 		})
 	}
 	return result, nil
@@ -456,6 +490,71 @@ func applyUsageFilters(query *ent.UsageLogQuery, q *dto.UsageQuery) *ent.UsageLo
 		StartDate: q.StartDate,
 		EndDate:   q.EndDate,
 	})
+}
+
+// AdminUsageTrend 管理员 Token 使用趋势
+func (h *UsageHandler) AdminUsageTrend(c *gin.Context) {
+	var q dto.UsageTrendQuery
+	if err := c.ShouldBindQuery(&q); err != nil {
+		response.BindError(c, err)
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// 构建查询
+	query := h.db.UsageLog.Query()
+	if q.UserID != nil {
+		query = query.Where(usagelog.HasUserWith(user.IDEQ(int(*q.UserID))))
+	}
+	query = applyFilterQuery(query, &dto.UsageFilterQuery{
+		Platform:  q.Platform,
+		Model:     q.Model,
+		StartDate: q.StartDate,
+		EndDate:   q.EndDate,
+	})
+
+	// 如果没有指定时间范围，默认最近 24 小时
+	if q.StartDate == "" && q.EndDate == "" {
+		query = query.Where(usagelog.CreatedAtGTE(time.Now().Add(-24 * time.Hour)))
+	}
+
+	logs, err := query.All(ctx)
+	if err != nil {
+		slog.Error("查询趋势数据失败", "error", err)
+		response.InternalError(c, "查询失败")
+		return
+	}
+
+	// 按时间桶聚合
+	timeFmt := "2006-01-02"
+	if q.Granularity == "hour" {
+		timeFmt = "2006-01-02 15:00"
+	}
+	bucketMap := make(map[string]*dto.UsageTrendBucket)
+	for _, l := range logs {
+		key := l.CreatedAt.Format(timeFmt)
+		tb, ok := bucketMap[key]
+		if !ok {
+			tb = &dto.UsageTrendBucket{Time: key}
+			bucketMap[key] = tb
+		}
+		tb.InputTokens += int64(l.InputTokens)
+		tb.OutputTokens += int64(l.OutputTokens)
+		tb.CacheRead += int64(l.CacheTokens)
+		tb.ActualCost += l.ActualCost
+		tb.StandardCost += l.TotalCost
+	}
+
+	trend := make([]dto.UsageTrendBucket, 0, len(bucketMap))
+	for _, tb := range bucketMap {
+		trend = append(trend, *tb)
+	}
+	sort.Slice(trend, func(i, j int) bool {
+		return trend[i].Time < trend[j].Time
+	})
+
+	response.Success(c, trend)
 }
 
 // toUsageLogResp 将 ent.UsageLog 转换为 dto.UsageLogResp

@@ -1,6 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
+import {
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Legend,
+} from 'recharts';
 import { usageApi } from '../../shared/api/usage';
 import { usersApi } from '../../shared/api/users';
 import { usePagination } from '../../shared/hooks/usePagination';
@@ -12,14 +16,35 @@ import { Card, StatCard } from '../../shared/components/Card';
 import { Badge } from '../../shared/components/Badge';
 import { usePlatforms } from '../../shared/hooks/usePlatforms';
 import { Activity, Coins, Hash, DollarSign, Search } from 'lucide-react';
-import type { UsageLogResp, UsageQuery } from '../../shared/types';
+import type { UsageLogResp, UsageQuery, UsageTrendBucket } from '../../shared/types';
 
-/** 大数字友好显示：33518599 → "33.52M"，1234 → "1,234" */
-function formatLargeNumber(n: number): string {
+// 饼图颜色
+const PIE_COLORS = [
+  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+  '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1',
+];
+
+/** 大数字友好显示 */
+function fmtNum(n: number): string {
   if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`;
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
   if (n >= 10_000) return `${(n / 1_000).toFixed(1)}K`;
   return n.toLocaleString();
+}
+
+/** 格式化费用 */
+function fmtCost(n: number): string {
+  if (n >= 1000) return `$${(n / 1000).toFixed(2)}K`;
+  return `$${n.toFixed(2)}`;
+}
+
+/** 格式化时间标签 */
+function fmtTime(timeStr: string): string {
+  if (timeStr.includes(' ')) {
+    return timeStr.split(' ')[1] ?? timeStr;
+  }
+  const parts = timeStr.split('-');
+  return `${parts[1] ?? ''}/${parts[2] ?? ''}`;
 }
 
 // 分组统计 key 映射
@@ -30,14 +55,290 @@ const groupByKeys: Record<string, string> = {
   group: 'usage.by_group',
 };
 
+// ==================== 分布饼图卡片 ====================
+
+type PieMetric = 'token' | 'cost';
+
+interface DistributionItem {
+  name: string;
+  requests: number;
+  tokens: number;
+  totalCost: number;
+  actualCost: number;
+}
+
+function DistributionCard({
+  title,
+  data,
+}: {
+  title: string;
+  data: DistributionItem[];
+}) {
+  const { t } = useTranslation();
+  const [metric, setMetric] = useState<PieMetric>('token');
+
+  const pieData = useMemo(
+    () => data.map((d) => ({
+      name: d.name,
+      value: metric === 'token' ? d.tokens : d.actualCost,
+    })),
+    [data, metric],
+  );
+
+  return (
+    <Card
+      title={title}
+      extra={
+        <div className="flex gap-1">
+          {(['token', 'cost'] as const).map((m) => (
+            <button
+              key={m}
+              className={`px-2.5 py-1 text-[11px] rounded font-medium transition-all cursor-pointer ${
+                metric === m
+                  ? 'bg-primary-subtle text-primary'
+                  : 'text-text-tertiary hover:text-text'
+              }`}
+              onClick={() => setMetric(m)}
+            >
+              {m === 'token' ? t('usage.by_token') : t('usage.by_actual_cost')}
+            </button>
+          ))}
+        </div>
+      }
+    >
+      <div className="flex gap-4">
+        {/* 饼图 */}
+        <div className="w-48 h-48 flex-shrink-0">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={pieData}
+                cx="50%"
+                cy="50%"
+                innerRadius={35}
+                outerRadius={70}
+                paddingAngle={2}
+                dataKey="value"
+              >
+                {pieData.map((_, i) => (
+                  <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                ))}
+              </Pie>
+              <RechartsTooltip
+                contentStyle={{
+                  background: 'var(--ag-bg-elevated)',
+                  border: '1px solid var(--ag-border)',
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+                formatter={(value) => [
+                  metric === 'token' ? fmtNum(Number(value)) : fmtCost(Number(value)),
+                ]}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* 数据表格 */}
+        <div className="flex-1 overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-border-subtle">
+                <th className="text-left py-2 pr-3 text-[10px] font-semibold text-text-tertiary uppercase tracking-wider">
+                  {title}
+                </th>
+                <th className="text-right py-2 px-3 text-[10px] font-semibold text-text-tertiary uppercase tracking-wider">
+                  {t('usage.requests')}
+                </th>
+                <th className="text-right py-2 px-3 text-[10px] font-semibold text-text-tertiary uppercase tracking-wider">
+                  {t('usage.tokens')}
+                </th>
+                <th className="text-right py-2 px-3 text-[10px] font-semibold text-text-tertiary uppercase tracking-wider">
+                  {t('usage.actual_cost')}
+                </th>
+                <th className="text-right py-2 pl-3 text-[10px] font-semibold text-text-tertiary uppercase tracking-wider">
+                  {t('usage.standard_cost')}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((item, i) => (
+                <tr key={item.name} className="border-b border-border-subtle last:border-0 hover:bg-bg-hover transition-colors">
+                  <td className="py-2 pr-3 text-text font-medium flex items-center gap-1.5">
+                    <div
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ background: PIE_COLORS[i % PIE_COLORS.length] }}
+                    />
+                    <span className="truncate max-w-[180px]">{item.name}</span>
+                  </td>
+                  <td className="py-2 px-3 text-right text-text-secondary font-mono">
+                    {item.requests.toLocaleString()}
+                  </td>
+                  <td className="py-2 px-3 text-right text-text-secondary font-mono">
+                    {fmtNum(item.tokens)}
+                  </td>
+                  <td className="py-2 px-3 text-right font-mono text-warning">
+                    {fmtCost(item.actualCost)}
+                  </td>
+                  <td className="py-2 pl-3 text-right text-text-secondary font-mono">
+                    {fmtCost(item.totalCost)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ==================== Token 使用趋势 ====================
+
+function TokenTrendCard({
+  data,
+  granularity,
+  onGranularityChange,
+}: {
+  data: UsageTrendBucket[];
+  granularity: string;
+  onGranularityChange: (g: string) => void;
+}) {
+  const { t } = useTranslation();
+
+  const chartData = useMemo(
+    () => data.map((d) => ({
+      time: fmtTime(d.time),
+      rawTime: d.time,
+      input: d.input_tokens,
+      output: d.output_tokens,
+      cacheCreation: d.cache_creation,
+      cacheRead: d.cache_read,
+      actualCost: d.actual_cost,
+      standardCost: d.standard_cost,
+    })),
+    [data],
+  );
+
+  const lineLabels: Record<string, string> = {
+    input: t('usage.input'),
+    output: t('usage.output'),
+    cacheCreation: t('usage.cache_creation'),
+    cacheRead: t('usage.cache_read'),
+  };
+
+  if (chartData.length === 0) {
+    return (
+      <Card title={t('usage.token_trend')}>
+        <div className="flex items-center justify-center h-48 text-text-tertiary text-sm">
+          No data
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card
+      title={t('usage.token_trend')}
+      extra={
+        <div className="flex gap-1">
+          {(['hour', 'day'] as const).map((g) => (
+            <button
+              key={g}
+              className={`px-2.5 py-1 text-[11px] rounded font-medium transition-all cursor-pointer ${
+                granularity === g
+                  ? 'bg-primary-subtle text-primary'
+                  : 'text-text-tertiary hover:text-text'
+              }`}
+              onClick={() => onGranularityChange(g)}
+            >
+              {t(`usage.granularity_${g}`)}
+            </button>
+          ))}
+        </div>
+      }
+    >
+      <ResponsiveContainer width="100%" height={300}>
+        <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--ag-border-subtle)" />
+          <XAxis
+            dataKey="time"
+            tick={{ fontSize: 10, fill: 'var(--ag-text-tertiary)' }}
+            axisLine={{ stroke: 'var(--ag-border)' }}
+            tickLine={false}
+          />
+          <YAxis
+            tick={{ fontSize: 10, fill: 'var(--ag-text-tertiary)' }}
+            axisLine={false}
+            tickLine={false}
+            tickFormatter={(v: number) => fmtNum(v)}
+          />
+          <RechartsTooltip
+            contentStyle={{
+              background: 'var(--ag-bg-elevated)',
+              border: '1px solid var(--ag-border)',
+              borderRadius: 8,
+              fontSize: 12,
+              padding: '8px 12px',
+            }}
+            labelStyle={{ color: 'var(--ag-text)', fontWeight: 600, marginBottom: 4 }}
+            labelFormatter={(_label, payload) => {
+              if (payload?.[0]?.payload?.rawTime) {
+                return payload[0].payload.rawTime;
+              }
+              return _label;
+            }}
+            formatter={(value, name) => [fmtNum(Number(value)), lineLabels[String(name)] || String(name)]}
+            itemSorter={(item) => -(item.value as number)}
+            content={({ active, payload, label }) => {
+              if (!active || !payload?.length) return null;
+              const d = payload[0]?.payload;
+              return (
+                <div className="rounded-lg border border-border bg-bg-elevated p-3 text-xs shadow-lg">
+                  <div className="font-semibold text-text mb-2">{d?.rawTime ?? label}</div>
+                  {payload.map((entry, i) => (
+                    <div key={i} className="flex items-center gap-2 py-0.5">
+                      <div className="w-2.5 h-2.5 rounded-sm" style={{ background: entry.color }} />
+                      <span className="text-text-secondary">{lineLabels[String(entry.dataKey)] || String(entry.dataKey)}:</span>
+                      <span className="font-mono text-text ml-auto">{fmtNum(Number(entry.value))}</span>
+                    </div>
+                  ))}
+                  <div className="border-t border-border-subtle mt-2 pt-2 text-text-secondary">
+                    Actual: <span className="font-mono text-warning">{fmtCost(d?.actualCost ?? 0)}</span>
+                    {' | '}
+                    Standard: <span className="font-mono text-text">{fmtCost(d?.standardCost ?? 0)}</span>
+                  </div>
+                </div>
+              );
+            }}
+          />
+          <Legend
+            iconType="circle"
+            iconSize={8}
+            wrapperStyle={{ fontSize: 11, color: 'var(--ag-text-tertiary)' }}
+            formatter={(value: string) => lineLabels[value] || value}
+          />
+          <Line type="monotone" dataKey="input" stroke="#3b82f6" strokeWidth={2} dot={false} />
+          <Line type="monotone" dataKey="output" stroke="#10b981" strokeWidth={2} dot={false} />
+          <Line type="monotone" dataKey="cacheCreation" stroke="#f59e0b" strokeWidth={2} dot={false} />
+          <Line type="monotone" dataKey="cacheRead" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+        </LineChart>
+      </ResponsiveContainer>
+    </Card>
+  );
+}
+
+// ==================== 主页面 ====================
+
 export default function UsagePage() {
   const { t } = useTranslation();
   const { page, setPage, pageSize, setPageSize } = usePagination(20);
   const [filters, setFilters] = useState<Partial<UsageQuery>>({});
   const [statsGroupBy, setStatsGroupBy] = useState<string>('model');
+  const [granularity, setGranularity] = useState<string>('hour');
   const { platforms, platformName } = usePlatforms();
 
-  // 用户搜索（有关键词才发请求）
+  // 用户搜索
   const [userKeyword, setUserKeyword] = useState('');
   const { data: usersData, isLoading: usersLoading } = useQuery({
     queryKey: ['admin-users-search', userKeyword],
@@ -65,11 +366,30 @@ export default function UsagePage() {
   });
 
   // 聚合统计
+  const allGroupBy = useMemo(() => {
+    const groups = new Set(['model', 'group', statsGroupBy]);
+    return Array.from(groups).join(',');
+  }, [statsGroupBy]);
+
   const { data: stats } = useQuery({
-    queryKey: ['admin-usage-stats', statsGroupBy, filters.start_date, filters.end_date, filters.platform, filters.model, filters.user_id],
+    queryKey: ['admin-usage-stats', allGroupBy, filters.start_date, filters.end_date, filters.platform, filters.model, filters.user_id],
     queryFn: () =>
       usageApi.stats({
-        group_by: statsGroupBy,
+        group_by: allGroupBy,
+        start_date: filters.start_date,
+        end_date: filters.end_date,
+        platform: filters.platform,
+        model: filters.model,
+        user_id: filters.user_id ? Number(filters.user_id) : undefined,
+      }),
+  });
+
+  // Token 趋势
+  const { data: trendData } = useQuery({
+    queryKey: ['admin-usage-trend', granularity, filters.start_date, filters.end_date, filters.platform, filters.model, filters.user_id],
+    queryFn: () =>
+      usageApi.trend({
+        granularity,
         start_date: filters.start_date,
         end_date: filters.end_date,
         platform: filters.platform,
@@ -83,7 +403,30 @@ export default function UsagePage() {
     setPage(1);
   }
 
-  // 从分组标签中提取表头名（去掉"按"前缀的部分）
+  // 饼图数据
+  const modelDistribution: DistributionItem[] = useMemo(
+    () => (stats?.by_model ?? []).map((s) => ({
+      name: s.model,
+      requests: s.requests,
+      tokens: s.tokens,
+      totalCost: s.total_cost,
+      actualCost: s.actual_cost,
+    })),
+    [stats?.by_model],
+  );
+
+  const groupDistribution: DistributionItem[] = useMemo(
+    () => (stats?.by_group ?? []).map((s) => ({
+      name: s.name || `#${s.group_id}`,
+      requests: s.requests,
+      tokens: s.tokens,
+      totalCost: s.total_cost,
+      actualCost: s.actual_cost,
+    })),
+    [stats?.by_group],
+  );
+
+  // 分组统计表头
   const groupByHeaderKeys: Record<string, string> = {
     model: 'usage.model',
     user: 'usage.user_id',
@@ -232,7 +575,7 @@ export default function UsagePage() {
             />
             <StatCard
               title={t('usage.total_tokens')}
-              value={formatLargeNumber(stats.total_tokens)}
+              value={fmtNum(stats.total_tokens)}
               icon={<Hash className="w-5 h-5" />}
               accentColor="var(--ag-info)"
             />
@@ -249,6 +592,25 @@ export default function UsagePage() {
               accentColor="var(--ag-success)"
             />
           </div>
+
+          {/* 饼图区域 + Token 趋势 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <DistributionCard
+              title={t('usage.model_distribution')}
+              data={modelDistribution}
+            />
+            <DistributionCard
+              title={t('usage.group_distribution')}
+              data={groupDistribution}
+            />
+          </div>
+
+          {/* Token 使用趋势 */}
+          <TokenTrendCard
+            data={trendData ?? []}
+            granularity={granularity}
+            onGranularityChange={setGranularity}
+          />
 
           {/* 分组统计切换 */}
           <Card>
@@ -284,33 +646,33 @@ export default function UsagePage() {
                     <th className="text-left py-2.5 pr-4 text-[10px] font-semibold text-text-tertiary uppercase tracking-widest">
                       {t('usage.requests')}
                     </th>
-                    {statsGroupBy === 'model' && (
-                      <th className="text-left py-2.5 pr-4 text-[10px] font-semibold text-text-tertiary uppercase tracking-widest">
-                        {t('usage.tokens')}
-                      </th>
-                    )}
+                    <th className="text-left py-2.5 pr-4 text-[10px] font-semibold text-text-tertiary uppercase tracking-widest">
+                      {t('usage.tokens')}
+                    </th>
+                    <th className="text-left py-2.5 pr-4 text-[10px] font-semibold text-text-tertiary uppercase tracking-widest">
+                      {t('usage.actual_cost')}
+                    </th>
                     <th className="text-left py-2.5 text-[10px] font-semibold text-text-tertiary uppercase tracking-widest">
-                      {t('usage.cost')}
+                      {t('usage.standard_cost')}
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {(() => {
                     const rowClass = "border-b border-border-subtle last:border-0 transition-colors hover:bg-bg-hover";
-                    const dataMap: Record<string, { items: Array<{ key: string | number; name: string; requests: number; tokens?: number; total_cost: number }> }> = {
-                      model: { items: stats.by_model?.map((s) => ({ key: s.model, name: s.model, requests: s.requests, tokens: s.tokens, total_cost: s.total_cost })) ?? [] },
-                      user: { items: stats.by_user?.map((s) => ({ key: s.user_id, name: s.email, requests: s.requests, total_cost: s.total_cost })) ?? [] },
-                      account: { items: stats.by_account?.map((s) => ({ key: s.account_id, name: s.name, requests: s.requests, total_cost: s.total_cost })) ?? [] },
-                      group: { items: stats.by_group?.map((s) => ({ key: s.group_id, name: s.name, requests: s.requests, total_cost: s.total_cost })) ?? [] },
+                    const dataMap: Record<string, { items: Array<{ key: string | number; name: string; requests: number; tokens: number; total_cost: number; actual_cost: number }> }> = {
+                      model: { items: stats.by_model?.map((s) => ({ key: s.model, name: s.model, requests: s.requests, tokens: s.tokens, total_cost: s.total_cost, actual_cost: s.actual_cost })) ?? [] },
+                      user: { items: stats.by_user?.map((s) => ({ key: s.user_id, name: s.email, requests: s.requests, tokens: s.tokens, total_cost: s.total_cost, actual_cost: s.actual_cost })) ?? [] },
+                      account: { items: stats.by_account?.map((s) => ({ key: s.account_id, name: s.name, requests: s.requests, tokens: s.tokens, total_cost: s.total_cost, actual_cost: s.actual_cost })) ?? [] },
+                      group: { items: stats.by_group?.map((s) => ({ key: s.group_id, name: s.name, requests: s.requests, tokens: s.tokens, total_cost: s.total_cost, actual_cost: s.actual_cost })) ?? [] },
                     };
                     return dataMap[statsGroupBy]?.items.map((row) => (
                       <tr key={row.key} className={rowClass}>
                         <td className="py-2.5 pr-4 font-medium text-text">{row.name}</td>
                         <td className="py-2.5 pr-4 text-text-secondary font-mono">{row.requests.toLocaleString()}</td>
-                        {statsGroupBy === 'model' && (
-                          <td className="py-2.5 pr-4 text-text-secondary font-mono">{row.tokens?.toLocaleString()}</td>
-                        )}
-                        <td className="py-2.5 text-text-secondary font-mono">${row.total_cost.toFixed(4)}</td>
+                        <td className="py-2.5 pr-4 text-text-secondary font-mono">{fmtNum(row.tokens)}</td>
+                        <td className="py-2.5 pr-4 font-mono text-warning">{fmtCost(row.actual_cost)}</td>
+                        <td className="py-2.5 text-text-secondary font-mono">{fmtCost(row.total_cost)}</td>
                       </tr>
                     ));
                   })()}

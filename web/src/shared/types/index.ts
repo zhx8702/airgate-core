@@ -355,27 +355,44 @@ export interface ModelStats {
   requests: number;
   tokens: number;
   total_cost: number;
+  actual_cost: number;
 }
 
 export interface UserStats {
   user_id: number;
   email: string;
   requests: number;
+  tokens: number;
   total_cost: number;
+  actual_cost: number;
 }
 
 export interface AccountStats {
   account_id: number;
   name: string;
   requests: number;
+  tokens: number;
   total_cost: number;
+  actual_cost: number;
 }
 
 export interface GroupStats {
   group_id: number;
   name: string;
   requests: number;
+  tokens: number;
   total_cost: number;
+  actual_cost: number;
+}
+
+export interface UsageTrendBucket {
+  time: string;
+  input_tokens: number;
+  output_tokens: number;
+  cache_creation: number;
+  cache_read: number;
+  actual_cost: number;
+  standard_cost: number;
 }
 
 // ==================== Proxy ====================

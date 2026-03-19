@@ -62,42 +62,70 @@ type UsageStatsResp struct {
 
 // ModelStats 按模型统计
 type ModelStats struct {
-	Model     string  `json:"model"`
-	Requests  int64   `json:"requests"`
-	Tokens    int64   `json:"tokens"`
-	TotalCost float64 `json:"total_cost"`
+	Model      string  `json:"model"`
+	Requests   int64   `json:"requests"`
+	Tokens     int64   `json:"tokens"`
+	TotalCost  float64 `json:"total_cost"`
+	ActualCost float64 `json:"actual_cost"`
 }
 
 // UserStats 按用户统计
 type UserStats struct {
-	UserID    int64   `json:"user_id"`
-	Email     string  `json:"email"`
-	Requests  int64   `json:"requests"`
-	TotalCost float64 `json:"total_cost"`
+	UserID     int64   `json:"user_id"`
+	Email      string  `json:"email"`
+	Requests   int64   `json:"requests"`
+	Tokens     int64   `json:"tokens"`
+	TotalCost  float64 `json:"total_cost"`
+	ActualCost float64 `json:"actual_cost"`
 }
 
 // AccountStats 按账号统计
 type AccountStats struct {
-	AccountID int64   `json:"account_id"`
-	Name      string  `json:"name"`
-	Requests  int64   `json:"requests"`
-	TotalCost float64 `json:"total_cost"`
+	AccountID  int64   `json:"account_id"`
+	Name       string  `json:"name"`
+	Requests   int64   `json:"requests"`
+	Tokens     int64   `json:"tokens"`
+	TotalCost  float64 `json:"total_cost"`
+	ActualCost float64 `json:"actual_cost"`
 }
 
 // GroupStats 按分组统计
 type GroupStats struct {
-	GroupID   int64   `json:"group_id"`
-	Name      string  `json:"name"`
-	Requests  int64   `json:"requests"`
-	TotalCost float64 `json:"total_cost"`
+	GroupID    int64   `json:"group_id"`
+	Name       string  `json:"name"`
+	Requests   int64   `json:"requests"`
+	Tokens     int64   `json:"tokens"`
+	TotalCost  float64 `json:"total_cost"`
+	ActualCost float64 `json:"actual_cost"`
 }
 
 // UsageStatsQuery 统计查询参数
 type UsageStatsQuery struct {
-	GroupBy   string `form:"group_by" binding:"required,oneof=model user account group"` // 聚合维度
+	GroupBy   string `form:"group_by" binding:"required"` // 聚合维度，支持逗号分隔多值（如 model,group）
 	UserID    *int64 `form:"user_id"`
 	Platform  string `form:"platform"`
 	Model     string `form:"model"`
 	StartDate string `form:"start_date"`
 	EndDate   string `form:"end_date"`
+}
+
+// UsageTrendQuery Token 趋势查询参数
+type UsageTrendQuery struct {
+	Granularity string `form:"granularity" binding:"required,oneof=hour day"`
+	UserID      *int64 `form:"user_id"`
+	Platform    string `form:"platform"`
+	Model       string `form:"model"`
+	StartDate   string `form:"start_date"`
+	EndDate     string `form:"end_date"`
+}
+
+// UsageTrendBucket Token 趋势时间桶
+type UsageTrendBucket struct {
+	Time          string  `json:"time"`
+	InputTokens   int64   `json:"input_tokens"`
+	OutputTokens  int64   `json:"output_tokens"`
+	CacheCreation int64   `json:"cache_creation"`
+	CacheRead     int64   `json:"cache_read"`
+	ActualCost    float64 `json:"actual_cost"`
+	StandardCost  float64 `json:"standard_cost"`
 }

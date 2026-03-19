@@ -1,5 +1,5 @@
 import { get } from './client';
-import type { UsageLogResp, UsageQuery, UsageStatsResp, PagedData } from '../types';
+import type { UsageLogResp, UsageQuery, UsageStatsResp, UsageTrendBucket, PagedData } from '../types';
 
 export const usageApi = {
   // 用户接口
@@ -13,4 +13,6 @@ export const usageApi = {
     get<PagedData<UsageLogResp>>('/api/v1/admin/usage', params),
   stats: (params: { group_by: string; start_date?: string; end_date?: string; platform?: string; model?: string; user_id?: number }) =>
     get<UsageStatsResp>('/api/v1/admin/usage/stats', params),
+  trend: (params: { granularity: string; start_date?: string; end_date?: string; platform?: string; model?: string; user_id?: number }) =>
+    get<UsageTrendBucket[]>('/api/v1/admin/usage/trend', params),
 };

@@ -455,7 +455,19 @@
     "duration": "耗时",
     "requests": "请求数",
     "tokens": "Token",
-    "cost": "费用"
+    "cost": "费用",
+    "model_distribution": "模型分布",
+    "group_distribution": "分组使用分布",
+    "by_token": "按 Token",
+    "by_actual_cost": "按实际消费",
+    "standard_cost": "标准费用",
+    "token_trend": "Token 使用趋势",
+    "input": "Input",
+    "output": "Output",
+    "cache_creation": "Cache Creation",
+    "cache_read": "Cache Read",
+    "granularity_hour": "按小时",
+    "granularity_day": "按天"
   },
 
   "plugins": {

@@ -136,6 +136,7 @@ func (s *Server) registerRoutes() {
 		// 使用记录（管理员）
 		adminGroup.GET("/usage", usageHandler.AdminUsage)
 		adminGroup.GET("/usage/stats", usageHandler.AdminUsageStats)
+		adminGroup.GET("/usage/trend", usageHandler.AdminUsageTrend)
 
 		// 插件管理
 		adminGroup.GET("/plugins", pluginHandler.ListPlugins)

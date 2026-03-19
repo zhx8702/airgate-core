@@ -455,7 +455,19 @@
     "duration": "Duration",
     "requests": "Requests",
     "tokens": "Tokens",
-    "cost": "Cost"
+    "cost": "Cost",
+    "model_distribution": "Model Distribution",
+    "group_distribution": "Group Usage Distribution",
+    "by_token": "By Token",
+    "by_actual_cost": "By Actual Cost",
+    "standard_cost": "Standard Cost",
+    "token_trend": "Token Usage Trend",
+    "input": "Input",
+    "output": "Output",
+    "cache_creation": "Cache Creation",
+    "cache_read": "Cache Read",
+    "granularity_hour": "Hourly",
+    "granularity_day": "Daily"
   },
 
   "plugins": {

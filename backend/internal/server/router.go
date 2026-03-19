@@ -82,9 +82,6 @@ func (s *Server) registerRoutes() {
 		userGroup.GET("/usage", usageHandler.UserUsage)
 		userGroup.GET("/usage/stats", usageHandler.UserUsageStats)
 
-		// 仪表盘
-		userGroup.GET("/dashboard/stats", dashboardHandler.Stats)
-		userGroup.GET("/dashboard/trend", dashboardHandler.Trend)
 	}
 
 	// === 管理员路由（需要 JWT + AdminOnly） ===

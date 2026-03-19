@@ -77,6 +77,7 @@
     "system": "System",
     "personal": "My Account",
     "dashboard": "Dashboard",
+    "my_overview": "My Overview",
     "users": "Users",
     "accounts": "Accounts",
     "groups": "Groups",
@@ -165,6 +166,23 @@
     "top_users": "Recent Usage (Top 12)",
     "email": "Email",
     "cost": "Cost"
+  },
+
+  "user_overview": {
+    "title": "My Overview",
+    "description": "View your account status, usage, API keys, and subscriptions",
+    "balance": "Balance",
+    "max_concurrency": "Max Concurrency",
+    "totp_status": "2FA Status",
+    "active_subscriptions": "Active Subscriptions",
+    "recent_usage": "Recent Usage",
+    "my_keys": "My API Keys",
+    "enabled_keys": "{{count}} enabled",
+    "recent_usage_empty": "No usage records yet",
+    "subscriptions_empty": "No active subscriptions",
+    "keys_empty": "No API keys yet",
+    "totp_enabled": "Enabled",
+    "totp_disabled": "Disabled"
   },
 
   "users": {

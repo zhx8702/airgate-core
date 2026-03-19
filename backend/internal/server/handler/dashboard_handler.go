@@ -30,6 +30,12 @@ func NewDashboardHandler(db *ent.Client, plugins *plugin.Manager) *DashboardHand
 
 // Stats 返回仪表盘统计数据
 func (h *DashboardHandler) Stats(c *gin.Context) {
+	role, _ := c.Get("role")
+	if role != "admin" {
+		response.Forbidden(c, "需要管理员权限")
+		return
+	}
+
 	ctx := c.Request.Context()
 	todayStart := time.Now().Truncate(24 * time.Hour)
 
@@ -201,6 +207,12 @@ func (h *DashboardHandler) Stats(c *gin.Context) {
 
 // Trend 返回仪表盘趋势数据（模型分布、Token 趋势、Top 用户）
 func (h *DashboardHandler) Trend(c *gin.Context) {
+	role, _ := c.Get("role")
+	if role != "admin" {
+		response.Forbidden(c, "需要管理员权限")
+		return
+	}
+
 	ctx := c.Request.Context()
 
 	var req dto.DashboardTrendReq

@@ -50,7 +50,8 @@ const adminMenuItems: MenuItem[] = [
 ];
 
 const userMenuItems: MenuItem[] = [
-  { path: '/profile', labelKey: 'nav.profile', icon: <User className="w-[18px] h-[18px]" />, sectionKey: 'nav.personal' },
+  { path: '/', labelKey: 'nav.my_overview', icon: <LayoutDashboard className="w-[18px] h-[18px]" />, sectionKey: 'nav.personal' },
+  { path: '/profile', labelKey: 'nav.profile', icon: <User className="w-[18px] h-[18px]" /> },
   { path: '/keys', labelKey: 'nav.my_keys', icon: <Key className="w-[18px] h-[18px]" /> },
   { path: '/usage', labelKey: 'nav.my_usage', icon: <BarChart3 className="w-[18px] h-[18px]" /> },
 ];

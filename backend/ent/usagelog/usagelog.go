@@ -22,12 +22,18 @@ const (
 	FieldInputTokens = "input_tokens"
 	// FieldOutputTokens holds the string denoting the output_tokens field in the database.
 	FieldOutputTokens = "output_tokens"
+	// FieldCachedInputTokens holds the string denoting the cached_input_tokens field in the database.
+	FieldCachedInputTokens = "cached_input_tokens"
 	// FieldCacheTokens holds the string denoting the cache_tokens field in the database.
 	FieldCacheTokens = "cache_tokens"
+	// FieldReasoningOutputTokens holds the string denoting the reasoning_output_tokens field in the database.
+	FieldReasoningOutputTokens = "reasoning_output_tokens"
 	// FieldInputCost holds the string denoting the input_cost field in the database.
 	FieldInputCost = "input_cost"
 	// FieldOutputCost holds the string denoting the output_cost field in the database.
 	FieldOutputCost = "output_cost"
+	// FieldCachedInputCost holds the string denoting the cached_input_cost field in the database.
+	FieldCachedInputCost = "cached_input_cost"
 	// FieldCacheCost holds the string denoting the cache_cost field in the database.
 	FieldCacheCost = "cache_cost"
 	// FieldTotalCost holds the string denoting the total_cost field in the database.
@@ -38,6 +44,8 @@ const (
 	FieldRateMultiplier = "rate_multiplier"
 	// FieldAccountRateMultiplier holds the string denoting the account_rate_multiplier field in the database.
 	FieldAccountRateMultiplier = "account_rate_multiplier"
+	// FieldServiceTier holds the string denoting the service_tier field in the database.
+	FieldServiceTier = "service_tier"
 	// FieldStream holds the string denoting the stream field in the database.
 	FieldStream = "stream"
 	// FieldDurationMs holds the string denoting the duration_ms field in the database.
@@ -97,14 +105,18 @@ var Columns = []string{
 	FieldModel,
 	FieldInputTokens,
 	FieldOutputTokens,
+	FieldCachedInputTokens,
 	FieldCacheTokens,
+	FieldReasoningOutputTokens,
 	FieldInputCost,
 	FieldOutputCost,
+	FieldCachedInputCost,
 	FieldCacheCost,
 	FieldTotalCost,
 	FieldActualCost,
 	FieldRateMultiplier,
 	FieldAccountRateMultiplier,
+	FieldServiceTier,
 	FieldStream,
 	FieldDurationMs,
 	FieldFirstTokenMs,
@@ -146,12 +158,18 @@ var (
 	DefaultInputTokens int
 	// DefaultOutputTokens holds the default value on creation for the "output_tokens" field.
 	DefaultOutputTokens int
+	// DefaultCachedInputTokens holds the default value on creation for the "cached_input_tokens" field.
+	DefaultCachedInputTokens int
 	// DefaultCacheTokens holds the default value on creation for the "cache_tokens" field.
 	DefaultCacheTokens int
+	// DefaultReasoningOutputTokens holds the default value on creation for the "reasoning_output_tokens" field.
+	DefaultReasoningOutputTokens int
 	// DefaultInputCost holds the default value on creation for the "input_cost" field.
 	DefaultInputCost float64
 	// DefaultOutputCost holds the default value on creation for the "output_cost" field.
 	DefaultOutputCost float64
+	// DefaultCachedInputCost holds the default value on creation for the "cached_input_cost" field.
+	DefaultCachedInputCost float64
 	// DefaultCacheCost holds the default value on creation for the "cache_cost" field.
 	DefaultCacheCost float64
 	// DefaultTotalCost holds the default value on creation for the "total_cost" field.
@@ -162,6 +180,8 @@ var (
 	DefaultRateMultiplier float64
 	// DefaultAccountRateMultiplier holds the default value on creation for the "account_rate_multiplier" field.
 	DefaultAccountRateMultiplier float64
+	// DefaultServiceTier holds the default value on creation for the "service_tier" field.
+	DefaultServiceTier string
 	// DefaultStream holds the default value on creation for the "stream" field.
 	DefaultStream bool
 	// DefaultDurationMs holds the default value on creation for the "duration_ms" field.
@@ -204,9 +224,19 @@ func ByOutputTokens(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOutputTokens, opts...).ToFunc()
 }
 
+// ByCachedInputTokens orders the results by the cached_input_tokens field.
+func ByCachedInputTokens(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCachedInputTokens, opts...).ToFunc()
+}
+
 // ByCacheTokens orders the results by the cache_tokens field.
 func ByCacheTokens(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCacheTokens, opts...).ToFunc()
+}
+
+// ByReasoningOutputTokens orders the results by the reasoning_output_tokens field.
+func ByReasoningOutputTokens(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReasoningOutputTokens, opts...).ToFunc()
 }
 
 // ByInputCost orders the results by the input_cost field.
@@ -217,6 +247,11 @@ func ByInputCost(opts ...sql.OrderTermOption) OrderOption {
 // ByOutputCost orders the results by the output_cost field.
 func ByOutputCost(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOutputCost, opts...).ToFunc()
+}
+
+// ByCachedInputCost orders the results by the cached_input_cost field.
+func ByCachedInputCost(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCachedInputCost, opts...).ToFunc()
 }
 
 // ByCacheCost orders the results by the cache_cost field.
@@ -242,6 +277,11 @@ func ByRateMultiplier(opts ...sql.OrderTermOption) OrderOption {
 // ByAccountRateMultiplier orders the results by the account_rate_multiplier field.
 func ByAccountRateMultiplier(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAccountRateMultiplier, opts...).ToFunc()
+}
+
+// ByServiceTier orders the results by the service_tier field.
+func ByServiceTier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldServiceTier, opts...).ToFunc()
 }
 
 // ByStream orders the results by the stream field.

@@ -7,9 +7,12 @@ import (
 
 // ModelPrice 模型价格
 type ModelPrice struct {
-	InputPerToken  float64 // 每 token 输入价格（美元）
-	OutputPerToken float64 // 每 token 输出价格（美元）
-	CachePerToken  float64 // 每 token 缓存价格（美元）
+	InputPerToken               float64 // 每 token 输入价格（美元）
+	OutputPerToken              float64 // 每 token 输出价格（美元）
+	CachedInputPerToken         float64 // 每 token cached input 价格（美元）
+	InputPerTokenPriority       float64 // priority service tier 下每 token 输入价格（美元）
+	OutputPerTokenPriority      float64 // priority service tier 下每 token 输出价格（美元）
+	CachedInputPerTokenPriority float64 // priority service tier 下每 token cached input 价格（美元）
 }
 
 // PriceManager 价格管理器

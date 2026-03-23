@@ -429,7 +429,7 @@ export default function AccountsPage() {
     {
       key: 'status',
       title: t('common.status'),
-      render: (row) => <StatusBadge status={row.status} />,
+      render: (row) => <StatusBadge status={row.status} tooltip={row.error_msg || undefined} />,
     },
     {
       key: 'scheduling',

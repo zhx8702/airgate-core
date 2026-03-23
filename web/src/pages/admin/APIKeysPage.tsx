@@ -152,13 +152,13 @@ export default function APIKeysPage() {
       key: 'group_id',
       title: t('api_keys.group'),
       render: (row) => {
-        const group = groupsData?.list?.find(
-          (g: GroupResp) => g.id === row.group_id,
-        );
+        const group = row.group_id == null
+          ? null
+          : groupsData?.list?.find((g: GroupResp) => g.id === row.group_id);
         return (
           <span className="inline-flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5" style={{ color: 'var(--ag-text-tertiary)' }} />
-            {group ? group.name : `#${row.group_id}`}
+            {row.group_id == null ? t('api_keys.group_unbound') : group ? group.name : `#${row.group_id}`}
           </span>
         );
       },
@@ -176,6 +176,22 @@ export default function APIKeysPage() {
             {row.quota_usd > 0 ? `$${row.quota_usd.toFixed(2)}` : t('common.unlimited')}
           </span>
         </span>
+      ),
+    },
+    {
+      key: 'usage',
+      title: t('api_keys.usage'),
+      render: (row) => (
+        <div className="font-mono text-xs space-y-0.5">
+          <div>
+            <span style={{ color: 'var(--ag-text-tertiary)' }}>{t('api_keys.today')}: </span>
+            <span style={{ color: 'var(--ag-primary)' }}>${row.today_cost.toFixed(4)}</span>
+          </div>
+          <div>
+            <span style={{ color: 'var(--ag-text-tertiary)' }}>{t('api_keys.thirty_days')}: </span>
+            <span style={{ color: 'var(--ag-text)' }}>${row.thirty_day_cost.toFixed(4)}</span>
+          </div>
+        </div>
       ),
     },
     {
@@ -567,7 +583,7 @@ function EditKeyModal({
   loading: boolean;
 }) {
   const { t } = useTranslation();
-  const [groupId, setGroupId] = useState(apiKey.group_id);
+  const [groupId, setGroupId] = useState<number>(apiKey.group_id ?? 0);
   const [form, setForm] = useState<UpdateAPIKeyReq>({
     name: apiKey.name,
     quota_usd: apiKey.quota_usd,
@@ -596,10 +612,13 @@ function EditKeyModal({
     });
   };
 
-  const groupOptions = groups.map((g) => ({
-    value: String(g.id),
-    label: `${g.name} (${g.platform})`,
-  }));
+  const groupOptions = [
+    { value: '0', label: t('api_keys.group_unbound') },
+    ...groups.map((g) => ({
+      value: String(g.id),
+      label: `${g.name} (${g.platform})`,
+    })),
+  ];
 
   return (
     <Modal

@@ -7,30 +7,19 @@ import {
 } from 'recharts';
 import {
   Key, Monitor, Activity, Users,
-  Coins, Database, Zap, Clock, ShieldCheck, Wallet,
+  Coins, Database, Zap, Clock,
 } from 'lucide-react';
-import { Card, StatCard } from '../shared/components/Card';
-import { PageHeader } from '../shared/components/PageHeader';
-import { Table, type Column } from '../shared/components/Table';
+import { Card } from '../shared/components/Card';
 import { dashboardApi } from '../shared/api/dashboard';
-import { usageApi } from '../shared/api/usage';
-import { apikeysApi } from '../shared/api/apikeys';
-import { subscriptionsApi } from '../shared/api/subscriptions';
-import { useAuth } from '../app/providers/AuthProvider';
-import type {
-  DashboardStatsResp,
-  DashboardTrendResp,
-  DashboardTrendReq,
-  UsageLogResp,
-  APIKeyResp,
-  SubscriptionResp,
-} from '../shared/types';
+import type { DashboardStatsResp, DashboardTrendResp, DashboardTrendReq } from '../shared/types';
 
+// 饼图颜色
 const PIE_COLORS = [
   '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
   '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1',
 ];
 
+// 用户趋势线颜色
 const USER_COLORS = [
   '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
   '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1',
@@ -40,6 +29,7 @@ const USER_COLORS = [
 type RangePreset = 'today' | '7d' | '30d' | '90d';
 type Granularity = 'hour' | 'day';
 
+// 格式化数字
 function fmtNum(n: number | undefined | null): string {
   if (n == null) return '0';
   if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`;
@@ -48,6 +38,7 @@ function fmtNum(n: number | undefined | null): string {
   return n.toLocaleString();
 }
 
+// 格式化费用
 function fmtCost(n: number | undefined | null): string {
   if (n == null) return '$0.00';
   if (n >= 1000) return `$${(n / 1000).toFixed(2)}K`;
@@ -55,237 +46,17 @@ function fmtCost(n: number | undefined | null): string {
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth();
-
-  if (user?.role === 'admin') {
-    return <AdminDashboardContent />;
-  }
-
-  return <UserOverviewContent />;
-}
-
-function UserOverviewContent() {
-  const { t } = useTranslation();
-  const { user } = useAuth();
-
-  const { data: usageStats } = useQuery({
-    queryKey: ['user-overview', 'usage-stats'],
-    queryFn: () => usageApi.userStats({}),
-  });
-
-  const { data: usageData, isLoading: usageLoading } = useQuery({
-    queryKey: ['user-overview', 'usage-list'],
-    queryFn: () => usageApi.list({ page: 1, page_size: 5 }),
-  });
-
-  const { data: keysData, isLoading: keysLoading } = useQuery({
-    queryKey: ['user-overview', 'keys'],
-    queryFn: () => apikeysApi.list({ page: 1, page_size: 5 }),
-  });
-
-  const { data: subscriptions, isLoading: subscriptionsLoading } = useQuery({
-    queryKey: ['user-overview', 'subscriptions'],
-    queryFn: () => subscriptionsApi.active(),
-  });
-
-  const enabledKeys = (keysData?.list ?? []).filter((key) => key.status === 'active').length;
-
-  const usageColumns: Column<UsageLogResp>[] = [
-    {
-      key: 'created_at',
-      title: t('usage.time'),
-      render: (row) => new Date(row.created_at).toLocaleString('zh-CN'),
-    },
-    { key: 'model', title: t('usage.model') },
-    {
-      key: 'tokens',
-      title: t('usage.total_tokens'),
-      render: (row) => fmtNum(row.input_tokens + row.output_tokens + row.cache_tokens),
-    },
-    {
-      key: 'actual_cost',
-      title: t('usage.actual_cost'),
-      render: (row) => `$${row.actual_cost.toFixed(6)}`,
-    },
-  ];
-
-  return (
-    <div>
-      <PageHeader
-        title={t('user_overview.title')}
-        description={t('user_overview.description')}
-      />
-
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        <StatCard
-          title={t('user_overview.balance')}
-          value={`$${(user?.balance ?? 0).toFixed(2)}`}
-          icon={<Wallet className="w-5 h-5" />}
-          accentColor="var(--ag-primary)"
-        />
-        <StatCard
-          title={t('user_overview.max_concurrency')}
-          value={user?.max_concurrency ?? 0}
-          icon={<Zap className="w-5 h-5" />}
-          accentColor="var(--ag-info)"
-        />
-        <StatCard
-          title={t('user_overview.totp_status')}
-          value={user?.totp_enabled ? t('user_overview.totp_enabled') : t('user_overview.totp_disabled')}
-          icon={<ShieldCheck className="w-5 h-5" />}
-          accentColor="var(--ag-success)"
-        />
-        <StatCard
-          title={t('user_overview.active_subscriptions')}
-          value={subscriptions?.length ?? 0}
-          icon={<Database className="w-5 h-5" />}
-          accentColor="var(--ag-warning)"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard
-          title={t('usage.total_requests')}
-          value={(usageStats?.total_requests ?? 0).toLocaleString()}
-          icon={<Activity className="w-5 h-5" />}
-          accentColor="var(--ag-primary)"
-        />
-        <StatCard
-          title={t('usage.total_tokens')}
-          value={fmtNum(usageStats?.total_tokens ?? 0)}
-          icon={<HashIcon />}
-          accentColor="var(--ag-info)"
-        />
-        <StatCard
-          title={t('usage.total_cost')}
-          value={`$${(usageStats?.total_cost ?? 0).toFixed(4)}`}
-          icon={<Coins className="w-5 h-5" />}
-          accentColor="var(--ag-warning)"
-        />
-        <StatCard
-          title={t('user_overview.my_keys')}
-          value={keysData?.total ?? 0}
-          icon={<Key className="w-5 h-5" />}
-          change={t('user_overview.enabled_keys', { count: enabledKeys })}
-          changeType="up"
-          accentColor="var(--ag-success)"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
-        <Card title={t('user_overview.active_subscriptions')} className="xl:col-span-1">
-          {subscriptionsLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, idx) => (
-                <div key={idx} className="h-14 ag-shimmer rounded-lg" />
-              ))}
-            </div>
-          ) : subscriptions && subscriptions.length > 0 ? (
-            <div className="space-y-3">
-              {subscriptions.map((sub) => (
-                <SubscriptionItem key={sub.id} sub={sub} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-sm text-text-tertiary">{t('user_overview.subscriptions_empty')}</div>
-          )}
-        </Card>
-
-        <Card title={t('user_overview.my_keys')} className="xl:col-span-2">
-          {keysLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, idx) => (
-                <div key={idx} className="h-14 ag-shimmer rounded-lg" />
-              ))}
-            </div>
-          ) : keysData?.list?.length ? (
-            <div className="space-y-3">
-              {keysData.list.map((key) => (
-                <KeyItem key={key.id} item={key} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-sm text-text-tertiary">{t('user_overview.keys_empty')}</div>
-          )}
-        </Card>
-      </div>
-
-      <Card title={t('user_overview.recent_usage')}>
-        {usageData?.list?.length ? (
-          <Table
-            columns={usageColumns}
-            data={usageData.list}
-            loading={usageLoading}
-            rowKey={(row) => row.id}
-            autoHeight
-          />
-        ) : usageLoading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 4 }).map((_, idx) => (
-              <div key={idx} className="h-12 ag-shimmer rounded-lg" />
-            ))}
-          </div>
-        ) : (
-          <div className="text-sm text-text-tertiary">{t('user_overview.recent_usage_empty')}</div>
-        )}
-      </Card>
-    </div>
-  );
-}
-
-function SubscriptionItem({ sub }: { sub: SubscriptionResp }) {
-  return (
-    <div className="rounded-lg border border-glass-border bg-surface px-4 py-3">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="text-sm font-medium text-text">{sub.group_name}</div>
-          <div className="text-xs text-text-tertiary">
-            到期：{new Date(sub.expires_at).toLocaleDateString('zh-CN')}
-          </div>
-        </div>
-        <div className="text-xs font-medium text-success">{sub.status}</div>
-      </div>
-    </div>
-  );
-}
-
-function KeyItem({ item }: { item: APIKeyResp }) {
-  return (
-    <div className="rounded-lg border border-glass-border bg-surface px-4 py-3">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="text-sm font-medium text-text">{item.name}</div>
-          <div className="text-xs text-text-tertiary font-mono">{item.key_prefix}</div>
-        </div>
-        <div className={`text-xs font-medium ${item.status === 'active' ? 'text-success' : 'text-text-tertiary'}`}>
-          {item.status}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function HashIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <line x1="4" y1="9" x2="20" y2="9" />
-      <line x1="4" y1="15" x2="20" y2="15" />
-      <line x1="10" y1="3" x2="8" y2="21" />
-      <line x1="16" y1="3" x2="14" y2="21" />
-    </svg>
-  );
-}
-
-function AdminDashboardContent() {
   const { t } = useTranslation();
   const [range, setRange] = useState<RangePreset>('today');
   const [granularity, setGranularity] = useState<Granularity>('day');
 
+  // 统计数据
   const { data: stats, isLoading: statsLoading, error: statsError } = useQuery({
     queryKey: ['dashboard', 'stats'],
     queryFn: () => dashboardApi.stats(),
   });
 
+  // 趋势数据
   const trendParams: DashboardTrendReq = useMemo(() => ({
     range,
     granularity: range === 'today' ? 'hour' : granularity,
@@ -298,14 +69,17 @@ function AdminDashboardContent() {
 
   return (
     <div>
+      {/* 错误提示 */}
       {statsError && (
         <div className="rounded-md bg-danger-subtle border border-danger border-opacity-20 px-4 py-3 text-sm text-danger mb-4">
           {t('dashboard.load_failed', { error: statsError instanceof Error ? statsError.message : '' })}
         </div>
       )}
 
+      {/* 统计卡片 */}
       {statsLoading ? <StatsSkeleton /> : stats ? <StatsCards stats={stats} /> : null}
 
+      {/* 时间范围选择 */}
       <div className="flex items-center justify-between mt-6 mb-4 flex-wrap gap-3">
         <div className="flex items-center gap-2">
           <span className="text-xs text-text-tertiary">{t('dashboard.time_range')}</span>
@@ -337,6 +111,7 @@ function AdminDashboardContent() {
         </div>
       </div>
 
+      {/* 模型分布 + Token 趋势 */}
       {trendLoading ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
           <div className="rounded-lg border border-glass-border bg-bg-elevated p-5 h-96 ag-shimmer" />
@@ -349,6 +124,8 @@ function AdminDashboardContent() {
   );
 }
 
+// ==================== 趋势图组合 ====================
+
 function TrendCharts({ trend }: { trend: DashboardTrendResp }) {
   return (
     <>
@@ -360,6 +137,8 @@ function TrendCharts({ trend }: { trend: DashboardTrendResp }) {
     </>
   );
 }
+
+// ==================== 统计卡片 ====================
 
 function StatsCards({ stats }: { stats: DashboardStatsResp }) {
   const { t } = useTranslation();
@@ -433,6 +212,7 @@ function StatsCards({ stats }: { stats: DashboardStatsResp }) {
           className="group relative overflow-hidden rounded-lg border border-glass-border bg-bg-elevated p-5 transition-all duration-200 hover:border-border hover:shadow-md"
           style={{ animation: `ag-slide-up 0.4s ease-out ${i * 50}ms both` }}
         >
+          {/* 顶部发光线 */}
           <div
             className="absolute top-0 left-0 right-0 h-px opacity-40 group-hover:opacity-80 transition-opacity"
             style={{ background: `linear-gradient(90deg, transparent, ${card.color}, transparent)` }}
@@ -483,6 +263,8 @@ function StatsSkeleton() {
   );
 }
 
+// ==================== 模型分布 ====================
+
 function ModelDistributionCard({ trend }: { trend: DashboardTrendResp }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<'model' | 'user'>('model');
@@ -522,6 +304,7 @@ function ModelDistributionCard({ trend }: { trend: DashboardTrendResp }) {
     }>
       {tab === 'model' ? (
         <div className="flex gap-4">
+          {/* 饼图 */}
           <div className="w-48 h-48 flex-shrink-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -550,6 +333,7 @@ function ModelDistributionCard({ trend }: { trend: DashboardTrendResp }) {
             </ResponsiveContainer>
           </div>
 
+          {/* 模型表格 */}
           <div className="flex-1 overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
@@ -579,6 +363,7 @@ function ModelDistributionCard({ trend }: { trend: DashboardTrendResp }) {
           </div>
         </div>
       ) : (
+        /* 用户消费榜 */
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
@@ -608,6 +393,8 @@ function ModelDistributionCard({ trend }: { trend: DashboardTrendResp }) {
   );
 }
 
+// ==================== Token 趋势 ====================
+
 function TokenTrendCard({ trend }: { trend: DashboardTrendResp }) {
   const { t } = useTranslation();
 
@@ -616,8 +403,7 @@ function TokenTrendCard({ trend }: { trend: DashboardTrendResp }) {
       time: fmtTime(d.time),
       input: d.input_tokens,
       output: d.output_tokens,
-      cacheCreation: d.cache_creation,
-      cacheRead: d.cache_read,
+      cachedInput: d.cached_input,
     })),
     [trend.token_trend],
   );
@@ -662,8 +448,7 @@ function TokenTrendCard({ trend }: { trend: DashboardTrendResp }) {
               const labels: Record<string, string> = {
                 input: t('dashboard.input'),
                 output: t('dashboard.output'),
-                cacheCreation: t('dashboard.cache_creation'),
-                cacheRead: t('dashboard.cache_read'),
+                cachedInput: t('dashboard.cached_input'),
               };
               return [fmtNum(Number(value)), labels[String(name)] || String(name)];
             }}
@@ -676,29 +461,31 @@ function TokenTrendCard({ trend }: { trend: DashboardTrendResp }) {
               const labels: Record<string, string> = {
                 input: t('dashboard.input'),
                 output: t('dashboard.output'),
-                cacheCreation: t('dashboard.cache_creation'),
-                cacheRead: t('dashboard.cache_read'),
+                cachedInput: t('dashboard.cached_input'),
               };
               return labels[value] || value;
             }}
           />
           <Line type="monotone" dataKey="input" stroke="#3b82f6" strokeWidth={2} dot={false} />
           <Line type="monotone" dataKey="output" stroke="#10b981" strokeWidth={2} dot={false} />
-          <Line type="monotone" dataKey="cacheCreation" stroke="#f59e0b" strokeWidth={2} dot={false} />
-          <Line type="monotone" dataKey="cacheRead" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+          <Line type="monotone" dataKey="cachedInput" stroke="#8b5cf6" strokeWidth={2} dot={false} />
         </LineChart>
       </ResponsiveContainer>
     </Card>
   );
 }
 
+// ==================== Top 用户 ====================
+
 function TopUsersCard({ trend }: { trend: DashboardTrendResp }) {
   const { t } = useTranslation();
   const topUsers = trend.top_users ?? [];
 
+  // 收集所有时间点并合并为一行
   const chartData = useMemo(() => {
     if (topUsers.length === 0) return [];
 
+    // 收集所有唯一时间点
     const timeSet = new Set<string>();
     topUsers.forEach((u) => u.trend.forEach((p) => timeSet.add(p.time)));
     const times = Array.from(timeSet).sort();
@@ -764,10 +551,15 @@ function TopUsersCard({ trend }: { trend: DashboardTrendResp }) {
   );
 }
 
+// ==================== 工具函数 ====================
+
+/** 格式化时间标签：日期取 MM/DD，含小时的取 HH:00 */
 function fmtTime(timeStr: string): string {
   if (timeStr.includes(' ')) {
+    // "2026-03-16 15:00" -> "15:00"
     return timeStr.split(' ')[1] ?? timeStr;
   }
+  // "2026-03-16" -> "03/16"
   const parts = timeStr.split('-');
   return `${parts[1] ?? ''}/${parts[2] ?? ''}`;
 }

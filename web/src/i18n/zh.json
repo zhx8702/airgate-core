@@ -161,8 +161,7 @@
     "token_trend": "Token 使用趋势",
     "input": "Input",
     "output": "Output",
-    "cache_creation": "Cache Creation",
-    "cache_read": "Cache Read",
+    "cached_input": "Cached Input",
     "top_users": "最近使用 (Top 12)",
     "email": "邮箱",
     "cost": "费用"
@@ -352,8 +351,11 @@
     "edit": "编辑分组",
     "platform": "平台",
     "all_platforms": "全部平台",
+    "service_tier_all": "全部层级",
     "select_platform": "请选择平台",
     "rate_multiplier": "费率倍率",
+    "service_tier": "服务层级",
+    "service_tier_default": "默认",
     "exclusive": "专属",
     "exclusive_hint": "专属分组（仅分配了该分组的用户可用）",
     "subscription_type": "订阅类型",
@@ -367,7 +369,10 @@
     "quota_monthly": "每月限额",
     "quota_hint": "留空表示不限制",
     "create_success": "分组创建成功",
-    "update_success": "分组更新成功"
+    "update_success": "分组更新成功",
+    "delete_title": "删除分组",
+    "delete_confirm": "确定要删除分组「{{name}}」吗？删除后将自动解绑已绑定的 API 密钥，保留已有使用记录；若该分组仍存在用户订阅，则无法删除。",
+    "delete_success": "分组删除成功"
   },
 
   "api_keys": {
@@ -396,7 +401,11 @@
     "create_success": "API 密钥创建成功",
     "update_success": "密钥更新成功",
     "delete_success": "密钥已删除",
-    "reveal": "查看密钥"
+    "reveal": "查看密钥",
+    "group_unbound": "未绑定分组",
+    "usage": "用量",
+    "today": "今日",
+    "thirty_days": "近30天"
   },
 
   "subscriptions": {
@@ -458,6 +467,7 @@
     "platform": "平台",
     "platform_placeholder": "例如：openai",
     "model": "模型",
+    "api_key_deleted": "已删除密钥",
     "model_placeholder": "例如：gpt-4",
     "user_id": "用户 ID",
     "search_user": "搜索用户",
@@ -469,6 +479,8 @@
     "time": "时间",
     "input_tokens": "输入 Token",
     "output_tokens": "输出 Token",
+    "cached_input_tokens": "缓存 Token",
+    "cached_input_cost": "缓存费用",
     "stream": "流式",
     "duration": "耗时",
     "requests": "请求数",
@@ -599,6 +611,8 @@
     "use_key": "使用配置",
     "use_key_title": "使用 API 密钥",
     "use_key_desc": "将以下环境变量添加到你的终端配置中，即可开始使用。",
+    "group_unbound": "未绑定分组",
+    "group_unbound_hint": "该 API 密钥当前未绑定分组，暂时无法生成使用配置。请联系管理员重新绑定分组后再试。",
     "copy": "复制",
     "copied": "已复制",
     "reveal_failed": "无法获取密钥原文",

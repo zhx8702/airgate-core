@@ -13,24 +13,27 @@ import (
 )
 
 var (
-	ErrInvalidAPIKey = errors.New("无效的 API Key")
-	ErrAPIKeyExpired = errors.New("API Key 已过期")
-	ErrAPIKeyQuota   = errors.New("API Key 配额已用尽")
+	ErrInvalidAPIKey      = errors.New("无效的 API Key")
+	ErrAPIKeyExpired      = errors.New("API Key 已过期")
+	ErrAPIKeyQuota        = errors.New("API Key 配额已用尽")
+	ErrAPIKeyGroupUnbound = errors.New("API Key 未绑定分组，请联系管理员重新绑定")
 )
 
 const apiKeyPrefix = "sk-"
 
 // APIKeyInfo API Key 验证后的信息
 type APIKeyInfo struct {
-	KeyID     int
-	UserID    int
-	GroupID   int
-	QuotaUSD  float64
-	UsedQuota float64
+	KeyID         int
+	UserID        int
+	GroupID       int
+	GroupPlatform string
+	QuotaUSD      float64
+	UsedQuota     float64
 
 	// 预加载字段，避免 forwarder 重复查询
 	UserBalance         float64 // 用户余额
 	GroupRateMultiplier float64 // 分组倍率
+	GroupServiceTier    string  // 分组 service tier
 }
 
 // GenerateAPIKey 生成 API Key 和对应的哈希值
@@ -84,19 +87,21 @@ func ValidateAPIKey(ctx context.Context, db *ent.Client, key string) (*APIKeyInf
 	if err != nil {
 		return nil, ErrInvalidAPIKey
 	}
-	g, err := ak.Edges.GroupOrErr()
-	if err != nil {
-		return nil, ErrInvalidAPIKey
+	g := ak.Edges.Group
+	if g == nil {
+		return nil, ErrAPIKeyGroupUnbound
 	}
 
 	return &APIKeyInfo{
-		KeyID:     ak.ID,
-		UserID:    u.ID,
-		GroupID:   g.ID,
-		QuotaUSD:  ak.QuotaUsd,
-		UsedQuota: ak.UsedQuota,
+		KeyID:         ak.ID,
+		UserID:        u.ID,
+		GroupID:       g.ID,
+		GroupPlatform: g.Platform,
+		QuotaUSD:      ak.QuotaUsd,
+		UsedQuota:     ak.UsedQuota,
 
 		UserBalance:         u.Balance,
 		GroupRateMultiplier: g.RateMultiplier,
+		GroupServiceTier:    g.ServiceTier,
 	}, nil
 }

@@ -71,11 +71,10 @@ type DashboardUserRanking struct {
 
 // DashboardTimeBucket Token 趋势时间桶
 type DashboardTimeBucket struct {
-	Time          string `json:"time"`
-	InputTokens   int64  `json:"input_tokens"`
-	OutputTokens  int64  `json:"output_tokens"`
-	CacheCreation int64  `json:"cache_creation"`
-	CacheRead     int64  `json:"cache_read"`
+	Time         string `json:"time"`
+	InputTokens  int64  `json:"input_tokens"`
+	OutputTokens int64  `json:"output_tokens"`
+	CachedInput  int64  `json:"cached_input"`
 }
 
 // DashboardUserTrend Top 用户使用趋势

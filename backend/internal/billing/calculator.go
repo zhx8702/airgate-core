@@ -11,11 +11,12 @@ func NewCalculator() *Calculator {
 
 // CalculateInput 计算输入参数
 type CalculateInput struct {
-	InputTokens  int // 输入 token 数量
-	OutputTokens int // 输出 token 数量
-	CacheTokens  int // 缓存 token 数量
-	Model        string
-	Platform     string
+	InputTokens       int // 输入 token 数量
+	OutputTokens      int // 输出 token 数量
+	CachedInputTokens int // 命中缓存的输入 token 数量
+	ServiceTier       string
+	Model             string
+	Platform          string
 
 	// 三层倍率
 	GroupRateMultiplier   float64 // 分组倍率
@@ -27,8 +28,9 @@ type CalculateInput struct {
 type CalculateResult struct {
 	InputCost             float64 // 输入 token 费用
 	OutputCost            float64 // 输出 token 费用
-	CacheCost             float64 // 缓存 token 费用
-	TotalCost             float64 // 原始成本 = input + output + cache
+	CachedInputCost       float64 // cached input token 费用
+	CacheCost             float64 // 兼容字段，等同于 CachedInputCost
+	TotalCost             float64 // 原始成本 = input + cached_input + output
 	ActualCost            float64 // 最终计费 = TotalCost * group * account * user
 	RateMultiplier        float64 // 最终综合倍率
 	AccountRateMultiplier float64 // 账号倍率
@@ -37,16 +39,31 @@ type CalculateResult struct {
 // Calculate 计算费用
 // 公式：
 //
-//	input_cost  = input_tokens * price.InputPerToken
-//	output_cost = output_tokens * price.OutputPerToken
-//	cache_cost  = cache_tokens * price.CachePerToken
-//	total_cost  = input_cost + output_cost + cache_cost
-//	actual_cost = total_cost * group_rate * account_rate * user_rate
+//	input_cost        = input_tokens * input_price
+//	cached_input_cost = cached_input_tokens * cached_input_price
+//	output_cost       = output_tokens * output_price
+//	total_cost        = input_cost + cached_input_cost + output_cost
+//	actual_cost       = total_cost * group_rate * account_rate * user_rate
 func (c *Calculator) Calculate(input CalculateInput, price ModelPrice) CalculateResult {
-	inputCost := float64(input.InputTokens) * price.InputPerToken
-	outputCost := float64(input.OutputTokens) * price.OutputPerToken
-	cacheCost := float64(input.CacheTokens) * price.CachePerToken
-	totalCost := inputCost + outputCost + cacheCost
+	inputPrice := price.InputPerToken
+	outputPrice := price.OutputPerToken
+	cachedInputPrice := price.CachedInputPerToken
+	if input.ServiceTier == "priority" {
+		if price.InputPerTokenPriority > 0 {
+			inputPrice = price.InputPerTokenPriority
+		}
+		if price.OutputPerTokenPriority > 0 {
+			outputPrice = price.OutputPerTokenPriority
+		}
+		if price.CachedInputPerTokenPriority > 0 {
+			cachedInputPrice = price.CachedInputPerTokenPriority
+		}
+	}
+
+	inputCost := float64(input.InputTokens) * inputPrice
+	outputCost := float64(input.OutputTokens) * outputPrice
+	cachedInputCost := float64(input.CachedInputTokens) * cachedInputPrice
+	totalCost := inputCost + outputCost + cachedInputCost
 
 	// 倍率默认为 1.0
 	groupRate := input.GroupRateMultiplier
@@ -68,7 +85,8 @@ func (c *Calculator) Calculate(input CalculateInput, price ModelPrice) Calculate
 	return CalculateResult{
 		InputCost:             inputCost,
 		OutputCost:            outputCost,
-		CacheCost:             cacheCost,
+		CachedInputCost:       cachedInputCost,
+		CacheCost:             cachedInputCost,
 		TotalCost:             totalCost,
 		ActualCost:            actualCost,
 		RateMultiplier:        combinedRate,

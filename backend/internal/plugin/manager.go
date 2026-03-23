@@ -281,9 +281,12 @@ func (m *Manager) startGatewayPlugin(ctx context.Context, client *goplugin.Clien
 	if m.priceMgr != nil {
 		for _, model := range models {
 			m.priceMgr.SetPrice(platform, model.ID, billing.ModelPrice{
-				InputPerToken:  model.InputPrice / 1_000_000,
-				OutputPerToken: model.OutputPrice / 1_000_000,
-				CachePerToken:  model.CachePrice / 1_000_000,
+				InputPerToken:               model.InputPrice / 1_000_000,
+				OutputPerToken:              model.OutputPrice / 1_000_000,
+				CachedInputPerToken:         model.CachedInputPrice / 1_000_000,
+				InputPerTokenPriority:       model.InputPricePriority / 1_000_000,
+				OutputPerTokenPriority:      model.OutputPricePriority / 1_000_000,
+				CachedInputPerTokenPriority: model.CachedInputPricePriority / 1_000_000,
 			})
 		}
 	}
@@ -773,7 +776,7 @@ func (m *Manager) MatchPluginByPathPrefix(path string) *PluginInstance {
 
 	for pluginName, routes := range m.routeCache {
 		for _, route := range routes {
-			if path == route.Path || len(path) > len(route.Path) && path[:len(route.Path)] == route.Path {
+			if matchRoutePath(route.Path, path) {
 				if inst, ok := m.instances[pluginName]; ok {
 					return inst
 				}
@@ -781,6 +784,29 @@ func (m *Manager) MatchPluginByPathPrefix(path string) *PluginInstance {
 		}
 	}
 	return nil
+}
+
+// MatchPluginByPlatformAndPath 根据平台和路径匹配插件。
+// 当多个插件声明了相同路由时，优先使用 API Key 绑定分组的平台。
+func (m *Manager) MatchPluginByPlatformAndPath(platform, path string) *PluginInstance {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	for pluginName, inst := range m.instances {
+		if inst.Platform != platform {
+			continue
+		}
+		for _, route := range m.routeCache[pluginName] {
+			if matchRoutePath(route.Path, path) {
+				return inst
+			}
+		}
+	}
+	return nil
+}
+
+func matchRoutePath(routePath, path string) bool {
+	return path == routePath || len(path) > len(routePath) && strings.HasPrefix(path, routePath)
 }
 
 // IsRunning 检查插件是否正在运行

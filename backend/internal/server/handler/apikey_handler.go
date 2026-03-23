@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -14,6 +15,7 @@ import (
 	"github.com/DouDOU-start/airgate-core/ent"
 	"github.com/DouDOU-start/airgate-core/ent/apikey"
 	"github.com/DouDOU-start/airgate-core/ent/group"
+	entusagelog "github.com/DouDOU-start/airgate-core/ent/usagelog"
 	"github.com/DouDOU-start/airgate-core/ent/user"
 	"github.com/DouDOU-start/airgate-core/internal/auth"
 	"github.com/DouDOU-start/airgate-core/internal/server/dto"
@@ -73,10 +75,19 @@ func (h *APIKeyHandler) ListKeys(c *gin.Context) {
 		return
 	}
 
+	// 批量查询 API Key 用量（今日 + 近30天）
+	keyIDs := make([]int, len(keys))
+	for i, k := range keys {
+		keyIDs[i] = k.ID
+	}
+	todayCostMap, thirtyDayCostMap := h.batchKeyUsage(c.Request.Context(), keyIDs)
+
 	list := make([]dto.APIKeyResp, 0, len(keys))
 	for _, k := range keys {
 		resp := toAPIKeyResp(k, "")
 		resp.UserID = int64(uid)
+		resp.TodayCost = todayCostMap[k.ID]
+		resp.ThirtyDayCost = thirtyDayCostMap[k.ID]
 		list = append(list, resp)
 	}
 
@@ -296,8 +307,31 @@ func (h *APIKeyHandler) DeleteKey(c *gin.Context) {
 		return
 	}
 
-	if err := h.db.APIKey.DeleteOneID(id).Exec(c.Request.Context()); err != nil {
+	tx, err := h.db.Tx(c.Request.Context())
+	if err != nil {
+		slog.Error("开启事务失败", "error", err)
+		response.InternalError(c, "删除失败")
+		return
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	if err := tx.UsageLog.Update().
+		Where(entusagelog.HasAPIKeyWith(apikey.IDEQ(id))).
+		ClearAPIKey().
+		Exec(c.Request.Context()); err != nil {
+		slog.Error("清理密钥使用记录关联失败", "error", err)
+		response.InternalError(c, "删除失败")
+		return
+	}
+	if err := tx.APIKey.DeleteOneID(id).Exec(c.Request.Context()); err != nil {
 		slog.Error("删除密钥失败", "error", err)
+		response.InternalError(c, "删除失败")
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		slog.Error("提交删除事务失败", "error", err)
 		response.InternalError(c, "删除失败")
 		return
 	}
@@ -442,13 +476,67 @@ func (h *APIKeyHandler) RevealKey(c *gin.Context) {
 	plainKey, err := auth.DecryptAPIKey(k.KeyEncrypted, h.secret)
 	if err != nil {
 		slog.Error("解密 API 密钥失败", "error", err)
-		response.InternalError(c, "解密失败")
+		response.BadRequest(c, "该密钥无法解密，可能创建于不同加密密钥下，无法查看原文")
 		return
 	}
 
 	resp := toAPIKeyResp(k, plainKey)
 	resp.UserID = int64(uid)
 	response.Success(c, resp)
+}
+
+// batchKeyUsage 批量查询 API Key 的今日和近30天用量
+func (h *APIKeyHandler) batchKeyUsage(ctx context.Context, keyIDs []int) (todayMap, thirtyDayMap map[int]float64) {
+	todayMap = make(map[int]float64, len(keyIDs))
+	thirtyDayMap = make(map[int]float64, len(keyIDs))
+	if len(keyIDs) == 0 {
+		return
+	}
+
+	now := time.Now()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	thirtyDaysAgo := now.AddDate(0, 0, -30)
+
+	type costRow struct {
+		APIKeyID int     `json:"api_key_usage_logs"`
+		Cost     float64 `json:"cost"`
+	}
+
+	// 今日用量
+	var todayRows []costRow
+	err := h.db.UsageLog.Query().
+		Where(
+			entusagelog.HasAPIKeyWith(apikey.IDIn(keyIDs...)),
+			entusagelog.CreatedAtGTE(todayStart),
+		).
+		GroupBy(entusagelog.ForeignKeys[0]).
+		Aggregate(ent.As(ent.Sum(entusagelog.FieldActualCost), "cost")).
+		Scan(ctx, &todayRows)
+	if err != nil {
+		slog.Error("查询 API Key 今日用量失败", "error", err)
+	}
+	for _, r := range todayRows {
+		todayMap[r.APIKeyID] = r.Cost
+	}
+
+	// 近30天用量
+	var thirtyDayRows []costRow
+	err = h.db.UsageLog.Query().
+		Where(
+			entusagelog.HasAPIKeyWith(apikey.IDIn(keyIDs...)),
+			entusagelog.CreatedAtGTE(thirtyDaysAgo),
+		).
+		GroupBy(entusagelog.ForeignKeys[0]).
+		Aggregate(ent.As(ent.Sum(entusagelog.FieldActualCost), "cost")).
+		Scan(ctx, &thirtyDayRows)
+	if err != nil {
+		slog.Error("查询 API Key 近30天用量失败", "error", err)
+	}
+	for _, r := range thirtyDayRows {
+		thirtyDayMap[r.APIKeyID] = r.Cost
+	}
+
+	return
 }
 
 // generateAPIKey 生成 sk- 前缀的随机 API 密钥
@@ -505,7 +593,8 @@ func toAPIKeyResp(k *ent.APIKey, rawKey string) dto.APIKeyResp {
 
 	// 关联的分组 ID
 	if k.Edges.Group != nil {
-		resp.GroupID = int64(k.Edges.Group.ID)
+		groupID := int64(k.Edges.Group.ID)
+		resp.GroupID = &groupID
 	}
 
 	return resp

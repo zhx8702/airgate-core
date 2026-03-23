@@ -10,6 +10,7 @@ type GroupResp struct {
 	SubscriptionType string                 `json:"subscription_type"` // standard / subscription
 	Quotas           map[string]interface{} `json:"quotas,omitempty"`  // 日/周/月限额
 	ModelRouting     map[string][]int64     `json:"model_routing,omitempty"`
+	ServiceTier      string                 `json:"service_tier,omitempty"`
 	SortWeight       int                    `json:"sort_weight"`
 	TimeMixin
 }
@@ -23,6 +24,7 @@ type CreateGroupReq struct {
 	SubscriptionType string                 `json:"subscription_type" binding:"oneof=standard subscription"`
 	Quotas           map[string]interface{} `json:"quotas"`
 	ModelRouting     map[string][]int64     `json:"model_routing"`
+	ServiceTier      string                 `json:"service_tier" binding:"omitempty,oneof=fast flex"`
 	SortWeight       int                    `json:"sort_weight"`
 }
 
@@ -34,5 +36,6 @@ type UpdateGroupReq struct {
 	SubscriptionType *string                `json:"subscription_type" binding:"omitempty,oneof=standard subscription"`
 	Quotas           map[string]interface{} `json:"quotas"`
 	ModelRouting     map[string][]int64     `json:"model_routing"`
+	ServiceTier      *string                `json:"service_tier" binding:"omitempty,oneof=fast flex"`
 	SortWeight       *int                   `json:"sort_weight"`
 }

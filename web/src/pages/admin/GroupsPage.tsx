@@ -7,12 +7,13 @@ import {
   Layers,
   ArrowUpDown,
   Lock,
+  Trash2,
 } from 'lucide-react';
 import { PageHeader } from '../../shared/components/PageHeader';
 import { Button } from '../../shared/components/Button';
 import { Input, Select } from '../../shared/components/Input';
 import { Table, type Column } from '../../shared/components/Table';
-import { Modal } from '../../shared/components/Modal';
+import { ConfirmModal, Modal } from '../../shared/components/Modal';
 import { Badge } from '../../shared/components/Badge';
 import { useToast } from '../../shared/components/Toast';
 import { PlatformIcon } from '../../shared/components/PlatformIcon';
@@ -33,23 +34,31 @@ export default function GroupsPage() {
     { value: '', label: t('groups.all_platforms') },
     ...platforms.map((p) => ({ value: p, label: platformName(p) })),
   ];
+  const SERVICE_TIER_OPTIONS = [
+    { value: '', label: t('groups.service_tier_all') },
+    { value: 'fast', label: 'fast' },
+    { value: 'flex', label: 'flex' },
+  ];
 
   // 筛选状态
   const { page, setPage, pageSize, setPageSize } = usePagination(PAGE_SIZE);
   const [platformFilter, setPlatformFilter] = useState('');
+  const [serviceTierFilter, setServiceTierFilter] = useState('');
 
   // 弹窗状态
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingGroup, setEditingGroup] = useState<GroupResp | null>(null);
+  const [deletingGroup, setDeletingGroup] = useState<GroupResp | null>(null);
 
   // 查询分组列表
   const { data, isLoading } = useQuery({
-    queryKey: ['groups', page, pageSize, platformFilter],
+    queryKey: ['groups', page, pageSize, platformFilter, serviceTierFilter],
     queryFn: () =>
       groupsApi.list({
         page,
         page_size: pageSize,
         platform: platformFilter || undefined,
+        service_tier: (serviceTierFilter || undefined) as 'fast' | 'flex' | undefined,
       }),
   });
 
@@ -71,6 +80,21 @@ export default function GroupsPage() {
     onSuccess: () => {
       toast('success', t('groups.update_success'));
       setEditingGroup(null);
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
+    },
+    onError: (err: Error) => toast('error', err.message),
+  });
+
+  // 删除分组
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => groupsApi.delete(id),
+    onSuccess: () => {
+      toast('success', t('groups.delete_success'));
+      setDeletingGroup(null);
+      if ((data?.list?.length ?? 0) === 1 && page > 1) {
+        setPage(page - 1);
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ['groups'] });
     },
     onError: (err: Error) => toast('error', err.message),
@@ -130,6 +154,12 @@ export default function GroupsPage() {
       ),
     },
     {
+      key: 'service_tier',
+      title: t('groups.service_tier'),
+      width: '100px',
+      render: (row) => row.service_tier ? <Badge variant="info">{row.service_tier}</Badge> : <span style={{ color: 'var(--ag-text-tertiary)' }}>{t('groups.service_tier_default')}</span>,
+    },
+    {
       key: 'is_exclusive',
       title: t('groups.exclusive'),
       width: '80px',
@@ -158,14 +188,25 @@ export default function GroupsPage() {
       key: 'actions',
       title: t('common.actions'),
       render: (row) => (
-        <Button
-          size="sm"
-          variant="ghost"
-          icon={<Pencil className="w-3.5 h-3.5" />}
-          onClick={() => setEditingGroup(row)}
-        >
-          {t('common.edit')}
-        </Button>
+        <div className="flex gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={<Pencil className="w-3.5 h-3.5" />}
+            onClick={() => setEditingGroup(row)}
+          >
+            {t('common.edit')}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={<Trash2 className="w-3.5 h-3.5" />}
+            style={{ color: 'var(--ag-danger)' }}
+            onClick={() => setDeletingGroup(row)}
+          >
+            {t('common.delete')}
+          </Button>
+        </div>
       ),
     },
   ];
@@ -192,6 +233,15 @@ export default function GroupsPage() {
           }}
           options={PLATFORM_OPTIONS}
           label={t('groups.platform')}
+        />
+        <Select
+          value={serviceTierFilter}
+          onChange={(e) => {
+            setServiceTierFilter(e.target.value);
+            setPage(1);
+          }}
+          options={SERVICE_TIER_OPTIONS}
+          label={t('groups.service_tier')}
         />
       </div>
 
@@ -232,6 +282,17 @@ export default function GroupsPage() {
           platforms={platforms}
         />
       )}
+
+      {/* 删除确认 */}
+      <ConfirmModal
+        open={!!deletingGroup}
+        onClose={() => setDeletingGroup(null)}
+        onConfirm={() => deletingGroup && deleteMutation.mutate(deletingGroup.id)}
+        title={t('groups.delete_title')}
+        message={t('groups.delete_confirm', { name: deletingGroup?.name })}
+        loading={deleteMutation.isPending}
+        danger
+      />
     </div>
   );
 }
@@ -282,6 +343,7 @@ function GroupFormModal({
     rate_multiplier: group?.rate_multiplier ?? 1,
     is_exclusive: group?.is_exclusive ?? false,
     subscription_type: group?.subscription_type ?? 'standard' as const,
+    service_tier: group?.service_tier ?? undefined as 'fast' | 'flex' | undefined,
     sort_weight: group?.sort_weight ?? 0,
   });
 
@@ -348,6 +410,22 @@ function GroupFormModal({
           onChange={(e) =>
             setForm({ ...form, rate_multiplier: Number(e.target.value) })
           }
+        />
+
+        <Select
+          label={t('groups.service_tier')}
+          value={form.service_tier ?? ''}
+          onChange={(e) =>
+            setForm({
+              ...form,
+              service_tier: (e.target.value || undefined) as 'fast' | 'flex' | undefined,
+            })
+          }
+          options={[
+            { value: '', label: t('groups.service_tier_default') },
+            { value: 'fast', label: 'fast' },
+            { value: 'flex', label: 'flex' },
+          ]}
         />
 
         <div className="flex items-center justify-between">

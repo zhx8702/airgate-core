@@ -91,6 +91,20 @@ func (gc *GroupCreate) SetModelRouting(m map[string][]int64) *GroupCreate {
 	return gc
 }
 
+// SetServiceTier sets the "service_tier" field.
+func (gc *GroupCreate) SetServiceTier(s string) *GroupCreate {
+	gc.mutation.SetServiceTier(s)
+	return gc
+}
+
+// SetNillableServiceTier sets the "service_tier" field if the given value is not nil.
+func (gc *GroupCreate) SetNillableServiceTier(s *string) *GroupCreate {
+	if s != nil {
+		gc.SetServiceTier(*s)
+	}
+	return gc
+}
+
 // SetSortWeight sets the "sort_weight" field.
 func (gc *GroupCreate) SetSortWeight(i int) *GroupCreate {
 	gc.mutation.SetSortWeight(i)
@@ -255,6 +269,10 @@ func (gc *GroupCreate) defaults() {
 		v := group.DefaultSubscriptionType
 		gc.mutation.SetSubscriptionType(v)
 	}
+	if _, ok := gc.mutation.ServiceTier(); !ok {
+		v := group.DefaultServiceTier
+		gc.mutation.SetServiceTier(v)
+	}
 	if _, ok := gc.mutation.SortWeight(); !ok {
 		v := group.DefaultSortWeight
 		gc.mutation.SetSortWeight(v)
@@ -300,6 +318,9 @@ func (gc *GroupCreate) check() error {
 		if err := group.SubscriptionTypeValidator(v); err != nil {
 			return &ValidationError{Name: "subscription_type", err: fmt.Errorf(`ent: validator failed for field "Group.subscription_type": %w`, err)}
 		}
+	}
+	if _, ok := gc.mutation.ServiceTier(); !ok {
+		return &ValidationError{Name: "service_tier", err: errors.New(`ent: missing required field "Group.service_tier"`)}
 	}
 	if _, ok := gc.mutation.SortWeight(); !ok {
 		return &ValidationError{Name: "sort_weight", err: errors.New(`ent: missing required field "Group.sort_weight"`)}
@@ -363,6 +384,10 @@ func (gc *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := gc.mutation.ModelRouting(); ok {
 		_spec.SetField(group.FieldModelRouting, field.TypeJSON, value)
 		_node.ModelRouting = value
+	}
+	if value, ok := gc.mutation.ServiceTier(); ok {
+		_spec.SetField(group.FieldServiceTier, field.TypeString, value)
+		_node.ServiceTier = value
 	}
 	if value, ok := gc.mutation.SortWeight(); ok {
 		_spec.SetField(group.FieldSortWeight, field.TypeInt, value)

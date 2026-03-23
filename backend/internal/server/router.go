@@ -116,6 +116,7 @@ func (s *Server) registerRoutes() {
 		adminGroup.POST("/groups", groupHandler.CreateGroup)
 		adminGroup.GET("/groups/:id", groupHandler.GetGroup)
 		adminGroup.PUT("/groups/:id", groupHandler.UpdateGroup)
+		adminGroup.DELETE("/groups/:id", groupHandler.DeleteGroup)
 
 		// API 密钥管理（管理员）
 		adminGroup.PUT("/api-keys/:id", apikeyHandler.AdminUpdateKey)

@@ -456,7 +456,14 @@ export default function UsagePage() {
     {
       key: 'model',
       title: t('usage.model'),
-      render: (row) => <span className="text-text">{row.model}</span>,
+      render: (row) => (
+        <div>
+          <div className="text-text">{row.model}</div>
+          <div className="text-xs text-text-tertiary font-mono">
+            {row.api_key_deleted ? t('usage.api_key_deleted') : `API Key #${row.api_key_id}`}
+          </div>
+        </div>
+      ),
     },
     {
       key: 'input_tokens',
@@ -473,6 +480,15 @@ export default function UsagePage() {
       render: (row) => (
         <span className="font-mono">
           {row.output_tokens.toLocaleString()}
+        </span>
+      ),
+    },
+    {
+      key: 'cached_input_tokens',
+      title: t('usage.cached_input_tokens'),
+      render: (row) => (
+        <span className="font-mono text-text-secondary">
+          {row.cached_input_tokens > 0 ? row.cached_input_tokens.toLocaleString() : '-'}
         </span>
       ),
     },

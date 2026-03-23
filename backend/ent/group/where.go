@@ -75,6 +75,11 @@ func IsExclusive(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldIsExclusive, v))
 }
 
+// ServiceTier applies equality check predicate on the "service_tier" field. It's identical to ServiceTierEQ.
+func ServiceTier(v string) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldServiceTier, v))
+}
+
 // SortWeight applies equality check predicate on the "sort_weight" field. It's identical to SortWeightEQ.
 func SortWeight(v int) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldSortWeight, v))
@@ -308,6 +313,71 @@ func ModelRoutingIsNil() predicate.Group {
 // ModelRoutingNotNil applies the NotNil predicate on the "model_routing" field.
 func ModelRoutingNotNil() predicate.Group {
 	return predicate.Group(sql.FieldNotNull(FieldModelRouting))
+}
+
+// ServiceTierEQ applies the EQ predicate on the "service_tier" field.
+func ServiceTierEQ(v string) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldServiceTier, v))
+}
+
+// ServiceTierNEQ applies the NEQ predicate on the "service_tier" field.
+func ServiceTierNEQ(v string) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldServiceTier, v))
+}
+
+// ServiceTierIn applies the In predicate on the "service_tier" field.
+func ServiceTierIn(vs ...string) predicate.Group {
+	return predicate.Group(sql.FieldIn(FieldServiceTier, vs...))
+}
+
+// ServiceTierNotIn applies the NotIn predicate on the "service_tier" field.
+func ServiceTierNotIn(vs ...string) predicate.Group {
+	return predicate.Group(sql.FieldNotIn(FieldServiceTier, vs...))
+}
+
+// ServiceTierGT applies the GT predicate on the "service_tier" field.
+func ServiceTierGT(v string) predicate.Group {
+	return predicate.Group(sql.FieldGT(FieldServiceTier, v))
+}
+
+// ServiceTierGTE applies the GTE predicate on the "service_tier" field.
+func ServiceTierGTE(v string) predicate.Group {
+	return predicate.Group(sql.FieldGTE(FieldServiceTier, v))
+}
+
+// ServiceTierLT applies the LT predicate on the "service_tier" field.
+func ServiceTierLT(v string) predicate.Group {
+	return predicate.Group(sql.FieldLT(FieldServiceTier, v))
+}
+
+// ServiceTierLTE applies the LTE predicate on the "service_tier" field.
+func ServiceTierLTE(v string) predicate.Group {
+	return predicate.Group(sql.FieldLTE(FieldServiceTier, v))
+}
+
+// ServiceTierContains applies the Contains predicate on the "service_tier" field.
+func ServiceTierContains(v string) predicate.Group {
+	return predicate.Group(sql.FieldContains(FieldServiceTier, v))
+}
+
+// ServiceTierHasPrefix applies the HasPrefix predicate on the "service_tier" field.
+func ServiceTierHasPrefix(v string) predicate.Group {
+	return predicate.Group(sql.FieldHasPrefix(FieldServiceTier, v))
+}
+
+// ServiceTierHasSuffix applies the HasSuffix predicate on the "service_tier" field.
+func ServiceTierHasSuffix(v string) predicate.Group {
+	return predicate.Group(sql.FieldHasSuffix(FieldServiceTier, v))
+}
+
+// ServiceTierEqualFold applies the EqualFold predicate on the "service_tier" field.
+func ServiceTierEqualFold(v string) predicate.Group {
+	return predicate.Group(sql.FieldEqualFold(FieldServiceTier, v))
+}
+
+// ServiceTierContainsFold applies the ContainsFold predicate on the "service_tier" field.
+func ServiceTierContainsFold(v string) predicate.Group {
+	return predicate.Group(sql.FieldContainsFold(FieldServiceTier, v))
 }
 
 // SortWeightEQ applies the EQ predicate on the "sort_weight" field.

@@ -26,14 +26,18 @@ type UsageRecord struct {
 	Model                 string
 	InputTokens           int
 	OutputTokens          int
+	CachedInputTokens     int
 	CacheTokens           int
+	ReasoningOutputTokens int
 	InputCost             float64
 	OutputCost            float64
+	CachedInputCost       float64
 	CacheCost             float64
 	TotalCost             float64
 	ActualCost            float64
 	RateMultiplier        float64
 	AccountRateMultiplier float64
+	ServiceTier           string
 	Stream                bool
 	DurationMs            int64
 	FirstTokenMs          int64
@@ -159,14 +163,18 @@ func (r *Recorder) batchInsert(ctx context.Context, batch []UsageRecord) error {
 			SetModel(rec.Model).
 			SetInputTokens(rec.InputTokens).
 			SetOutputTokens(rec.OutputTokens).
+			SetCachedInputTokens(rec.CachedInputTokens).
 			SetCacheTokens(rec.CacheTokens).
+			SetReasoningOutputTokens(rec.ReasoningOutputTokens).
 			SetInputCost(rec.InputCost).
 			SetOutputCost(rec.OutputCost).
+			SetCachedInputCost(rec.CachedInputCost).
 			SetCacheCost(rec.CacheCost).
 			SetTotalCost(rec.TotalCost).
 			SetActualCost(rec.ActualCost).
 			SetRateMultiplier(rec.RateMultiplier).
 			SetAccountRateMultiplier(rec.AccountRateMultiplier).
+			SetServiceTier(rec.ServiceTier).
 			SetStream(rec.Stream).
 			SetDurationMs(rec.DurationMs).
 			SetFirstTokenMs(rec.FirstTokenMs).

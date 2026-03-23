@@ -64,6 +64,20 @@ func (ulc *UsageLogCreate) SetNillableOutputTokens(i *int) *UsageLogCreate {
 	return ulc
 }
 
+// SetCachedInputTokens sets the "cached_input_tokens" field.
+func (ulc *UsageLogCreate) SetCachedInputTokens(i int) *UsageLogCreate {
+	ulc.mutation.SetCachedInputTokens(i)
+	return ulc
+}
+
+// SetNillableCachedInputTokens sets the "cached_input_tokens" field if the given value is not nil.
+func (ulc *UsageLogCreate) SetNillableCachedInputTokens(i *int) *UsageLogCreate {
+	if i != nil {
+		ulc.SetCachedInputTokens(*i)
+	}
+	return ulc
+}
+
 // SetCacheTokens sets the "cache_tokens" field.
 func (ulc *UsageLogCreate) SetCacheTokens(i int) *UsageLogCreate {
 	ulc.mutation.SetCacheTokens(i)
@@ -74,6 +88,20 @@ func (ulc *UsageLogCreate) SetCacheTokens(i int) *UsageLogCreate {
 func (ulc *UsageLogCreate) SetNillableCacheTokens(i *int) *UsageLogCreate {
 	if i != nil {
 		ulc.SetCacheTokens(*i)
+	}
+	return ulc
+}
+
+// SetReasoningOutputTokens sets the "reasoning_output_tokens" field.
+func (ulc *UsageLogCreate) SetReasoningOutputTokens(i int) *UsageLogCreate {
+	ulc.mutation.SetReasoningOutputTokens(i)
+	return ulc
+}
+
+// SetNillableReasoningOutputTokens sets the "reasoning_output_tokens" field if the given value is not nil.
+func (ulc *UsageLogCreate) SetNillableReasoningOutputTokens(i *int) *UsageLogCreate {
+	if i != nil {
+		ulc.SetReasoningOutputTokens(*i)
 	}
 	return ulc
 }
@@ -102,6 +130,20 @@ func (ulc *UsageLogCreate) SetOutputCost(f float64) *UsageLogCreate {
 func (ulc *UsageLogCreate) SetNillableOutputCost(f *float64) *UsageLogCreate {
 	if f != nil {
 		ulc.SetOutputCost(*f)
+	}
+	return ulc
+}
+
+// SetCachedInputCost sets the "cached_input_cost" field.
+func (ulc *UsageLogCreate) SetCachedInputCost(f float64) *UsageLogCreate {
+	ulc.mutation.SetCachedInputCost(f)
+	return ulc
+}
+
+// SetNillableCachedInputCost sets the "cached_input_cost" field if the given value is not nil.
+func (ulc *UsageLogCreate) SetNillableCachedInputCost(f *float64) *UsageLogCreate {
+	if f != nil {
+		ulc.SetCachedInputCost(*f)
 	}
 	return ulc
 }
@@ -172,6 +214,20 @@ func (ulc *UsageLogCreate) SetAccountRateMultiplier(f float64) *UsageLogCreate {
 func (ulc *UsageLogCreate) SetNillableAccountRateMultiplier(f *float64) *UsageLogCreate {
 	if f != nil {
 		ulc.SetAccountRateMultiplier(*f)
+	}
+	return ulc
+}
+
+// SetServiceTier sets the "service_tier" field.
+func (ulc *UsageLogCreate) SetServiceTier(s string) *UsageLogCreate {
+	ulc.mutation.SetServiceTier(s)
+	return ulc
+}
+
+// SetNillableServiceTier sets the "service_tier" field if the given value is not nil.
+func (ulc *UsageLogCreate) SetNillableServiceTier(s *string) *UsageLogCreate {
+	if s != nil {
+		ulc.SetServiceTier(*s)
 	}
 	return ulc
 }
@@ -277,6 +333,14 @@ func (ulc *UsageLogCreate) SetAPIKeyID(id int) *UsageLogCreate {
 	return ulc
 }
 
+// SetNillableAPIKeyID sets the "api_key" edge to the APIKey entity by ID if the given value is not nil.
+func (ulc *UsageLogCreate) SetNillableAPIKeyID(id *int) *UsageLogCreate {
+	if id != nil {
+		ulc = ulc.SetAPIKeyID(*id)
+	}
+	return ulc
+}
+
 // SetAPIKey sets the "api_key" edge to the APIKey entity.
 func (ulc *UsageLogCreate) SetAPIKey(a *APIKey) *UsageLogCreate {
 	return ulc.SetAPIKeyID(a.ID)
@@ -296,6 +360,14 @@ func (ulc *UsageLogCreate) SetAccount(a *Account) *UsageLogCreate {
 // SetGroupID sets the "group" edge to the Group entity by ID.
 func (ulc *UsageLogCreate) SetGroupID(id int) *UsageLogCreate {
 	ulc.mutation.SetGroupID(id)
+	return ulc
+}
+
+// SetNillableGroupID sets the "group" edge to the Group entity by ID if the given value is not nil.
+func (ulc *UsageLogCreate) SetNillableGroupID(id *int) *UsageLogCreate {
+	if id != nil {
+		ulc = ulc.SetGroupID(*id)
+	}
 	return ulc
 }
 
@@ -347,9 +419,17 @@ func (ulc *UsageLogCreate) defaults() {
 		v := usagelog.DefaultOutputTokens
 		ulc.mutation.SetOutputTokens(v)
 	}
+	if _, ok := ulc.mutation.CachedInputTokens(); !ok {
+		v := usagelog.DefaultCachedInputTokens
+		ulc.mutation.SetCachedInputTokens(v)
+	}
 	if _, ok := ulc.mutation.CacheTokens(); !ok {
 		v := usagelog.DefaultCacheTokens
 		ulc.mutation.SetCacheTokens(v)
+	}
+	if _, ok := ulc.mutation.ReasoningOutputTokens(); !ok {
+		v := usagelog.DefaultReasoningOutputTokens
+		ulc.mutation.SetReasoningOutputTokens(v)
 	}
 	if _, ok := ulc.mutation.InputCost(); !ok {
 		v := usagelog.DefaultInputCost
@@ -358,6 +438,10 @@ func (ulc *UsageLogCreate) defaults() {
 	if _, ok := ulc.mutation.OutputCost(); !ok {
 		v := usagelog.DefaultOutputCost
 		ulc.mutation.SetOutputCost(v)
+	}
+	if _, ok := ulc.mutation.CachedInputCost(); !ok {
+		v := usagelog.DefaultCachedInputCost
+		ulc.mutation.SetCachedInputCost(v)
 	}
 	if _, ok := ulc.mutation.CacheCost(); !ok {
 		v := usagelog.DefaultCacheCost
@@ -378,6 +462,10 @@ func (ulc *UsageLogCreate) defaults() {
 	if _, ok := ulc.mutation.AccountRateMultiplier(); !ok {
 		v := usagelog.DefaultAccountRateMultiplier
 		ulc.mutation.SetAccountRateMultiplier(v)
+	}
+	if _, ok := ulc.mutation.ServiceTier(); !ok {
+		v := usagelog.DefaultServiceTier
+		ulc.mutation.SetServiceTier(v)
 	}
 	if _, ok := ulc.mutation.Stream(); !ok {
 		v := usagelog.DefaultStream
@@ -429,14 +517,23 @@ func (ulc *UsageLogCreate) check() error {
 	if _, ok := ulc.mutation.OutputTokens(); !ok {
 		return &ValidationError{Name: "output_tokens", err: errors.New(`ent: missing required field "UsageLog.output_tokens"`)}
 	}
+	if _, ok := ulc.mutation.CachedInputTokens(); !ok {
+		return &ValidationError{Name: "cached_input_tokens", err: errors.New(`ent: missing required field "UsageLog.cached_input_tokens"`)}
+	}
 	if _, ok := ulc.mutation.CacheTokens(); !ok {
 		return &ValidationError{Name: "cache_tokens", err: errors.New(`ent: missing required field "UsageLog.cache_tokens"`)}
+	}
+	if _, ok := ulc.mutation.ReasoningOutputTokens(); !ok {
+		return &ValidationError{Name: "reasoning_output_tokens", err: errors.New(`ent: missing required field "UsageLog.reasoning_output_tokens"`)}
 	}
 	if _, ok := ulc.mutation.InputCost(); !ok {
 		return &ValidationError{Name: "input_cost", err: errors.New(`ent: missing required field "UsageLog.input_cost"`)}
 	}
 	if _, ok := ulc.mutation.OutputCost(); !ok {
 		return &ValidationError{Name: "output_cost", err: errors.New(`ent: missing required field "UsageLog.output_cost"`)}
+	}
+	if _, ok := ulc.mutation.CachedInputCost(); !ok {
+		return &ValidationError{Name: "cached_input_cost", err: errors.New(`ent: missing required field "UsageLog.cached_input_cost"`)}
 	}
 	if _, ok := ulc.mutation.CacheCost(); !ok {
 		return &ValidationError{Name: "cache_cost", err: errors.New(`ent: missing required field "UsageLog.cache_cost"`)}
@@ -452,6 +549,9 @@ func (ulc *UsageLogCreate) check() error {
 	}
 	if _, ok := ulc.mutation.AccountRateMultiplier(); !ok {
 		return &ValidationError{Name: "account_rate_multiplier", err: errors.New(`ent: missing required field "UsageLog.account_rate_multiplier"`)}
+	}
+	if _, ok := ulc.mutation.ServiceTier(); !ok {
+		return &ValidationError{Name: "service_tier", err: errors.New(`ent: missing required field "UsageLog.service_tier"`)}
 	}
 	if _, ok := ulc.mutation.Stream(); !ok {
 		return &ValidationError{Name: "stream", err: errors.New(`ent: missing required field "UsageLog.stream"`)}
@@ -474,14 +574,8 @@ func (ulc *UsageLogCreate) check() error {
 	if _, ok := ulc.mutation.UserID(); !ok {
 		return &ValidationError{Name: "user", err: errors.New(`ent: missing required edge "UsageLog.user"`)}
 	}
-	if _, ok := ulc.mutation.APIKeyID(); !ok {
-		return &ValidationError{Name: "api_key", err: errors.New(`ent: missing required edge "UsageLog.api_key"`)}
-	}
 	if _, ok := ulc.mutation.AccountID(); !ok {
 		return &ValidationError{Name: "account", err: errors.New(`ent: missing required edge "UsageLog.account"`)}
-	}
-	if _, ok := ulc.mutation.GroupID(); !ok {
-		return &ValidationError{Name: "group", err: errors.New(`ent: missing required edge "UsageLog.group"`)}
 	}
 	return nil
 }
@@ -525,9 +619,17 @@ func (ulc *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 		_spec.SetField(usagelog.FieldOutputTokens, field.TypeInt, value)
 		_node.OutputTokens = value
 	}
+	if value, ok := ulc.mutation.CachedInputTokens(); ok {
+		_spec.SetField(usagelog.FieldCachedInputTokens, field.TypeInt, value)
+		_node.CachedInputTokens = value
+	}
 	if value, ok := ulc.mutation.CacheTokens(); ok {
 		_spec.SetField(usagelog.FieldCacheTokens, field.TypeInt, value)
 		_node.CacheTokens = value
+	}
+	if value, ok := ulc.mutation.ReasoningOutputTokens(); ok {
+		_spec.SetField(usagelog.FieldReasoningOutputTokens, field.TypeInt, value)
+		_node.ReasoningOutputTokens = value
 	}
 	if value, ok := ulc.mutation.InputCost(); ok {
 		_spec.SetField(usagelog.FieldInputCost, field.TypeFloat64, value)
@@ -536,6 +638,10 @@ func (ulc *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 	if value, ok := ulc.mutation.OutputCost(); ok {
 		_spec.SetField(usagelog.FieldOutputCost, field.TypeFloat64, value)
 		_node.OutputCost = value
+	}
+	if value, ok := ulc.mutation.CachedInputCost(); ok {
+		_spec.SetField(usagelog.FieldCachedInputCost, field.TypeFloat64, value)
+		_node.CachedInputCost = value
 	}
 	if value, ok := ulc.mutation.CacheCost(); ok {
 		_spec.SetField(usagelog.FieldCacheCost, field.TypeFloat64, value)
@@ -556,6 +662,10 @@ func (ulc *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 	if value, ok := ulc.mutation.AccountRateMultiplier(); ok {
 		_spec.SetField(usagelog.FieldAccountRateMultiplier, field.TypeFloat64, value)
 		_node.AccountRateMultiplier = value
+	}
+	if value, ok := ulc.mutation.ServiceTier(); ok {
+		_spec.SetField(usagelog.FieldServiceTier, field.TypeString, value)
+		_node.ServiceTier = value
 	}
 	if value, ok := ulc.mutation.Stream(); ok {
 		_spec.SetField(usagelog.FieldStream, field.TypeBool, value)

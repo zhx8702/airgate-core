@@ -101,6 +101,27 @@ func (ulu *UsageLogUpdate) AddOutputTokens(i int) *UsageLogUpdate {
 	return ulu
 }
 
+// SetCachedInputTokens sets the "cached_input_tokens" field.
+func (ulu *UsageLogUpdate) SetCachedInputTokens(i int) *UsageLogUpdate {
+	ulu.mutation.ResetCachedInputTokens()
+	ulu.mutation.SetCachedInputTokens(i)
+	return ulu
+}
+
+// SetNillableCachedInputTokens sets the "cached_input_tokens" field if the given value is not nil.
+func (ulu *UsageLogUpdate) SetNillableCachedInputTokens(i *int) *UsageLogUpdate {
+	if i != nil {
+		ulu.SetCachedInputTokens(*i)
+	}
+	return ulu
+}
+
+// AddCachedInputTokens adds i to the "cached_input_tokens" field.
+func (ulu *UsageLogUpdate) AddCachedInputTokens(i int) *UsageLogUpdate {
+	ulu.mutation.AddCachedInputTokens(i)
+	return ulu
+}
+
 // SetCacheTokens sets the "cache_tokens" field.
 func (ulu *UsageLogUpdate) SetCacheTokens(i int) *UsageLogUpdate {
 	ulu.mutation.ResetCacheTokens()
@@ -119,6 +140,27 @@ func (ulu *UsageLogUpdate) SetNillableCacheTokens(i *int) *UsageLogUpdate {
 // AddCacheTokens adds i to the "cache_tokens" field.
 func (ulu *UsageLogUpdate) AddCacheTokens(i int) *UsageLogUpdate {
 	ulu.mutation.AddCacheTokens(i)
+	return ulu
+}
+
+// SetReasoningOutputTokens sets the "reasoning_output_tokens" field.
+func (ulu *UsageLogUpdate) SetReasoningOutputTokens(i int) *UsageLogUpdate {
+	ulu.mutation.ResetReasoningOutputTokens()
+	ulu.mutation.SetReasoningOutputTokens(i)
+	return ulu
+}
+
+// SetNillableReasoningOutputTokens sets the "reasoning_output_tokens" field if the given value is not nil.
+func (ulu *UsageLogUpdate) SetNillableReasoningOutputTokens(i *int) *UsageLogUpdate {
+	if i != nil {
+		ulu.SetReasoningOutputTokens(*i)
+	}
+	return ulu
+}
+
+// AddReasoningOutputTokens adds i to the "reasoning_output_tokens" field.
+func (ulu *UsageLogUpdate) AddReasoningOutputTokens(i int) *UsageLogUpdate {
+	ulu.mutation.AddReasoningOutputTokens(i)
 	return ulu
 }
 
@@ -161,6 +203,27 @@ func (ulu *UsageLogUpdate) SetNillableOutputCost(f *float64) *UsageLogUpdate {
 // AddOutputCost adds f to the "output_cost" field.
 func (ulu *UsageLogUpdate) AddOutputCost(f float64) *UsageLogUpdate {
 	ulu.mutation.AddOutputCost(f)
+	return ulu
+}
+
+// SetCachedInputCost sets the "cached_input_cost" field.
+func (ulu *UsageLogUpdate) SetCachedInputCost(f float64) *UsageLogUpdate {
+	ulu.mutation.ResetCachedInputCost()
+	ulu.mutation.SetCachedInputCost(f)
+	return ulu
+}
+
+// SetNillableCachedInputCost sets the "cached_input_cost" field if the given value is not nil.
+func (ulu *UsageLogUpdate) SetNillableCachedInputCost(f *float64) *UsageLogUpdate {
+	if f != nil {
+		ulu.SetCachedInputCost(*f)
+	}
+	return ulu
+}
+
+// AddCachedInputCost adds f to the "cached_input_cost" field.
+func (ulu *UsageLogUpdate) AddCachedInputCost(f float64) *UsageLogUpdate {
+	ulu.mutation.AddCachedInputCost(f)
 	return ulu
 }
 
@@ -269,6 +332,20 @@ func (ulu *UsageLogUpdate) AddAccountRateMultiplier(f float64) *UsageLogUpdate {
 	return ulu
 }
 
+// SetServiceTier sets the "service_tier" field.
+func (ulu *UsageLogUpdate) SetServiceTier(s string) *UsageLogUpdate {
+	ulu.mutation.SetServiceTier(s)
+	return ulu
+}
+
+// SetNillableServiceTier sets the "service_tier" field if the given value is not nil.
+func (ulu *UsageLogUpdate) SetNillableServiceTier(s *string) *UsageLogUpdate {
+	if s != nil {
+		ulu.SetServiceTier(*s)
+	}
+	return ulu
+}
+
 // SetStream sets the "stream" field.
 func (ulu *UsageLogUpdate) SetStream(b bool) *UsageLogUpdate {
 	ulu.mutation.SetStream(b)
@@ -370,6 +447,14 @@ func (ulu *UsageLogUpdate) SetAPIKeyID(id int) *UsageLogUpdate {
 	return ulu
 }
 
+// SetNillableAPIKeyID sets the "api_key" edge to the APIKey entity by ID if the given value is not nil.
+func (ulu *UsageLogUpdate) SetNillableAPIKeyID(id *int) *UsageLogUpdate {
+	if id != nil {
+		ulu = ulu.SetAPIKeyID(*id)
+	}
+	return ulu
+}
+
 // SetAPIKey sets the "api_key" edge to the APIKey entity.
 func (ulu *UsageLogUpdate) SetAPIKey(a *APIKey) *UsageLogUpdate {
 	return ulu.SetAPIKeyID(a.ID)
@@ -389,6 +474,14 @@ func (ulu *UsageLogUpdate) SetAccount(a *Account) *UsageLogUpdate {
 // SetGroupID sets the "group" edge to the Group entity by ID.
 func (ulu *UsageLogUpdate) SetGroupID(id int) *UsageLogUpdate {
 	ulu.mutation.SetGroupID(id)
+	return ulu
+}
+
+// SetNillableGroupID sets the "group" edge to the Group entity by ID if the given value is not nil.
+func (ulu *UsageLogUpdate) SetNillableGroupID(id *int) *UsageLogUpdate {
+	if id != nil {
+		ulu = ulu.SetGroupID(*id)
+	}
 	return ulu
 }
 
@@ -468,14 +561,8 @@ func (ulu *UsageLogUpdate) check() error {
 	if _, ok := ulu.mutation.UserID(); ulu.mutation.UserCleared() && !ok {
 		return errors.New(`ent: clearing a required unique edge "UsageLog.user"`)
 	}
-	if _, ok := ulu.mutation.APIKeyID(); ulu.mutation.APIKeyCleared() && !ok {
-		return errors.New(`ent: clearing a required unique edge "UsageLog.api_key"`)
-	}
 	if _, ok := ulu.mutation.AccountID(); ulu.mutation.AccountCleared() && !ok {
 		return errors.New(`ent: clearing a required unique edge "UsageLog.account"`)
-	}
-	if _, ok := ulu.mutation.GroupID(); ulu.mutation.GroupCleared() && !ok {
-		return errors.New(`ent: clearing a required unique edge "UsageLog.group"`)
 	}
 	return nil
 }
@@ -510,11 +597,23 @@ func (ulu *UsageLogUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if value, ok := ulu.mutation.AddedOutputTokens(); ok {
 		_spec.AddField(usagelog.FieldOutputTokens, field.TypeInt, value)
 	}
+	if value, ok := ulu.mutation.CachedInputTokens(); ok {
+		_spec.SetField(usagelog.FieldCachedInputTokens, field.TypeInt, value)
+	}
+	if value, ok := ulu.mutation.AddedCachedInputTokens(); ok {
+		_spec.AddField(usagelog.FieldCachedInputTokens, field.TypeInt, value)
+	}
 	if value, ok := ulu.mutation.CacheTokens(); ok {
 		_spec.SetField(usagelog.FieldCacheTokens, field.TypeInt, value)
 	}
 	if value, ok := ulu.mutation.AddedCacheTokens(); ok {
 		_spec.AddField(usagelog.FieldCacheTokens, field.TypeInt, value)
+	}
+	if value, ok := ulu.mutation.ReasoningOutputTokens(); ok {
+		_spec.SetField(usagelog.FieldReasoningOutputTokens, field.TypeInt, value)
+	}
+	if value, ok := ulu.mutation.AddedReasoningOutputTokens(); ok {
+		_spec.AddField(usagelog.FieldReasoningOutputTokens, field.TypeInt, value)
 	}
 	if value, ok := ulu.mutation.InputCost(); ok {
 		_spec.SetField(usagelog.FieldInputCost, field.TypeFloat64, value)
@@ -527,6 +626,12 @@ func (ulu *UsageLogUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := ulu.mutation.AddedOutputCost(); ok {
 		_spec.AddField(usagelog.FieldOutputCost, field.TypeFloat64, value)
+	}
+	if value, ok := ulu.mutation.CachedInputCost(); ok {
+		_spec.SetField(usagelog.FieldCachedInputCost, field.TypeFloat64, value)
+	}
+	if value, ok := ulu.mutation.AddedCachedInputCost(); ok {
+		_spec.AddField(usagelog.FieldCachedInputCost, field.TypeFloat64, value)
 	}
 	if value, ok := ulu.mutation.CacheCost(); ok {
 		_spec.SetField(usagelog.FieldCacheCost, field.TypeFloat64, value)
@@ -557,6 +662,9 @@ func (ulu *UsageLogUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := ulu.mutation.AddedAccountRateMultiplier(); ok {
 		_spec.AddField(usagelog.FieldAccountRateMultiplier, field.TypeFloat64, value)
+	}
+	if value, ok := ulu.mutation.ServiceTier(); ok {
+		_spec.SetField(usagelog.FieldServiceTier, field.TypeString, value)
 	}
 	if value, ok := ulu.mutation.Stream(); ok {
 		_spec.SetField(usagelog.FieldStream, field.TypeBool, value)
@@ -785,6 +893,27 @@ func (uluo *UsageLogUpdateOne) AddOutputTokens(i int) *UsageLogUpdateOne {
 	return uluo
 }
 
+// SetCachedInputTokens sets the "cached_input_tokens" field.
+func (uluo *UsageLogUpdateOne) SetCachedInputTokens(i int) *UsageLogUpdateOne {
+	uluo.mutation.ResetCachedInputTokens()
+	uluo.mutation.SetCachedInputTokens(i)
+	return uluo
+}
+
+// SetNillableCachedInputTokens sets the "cached_input_tokens" field if the given value is not nil.
+func (uluo *UsageLogUpdateOne) SetNillableCachedInputTokens(i *int) *UsageLogUpdateOne {
+	if i != nil {
+		uluo.SetCachedInputTokens(*i)
+	}
+	return uluo
+}
+
+// AddCachedInputTokens adds i to the "cached_input_tokens" field.
+func (uluo *UsageLogUpdateOne) AddCachedInputTokens(i int) *UsageLogUpdateOne {
+	uluo.mutation.AddCachedInputTokens(i)
+	return uluo
+}
+
 // SetCacheTokens sets the "cache_tokens" field.
 func (uluo *UsageLogUpdateOne) SetCacheTokens(i int) *UsageLogUpdateOne {
 	uluo.mutation.ResetCacheTokens()
@@ -803,6 +932,27 @@ func (uluo *UsageLogUpdateOne) SetNillableCacheTokens(i *int) *UsageLogUpdateOne
 // AddCacheTokens adds i to the "cache_tokens" field.
 func (uluo *UsageLogUpdateOne) AddCacheTokens(i int) *UsageLogUpdateOne {
 	uluo.mutation.AddCacheTokens(i)
+	return uluo
+}
+
+// SetReasoningOutputTokens sets the "reasoning_output_tokens" field.
+func (uluo *UsageLogUpdateOne) SetReasoningOutputTokens(i int) *UsageLogUpdateOne {
+	uluo.mutation.ResetReasoningOutputTokens()
+	uluo.mutation.SetReasoningOutputTokens(i)
+	return uluo
+}
+
+// SetNillableReasoningOutputTokens sets the "reasoning_output_tokens" field if the given value is not nil.
+func (uluo *UsageLogUpdateOne) SetNillableReasoningOutputTokens(i *int) *UsageLogUpdateOne {
+	if i != nil {
+		uluo.SetReasoningOutputTokens(*i)
+	}
+	return uluo
+}
+
+// AddReasoningOutputTokens adds i to the "reasoning_output_tokens" field.
+func (uluo *UsageLogUpdateOne) AddReasoningOutputTokens(i int) *UsageLogUpdateOne {
+	uluo.mutation.AddReasoningOutputTokens(i)
 	return uluo
 }
 
@@ -845,6 +995,27 @@ func (uluo *UsageLogUpdateOne) SetNillableOutputCost(f *float64) *UsageLogUpdate
 // AddOutputCost adds f to the "output_cost" field.
 func (uluo *UsageLogUpdateOne) AddOutputCost(f float64) *UsageLogUpdateOne {
 	uluo.mutation.AddOutputCost(f)
+	return uluo
+}
+
+// SetCachedInputCost sets the "cached_input_cost" field.
+func (uluo *UsageLogUpdateOne) SetCachedInputCost(f float64) *UsageLogUpdateOne {
+	uluo.mutation.ResetCachedInputCost()
+	uluo.mutation.SetCachedInputCost(f)
+	return uluo
+}
+
+// SetNillableCachedInputCost sets the "cached_input_cost" field if the given value is not nil.
+func (uluo *UsageLogUpdateOne) SetNillableCachedInputCost(f *float64) *UsageLogUpdateOne {
+	if f != nil {
+		uluo.SetCachedInputCost(*f)
+	}
+	return uluo
+}
+
+// AddCachedInputCost adds f to the "cached_input_cost" field.
+func (uluo *UsageLogUpdateOne) AddCachedInputCost(f float64) *UsageLogUpdateOne {
+	uluo.mutation.AddCachedInputCost(f)
 	return uluo
 }
 
@@ -953,6 +1124,20 @@ func (uluo *UsageLogUpdateOne) AddAccountRateMultiplier(f float64) *UsageLogUpda
 	return uluo
 }
 
+// SetServiceTier sets the "service_tier" field.
+func (uluo *UsageLogUpdateOne) SetServiceTier(s string) *UsageLogUpdateOne {
+	uluo.mutation.SetServiceTier(s)
+	return uluo
+}
+
+// SetNillableServiceTier sets the "service_tier" field if the given value is not nil.
+func (uluo *UsageLogUpdateOne) SetNillableServiceTier(s *string) *UsageLogUpdateOne {
+	if s != nil {
+		uluo.SetServiceTier(*s)
+	}
+	return uluo
+}
+
 // SetStream sets the "stream" field.
 func (uluo *UsageLogUpdateOne) SetStream(b bool) *UsageLogUpdateOne {
 	uluo.mutation.SetStream(b)
@@ -1054,6 +1239,14 @@ func (uluo *UsageLogUpdateOne) SetAPIKeyID(id int) *UsageLogUpdateOne {
 	return uluo
 }
 
+// SetNillableAPIKeyID sets the "api_key" edge to the APIKey entity by ID if the given value is not nil.
+func (uluo *UsageLogUpdateOne) SetNillableAPIKeyID(id *int) *UsageLogUpdateOne {
+	if id != nil {
+		uluo = uluo.SetAPIKeyID(*id)
+	}
+	return uluo
+}
+
 // SetAPIKey sets the "api_key" edge to the APIKey entity.
 func (uluo *UsageLogUpdateOne) SetAPIKey(a *APIKey) *UsageLogUpdateOne {
 	return uluo.SetAPIKeyID(a.ID)
@@ -1073,6 +1266,14 @@ func (uluo *UsageLogUpdateOne) SetAccount(a *Account) *UsageLogUpdateOne {
 // SetGroupID sets the "group" edge to the Group entity by ID.
 func (uluo *UsageLogUpdateOne) SetGroupID(id int) *UsageLogUpdateOne {
 	uluo.mutation.SetGroupID(id)
+	return uluo
+}
+
+// SetNillableGroupID sets the "group" edge to the Group entity by ID if the given value is not nil.
+func (uluo *UsageLogUpdateOne) SetNillableGroupID(id *int) *UsageLogUpdateOne {
+	if id != nil {
+		uluo = uluo.SetGroupID(*id)
+	}
 	return uluo
 }
 
@@ -1165,14 +1366,8 @@ func (uluo *UsageLogUpdateOne) check() error {
 	if _, ok := uluo.mutation.UserID(); uluo.mutation.UserCleared() && !ok {
 		return errors.New(`ent: clearing a required unique edge "UsageLog.user"`)
 	}
-	if _, ok := uluo.mutation.APIKeyID(); uluo.mutation.APIKeyCleared() && !ok {
-		return errors.New(`ent: clearing a required unique edge "UsageLog.api_key"`)
-	}
 	if _, ok := uluo.mutation.AccountID(); uluo.mutation.AccountCleared() && !ok {
 		return errors.New(`ent: clearing a required unique edge "UsageLog.account"`)
-	}
-	if _, ok := uluo.mutation.GroupID(); uluo.mutation.GroupCleared() && !ok {
-		return errors.New(`ent: clearing a required unique edge "UsageLog.group"`)
 	}
 	return nil
 }
@@ -1224,11 +1419,23 @@ func (uluo *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, er
 	if value, ok := uluo.mutation.AddedOutputTokens(); ok {
 		_spec.AddField(usagelog.FieldOutputTokens, field.TypeInt, value)
 	}
+	if value, ok := uluo.mutation.CachedInputTokens(); ok {
+		_spec.SetField(usagelog.FieldCachedInputTokens, field.TypeInt, value)
+	}
+	if value, ok := uluo.mutation.AddedCachedInputTokens(); ok {
+		_spec.AddField(usagelog.FieldCachedInputTokens, field.TypeInt, value)
+	}
 	if value, ok := uluo.mutation.CacheTokens(); ok {
 		_spec.SetField(usagelog.FieldCacheTokens, field.TypeInt, value)
 	}
 	if value, ok := uluo.mutation.AddedCacheTokens(); ok {
 		_spec.AddField(usagelog.FieldCacheTokens, field.TypeInt, value)
+	}
+	if value, ok := uluo.mutation.ReasoningOutputTokens(); ok {
+		_spec.SetField(usagelog.FieldReasoningOutputTokens, field.TypeInt, value)
+	}
+	if value, ok := uluo.mutation.AddedReasoningOutputTokens(); ok {
+		_spec.AddField(usagelog.FieldReasoningOutputTokens, field.TypeInt, value)
 	}
 	if value, ok := uluo.mutation.InputCost(); ok {
 		_spec.SetField(usagelog.FieldInputCost, field.TypeFloat64, value)
@@ -1241,6 +1448,12 @@ func (uluo *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, er
 	}
 	if value, ok := uluo.mutation.AddedOutputCost(); ok {
 		_spec.AddField(usagelog.FieldOutputCost, field.TypeFloat64, value)
+	}
+	if value, ok := uluo.mutation.CachedInputCost(); ok {
+		_spec.SetField(usagelog.FieldCachedInputCost, field.TypeFloat64, value)
+	}
+	if value, ok := uluo.mutation.AddedCachedInputCost(); ok {
+		_spec.AddField(usagelog.FieldCachedInputCost, field.TypeFloat64, value)
 	}
 	if value, ok := uluo.mutation.CacheCost(); ok {
 		_spec.SetField(usagelog.FieldCacheCost, field.TypeFloat64, value)
@@ -1271,6 +1484,9 @@ func (uluo *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, er
 	}
 	if value, ok := uluo.mutation.AddedAccountRateMultiplier(); ok {
 		_spec.AddField(usagelog.FieldAccountRateMultiplier, field.TypeFloat64, value)
+	}
+	if value, ok := uluo.mutation.ServiceTier(); ok {
+		_spec.SetField(usagelog.FieldServiceTier, field.TypeString, value)
 	}
 	if value, ok := uluo.mutation.Stream(); ok {
 		_spec.SetField(usagelog.FieldStream, field.TypeBool, value)

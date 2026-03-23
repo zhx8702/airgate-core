@@ -175,7 +175,7 @@ export default function UserKeysPage() {
     setEditingKey(key);
     setForm({
       name: key.name,
-      group_id: String(key.group_id),
+      group_id: key.group_id == null ? '' : String(key.group_id),
       quota_usd: key.quota_usd ? String(key.quota_usd) : '',
       expires_at: key.expires_at ? key.expires_at.slice(0, 10) : '',
     });
@@ -223,7 +223,7 @@ export default function UserKeysPage() {
   // 查找分组
   const groupList = groupsData?.list ?? [];
   const groupMap = new Map<number, GroupResp>(groupList.map((g) => [g.id, g]));
-  const getGroupPlatform = (groupId: number) => groupMap.get(groupId)?.platform || '';
+  const getGroupPlatform = (groupId: number | null) => (groupId == null ? '' : groupMap.get(groupId)?.platform || '');
 
   const hasAvailableGroups = groupList.length > 0;
 
@@ -472,7 +472,7 @@ export default function UserKeysPage() {
     {
       key: 'group_id',
       title: t('user_keys.group'),
-      render: (row) => groupMap.get(row.group_id)?.name || `#${row.group_id}`,
+      render: (row) => row.group_id == null ? t('user_keys.group_unbound') : groupMap.get(row.group_id)?.name || `#${row.group_id}`,
     },
     {
       key: 'quota',
@@ -487,6 +487,22 @@ export default function UserKeysPage() {
             <span className="text-text-tertiary">{t('user_keys.quota_unlimited_hint')}</span>
           )}
         </span>
+      ),
+    },
+    {
+      key: 'usage',
+      title: t('api_keys.usage'),
+      render: (row) => (
+        <div className="font-mono text-xs space-y-0.5">
+          <div>
+            <span className="text-text-tertiary">{t('api_keys.today')}: </span>
+            <span style={{ color: 'var(--ag-primary)' }}>${row.today_cost.toFixed(4)}</span>
+          </div>
+          <div>
+            <span className="text-text-tertiary">{t('api_keys.thirty_days')}: </span>
+            <span>${row.thirty_day_cost.toFixed(4)}</span>
+          </div>
+        </div>
       ),
     },
     {
@@ -781,103 +797,109 @@ export default function UserKeysPage() {
         }
       >
         {useKeyValue ? (
-          <div className="space-y-4">
-            <p className="text-sm text-text-secondary">
-              {t('user_keys.use_key_desc')}
-            </p>
+          useKeyPlatform ? (
+            <div className="space-y-4">
+              <p className="text-sm text-text-secondary">
+                {t('user_keys.use_key_desc')}
+              </p>
 
-            {/* 客户端选择 Tab（OpenAI 平台时显示） */}
-            {showClientTabs && (
+              {/* 客户端选择 Tab（OpenAI 平台时显示） */}
+              {showClientTabs && (
+                <div className="flex gap-1 p-0.5 rounded-md bg-bg-hover">
+                  <button
+                    onClick={() => setUseKeyTab('claude')}
+                    className={`flex-1 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                      useKeyTab === 'claude'
+                        ? 'bg-bg-elevated text-text shadow-sm'
+                        : 'text-text-tertiary hover:text-text-secondary'
+                    }`}
+                  >
+                    Claude Code
+                  </button>
+                  <button
+                    onClick={() => setUseKeyTab('codex')}
+                    className={`flex-1 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                      useKeyTab === 'codex'
+                        ? 'bg-bg-elevated text-text shadow-sm'
+                        : 'text-text-tertiary hover:text-text-secondary'
+                    }`}
+                  >
+                    Codex CLI
+                  </button>
+                </div>
+              )}
+
+              {/* OS/Shell Tab */}
               <div className="flex gap-1 p-0.5 rounded-md bg-bg-hover">
                 <button
-                  onClick={() => setUseKeyTab('claude')}
+                  onClick={() => setUseKeyShell('unix')}
                   className={`flex-1 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                    useKeyTab === 'claude'
+                    useKeyShell === 'unix'
                       ? 'bg-bg-elevated text-text shadow-sm'
                       : 'text-text-tertiary hover:text-text-secondary'
                   }`}
                 >
-                  Claude Code
+                  macOS / Linux
                 </button>
                 <button
-                  onClick={() => setUseKeyTab('codex')}
+                  onClick={() => setUseKeyShell('cmd')}
                   className={`flex-1 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                    useKeyTab === 'codex'
+                    useKeyShell === 'cmd'
                       ? 'bg-bg-elevated text-text shadow-sm'
                       : 'text-text-tertiary hover:text-text-secondary'
                   }`}
                 >
-                  Codex CLI
+                  Windows CMD
+                </button>
+                <button
+                  onClick={() => setUseKeyShell('powershell')}
+                  className={`flex-1 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                    useKeyShell === 'powershell'
+                      ? 'bg-bg-elevated text-text shadow-sm'
+                      : 'text-text-tertiary hover:text-text-secondary'
+                  }`}
+                >
+                  PowerShell
                 </button>
               </div>
-            )}
 
-            {/* OS/Shell Tab */}
-            <div className="flex gap-1 p-0.5 rounded-md bg-bg-hover">
-              <button
-                onClick={() => setUseKeyShell('unix')}
-                className={`flex-1 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                  useKeyShell === 'unix'
-                    ? 'bg-bg-elevated text-text shadow-sm'
-                    : 'text-text-tertiary hover:text-text-secondary'
-                }`}
-              >
-                macOS / Linux
-              </button>
-              <button
-                onClick={() => setUseKeyShell('cmd')}
-                className={`flex-1 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                  useKeyShell === 'cmd'
-                    ? 'bg-bg-elevated text-text shadow-sm'
-                    : 'text-text-tertiary hover:text-text-secondary'
-                }`}
-              >
-                Windows CMD
-              </button>
-              <button
-                onClick={() => setUseKeyShell('powershell')}
-                className={`flex-1 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                  useKeyShell === 'powershell'
-                    ? 'bg-bg-elevated text-text shadow-sm'
-                    : 'text-text-tertiary hover:text-text-secondary'
-                }`}
-              >
-                PowerShell
-              </button>
-            </div>
-
-            {/* 配置代码块 */}
-            {getUseKeyConfig(useKeyPlatform, useKeyTab, useKeyShell, useKeyValue).files.map(
-              (file, idx) => (
-                <div key={idx}>
-                  {file.hint && (
-                    <p className="text-xs text-warning mb-1.5 flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3 shrink-0" />
-                      {file.hint}
-                    </p>
-                  )}
-                  <div className="rounded-md overflow-hidden border border-glass-border">
-                    <div className="flex items-center justify-between px-3 py-1.5 bg-bg-hover border-b border-glass-border">
-                      <span className="text-xs text-text-tertiary font-mono">{file.path}</span>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(file.content);
-                          toast('success', t('user_keys.copied'));
-                        }}
-                        className="flex items-center gap-1 px-2 py-0.5 text-xs rounded hover:bg-bg-elevated text-text-secondary transition-colors"
-                      >
-                        <Copy className="w-3 h-3" />
-                        {t('user_keys.copy')}
-                      </button>
+              {/* 配置代码块 */}
+              {getUseKeyConfig(useKeyPlatform, useKeyTab, useKeyShell, useKeyValue).files.map(
+                (file, idx) => (
+                  <div key={idx}>
+                    {file.hint && (
+                      <p className="text-xs text-warning mb-1.5 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3 shrink-0" />
+                        {file.hint}
+                      </p>
+                    )}
+                    <div className="rounded-md overflow-hidden border border-glass-border">
+                      <div className="flex items-center justify-between px-3 py-1.5 bg-bg-hover border-b border-glass-border">
+                        <span className="text-xs text-text-tertiary font-mono">{file.path}</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(file.content);
+                            toast('success', t('user_keys.copied'));
+                          }}
+                          className="flex items-center gap-1 px-2 py-0.5 text-xs rounded hover:bg-bg-elevated text-text-secondary transition-colors"
+                        >
+                          <Copy className="w-3 h-3" />
+                          {t('user_keys.copy')}
+                        </button>
+                      </div>
+                      <pre className="p-3 text-sm font-mono text-text bg-surface overflow-x-auto whitespace-pre-wrap">
+                        {file.content}
+                      </pre>
                     </div>
-                    <pre className="p-3 text-sm font-mono text-text bg-surface overflow-x-auto whitespace-pre-wrap">
-                      {file.content}
-                    </pre>
                   </div>
-                </div>
-              ),
-            )}
-          </div>
+                ),
+              )}
+            </div>
+          ) : (
+            <div className="rounded-md border border-glass-border bg-surface p-4 text-sm text-text-secondary">
+              {t('user_keys.group_unbound_hint')}
+            </div>
+          )
         ) : (
           <div className="flex items-center justify-center py-8 text-text-tertiary text-sm">
             {t('common.loading')}
@@ -906,50 +928,56 @@ export default function UserKeysPage() {
         }
       >
         {ccsKeyValue ? (
-          <div className="space-y-3">
-            <p className="text-sm text-text-secondary">
-              {t('user_keys.ccs_select_desc')}
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              {/* 始终显示 Claude Code */}
-              <button
-                onClick={() => {
-                  executeCcsImport(ccsKeyValue, 'claude', ccsPlatform);
-                  setCcsTarget(null);
-                  setCcsKeyValue(null);
-                }}
-                className="flex flex-col items-center gap-2 p-4 rounded-lg border border-glass-border bg-surface hover:bg-bg-hover hover:border-text-tertiary transition-colors"
-              >
-                <div className="w-10 h-10 rounded-lg bg-info-subtle flex items-center justify-center">
-                  <Terminal className="w-5 h-5 text-info" />
-                </div>
-                <span className="text-sm font-medium text-text">Claude Code</span>
-                <span className="text-xs text-text-tertiary text-center">
-                  {t('user_keys.ccs_claude_desc')}
-                </span>
-              </button>
-
-              {/* OpenAI 平台额外显示 Codex CLI */}
-              {ccsPlatform === 'openai' && (
+          ccsPlatform ? (
+            <div className="space-y-3">
+              <p className="text-sm text-text-secondary">
+                {t('user_keys.ccs_select_desc')}
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {/* 始终显示 Claude Code */}
                 <button
                   onClick={() => {
-                    executeCcsImport(ccsKeyValue, 'codex', ccsPlatform);
+                    executeCcsImport(ccsKeyValue, 'claude', ccsPlatform);
                     setCcsTarget(null);
                     setCcsKeyValue(null);
                   }}
                   className="flex flex-col items-center gap-2 p-4 rounded-lg border border-glass-border bg-surface hover:bg-bg-hover hover:border-text-tertiary transition-colors"
                 >
-                  <div className="w-10 h-10 rounded-lg bg-success-subtle flex items-center justify-center">
-                    <Terminal className="w-5 h-5 text-success" />
+                  <div className="w-10 h-10 rounded-lg bg-info-subtle flex items-center justify-center">
+                    <Terminal className="w-5 h-5 text-info" />
                   </div>
-                  <span className="text-sm font-medium text-text">Codex CLI</span>
+                  <span className="text-sm font-medium text-text">Claude Code</span>
                   <span className="text-xs text-text-tertiary text-center">
-                    {t('user_keys.ccs_codex_desc')}
+                    {t('user_keys.ccs_claude_desc')}
                   </span>
                 </button>
-              )}
+
+                {/* OpenAI 平台额外显示 Codex CLI */}
+                {ccsPlatform === 'openai' && (
+                  <button
+                    onClick={() => {
+                      executeCcsImport(ccsKeyValue, 'codex', ccsPlatform);
+                      setCcsTarget(null);
+                      setCcsKeyValue(null);
+                    }}
+                    className="flex flex-col items-center gap-2 p-4 rounded-lg border border-glass-border bg-surface hover:bg-bg-hover hover:border-text-tertiary transition-colors"
+                  >
+                    <div className="w-10 h-10 rounded-lg bg-success-subtle flex items-center justify-center">
+                      <Terminal className="w-5 h-5 text-success" />
+                    </div>
+                    <span className="text-sm font-medium text-text">Codex CLI</span>
+                    <span className="text-xs text-text-tertiary text-center">
+                      {t('user_keys.ccs_codex_desc')}
+                    </span>
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="rounded-md border border-glass-border bg-surface p-4 text-sm text-text-secondary">
+              {t('user_keys.group_unbound_hint')}
+            </div>
+          )
         ) : (
           <div className="flex items-center justify-center py-8 text-text-tertiary text-sm">
             {t('common.loading')}

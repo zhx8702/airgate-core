@@ -301,8 +301,7 @@ func (h *DashboardHandler) Trend(c *gin.Context) {
 		}
 		tb.InputTokens += int64(l.InputTokens)
 		tb.OutputTokens += int64(l.OutputTokens)
-		tb.CacheRead += int64(l.CacheTokens)
-		// CacheCreation 当前 schema 无此字段，保持 0
+		tb.CachedInput += int64(l.CachedInputTokens)
 	}
 	tokenTrend := make([]dto.DashboardTimeBucket, 0, len(tokenBucketMap))
 	for _, tb := range tokenBucketMap {

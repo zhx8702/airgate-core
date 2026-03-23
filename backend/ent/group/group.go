@@ -29,6 +29,8 @@ const (
 	FieldQuotas = "quotas"
 	// FieldModelRouting holds the string denoting the model_routing field in the database.
 	FieldModelRouting = "model_routing"
+	// FieldServiceTier holds the string denoting the service_tier field in the database.
+	FieldServiceTier = "service_tier"
 	// FieldSortWeight holds the string denoting the sort_weight field in the database.
 	FieldSortWeight = "sort_weight"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -90,6 +92,7 @@ var Columns = []string{
 	FieldSubscriptionType,
 	FieldQuotas,
 	FieldModelRouting,
+	FieldServiceTier,
 	FieldSortWeight,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -123,6 +126,8 @@ var (
 	DefaultRateMultiplier float64
 	// DefaultIsExclusive holds the default value on creation for the "is_exclusive" field.
 	DefaultIsExclusive bool
+	// DefaultServiceTier holds the default value on creation for the "service_tier" field.
+	DefaultServiceTier string
 	// DefaultSortWeight holds the default value on creation for the "sort_weight" field.
 	DefaultSortWeight int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -190,6 +195,11 @@ func ByIsExclusive(opts ...sql.OrderTermOption) OrderOption {
 // BySubscriptionType orders the results by the subscription_type field.
 func BySubscriptionType(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSubscriptionType, opts...).ToFunc()
+}
+
+// ByServiceTier orders the results by the service_tier field.
+func ByServiceTier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldServiceTier, opts...).ToFunc()
 }
 
 // BySortWeight orders the results by the sort_weight field.

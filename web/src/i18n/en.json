@@ -160,8 +160,7 @@
     "token_trend": "Token Usage Trend",
     "input": "Input",
     "output": "Output",
-    "cache_creation": "Cache Creation",
-    "cache_read": "Cache Read",
+    "cached_input": "Cached Input",
     "top_users": "Recent Usage (Top 12)",
     "email": "Email",
     "cost": "Cost"
@@ -334,8 +333,11 @@
     "edit": "Edit Group",
     "platform": "Platform",
     "all_platforms": "All Platforms",
+    "service_tier_all": "All Tiers",
     "select_platform": "Select platform",
     "rate_multiplier": "Rate Multiplier",
+    "service_tier": "Service Tier",
+    "service_tier_default": "Default",
     "exclusive": "Exclusive",
     "exclusive_hint": "Exclusive group (only assigned users can access)",
     "subscription_type": "Subscription Type",
@@ -349,7 +351,10 @@
     "quota_monthly": "Monthly limit",
     "quota_hint": "Leave empty for unlimited",
     "create_success": "Group created successfully",
-    "update_success": "Group updated successfully"
+    "update_success": "Group updated successfully",
+    "delete_title": "Delete Group",
+    "delete_confirm": "Are you sure you want to delete group \"{{name}}\"? Bound API keys will be unbound and existing usage logs will be kept. Deletion will be blocked if the group still has user subscriptions.",
+    "delete_success": "Group deleted successfully"
   },
 
   "api_keys": {
@@ -378,7 +383,8 @@
     "create_success": "API key created successfully",
     "update_success": "Key updated successfully",
     "delete_success": "Key deleted",
-    "reveal": "Reveal Key"
+    "reveal": "Reveal Key",
+    "group_unbound": "Unbound Group"
   },
 
   "subscriptions": {
@@ -440,6 +446,7 @@
     "platform": "Platform",
     "platform_placeholder": "e.g. openai",
     "model": "Model",
+    "api_key_deleted": "Deleted API Key",
     "model_placeholder": "e.g. gpt-4",
     "user_id": "User ID",
     "total_requests": "Total Requests",
@@ -450,6 +457,8 @@
     "time": "Time",
     "input_tokens": "Input Tokens",
     "output_tokens": "Output Tokens",
+    "cached_input_tokens": "Cached Tokens",
+    "cached_input_cost": "Cache Cost",
     "stream": "Stream",
     "duration": "Duration",
     "requests": "Requests",
@@ -566,6 +575,8 @@
     "use_key": "Use Key",
     "use_key_title": "Use API Key",
     "use_key_desc": "Add the following environment variables to your terminal configuration to get started.",
+    "group_unbound": "Unbound Group",
+    "group_unbound_hint": "This API key is currently not bound to any group, so usage configuration cannot be generated. Please ask an administrator to bind it to a group first.",
     "copy": "Copy",
     "copied": "Copied",
     "reveal_failed": "Failed to retrieve key",

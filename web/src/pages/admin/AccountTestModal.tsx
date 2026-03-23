@@ -161,7 +161,6 @@ export function AccountTestModal({ open, account, onClose }: AccountTestModalPro
               } else {
                 setStatus('error');
                 setErrorMessage(data.error || '');
-                addLine(data.error || t('accounts.test_error'), 'text-red-400');
               }
               continue;
             }

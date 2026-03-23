@@ -23,6 +23,17 @@ import (
 	sdk "github.com/DouDOU-start/airgate-sdk"
 )
 
+// openAIError 返回 OpenAI 兼容的错误格式，确保 Claude Code 等客户端能正确识别
+func openAIError(c *gin.Context, status int, errType, code, message string) {
+	c.JSON(status, gin.H{
+		"error": gin.H{
+			"message": message,
+			"type":    errType,
+			"code":    code,
+		},
+	})
+}
+
 // Forwarder 请求转发器
 // 完整流程：认证 → 限流 → 余额预检 → 调度 → 并发控制 → 转发 → 计费 → 记录
 type Forwarder struct {
@@ -66,7 +77,13 @@ func (f *Forwarder) Forward(c *gin.Context) {
 	// 1. 获取 API Key 认证信息
 	keyInfoRaw, exists := c.Get(middleware.CtxKeyKeyInfo)
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "未认证"})
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": gin.H{
+				"message": "未认证",
+				"type":    "authentication_error",
+				"code":    "missing_api_key",
+			},
+		})
 		return
 	}
 	keyInfo := keyInfoRaw.(*auth.APIKeyInfo)
@@ -74,7 +91,7 @@ func (f *Forwarder) Forward(c *gin.Context) {
 	// 2. 读取请求体
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "读取请求体失败"})
+		openAIError(c, http.StatusBadRequest, "invalid_request_error", "invalid_request", "读取请求体失败")
 		return
 	}
 
@@ -101,26 +118,32 @@ func (f *Forwarder) Forward(c *gin.Context) {
 				"platform", keyInfo.GroupPlatform,
 				"path", requestPath,
 			)
-			c.JSON(http.StatusNotFound, gin.H{"error": "当前 API Key 绑定的平台不支持该 API 路径"})
+			openAIError(c, http.StatusNotFound, "invalid_request_error", "route_not_found", "当前 API Key 绑定的平台不支持该 API 路径")
 			return
 		}
 	} else {
 		inst = f.manager.MatchPluginByPathPrefix(requestPath)
 		if inst == nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "未找到匹配的插件"})
+			openAIError(c, http.StatusNotFound, "invalid_request_error", "route_not_found", "未找到匹配的插件")
 			return
 		}
 	}
 
 	// 5. 限流检查
 	if err := f.limiter.Check(c.Request.Context(), keyInfo.UserID, inst.Platform); err != nil {
-		c.JSON(http.StatusTooManyRequests, gin.H{"error": err.Error()})
+		openAIError(c, http.StatusTooManyRequests, "rate_limit_error", "rate_limit_exceeded", err.Error())
 		return
 	}
 
 	// 6. 余额预检（使用认证时预加载的余额，无需额外 DB 查询）
 	if keyInfo.UserBalance <= 0 {
-		c.JSON(http.StatusPaymentRequired, gin.H{"error": "余额不足"})
+		c.JSON(http.StatusPaymentRequired, gin.H{
+			"error": gin.H{
+				"message": "余额不足",
+				"type":    "insufficient_quota",
+				"code":    "insufficient_quota",
+			},
+		})
 		return
 	}
 
@@ -135,7 +158,7 @@ func (f *Forwarder) Forward(c *gin.Context) {
 	)
 	if err != nil {
 		slog.Warn("账户调度失败", "platform", inst.Platform, "model", model, "error", err)
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "无可用账户"})
+		openAIError(c, http.StatusServiceUnavailable, "server_error", "no_available_account", "无可用账户")
 		return
 	}
 
@@ -160,7 +183,7 @@ func (f *Forwarder) Forward(c *gin.Context) {
 	}
 	if err := f.concurrency.AcquireSlot(c.Request.Context(), account.ID, requestID, maxConc); err != nil {
 		f.scheduler.DecrementRPM(c.Request.Context(), account.ID)
-		c.JSON(http.StatusTooManyRequests, gin.H{"error": "并发已满，请稍后重试"})
+		openAIError(c, http.StatusTooManyRequests, "rate_limit_error", "concurrency_limit", "并发已满，请稍后重试")
 		return
 	}
 	defer f.concurrency.ReleaseSlot(c.Request.Context(), account.ID, requestID)
@@ -185,10 +208,15 @@ func (f *Forwarder) Forward(c *gin.Context) {
 		ProxyURL:    proxyURL,
 	}
 
+	forwardHeaders := c.Request.Header.Clone()
+	if keyInfo.GroupServiceTier != "" {
+		forwardHeaders.Set("X-Airgate-Service-Tier", keyInfo.GroupServiceTier)
+	}
+
 	fwdReq := &sdk.ForwardRequest{
 		Account: sdkAccount,
 		Body:    body,
-		Headers: c.Request.Header,
+		Headers: forwardHeaders,
 		Model:   model,
 		Stream:  stream,
 	}
@@ -227,11 +255,18 @@ func (f *Forwarder) Forward(c *gin.Context) {
 	case isAccountError:
 		// 401/403 账号问题：回退 RPM，计入失败（可能触发自动停用）
 		f.scheduler.DecrementRPM(c.Request.Context(), account.ID)
-		f.scheduler.ReportResult(account.ID, false, duration)
+		// 优先使用插件提取的上游错误信息，回退到 error
+		reason := ""
+		if result != nil && result.ErrorMessage != "" {
+			reason = result.ErrorMessage
+		} else if err != nil {
+			reason = err.Error()
+		}
+		f.scheduler.ReportResult(account.ID, false, duration, reason)
 	case err != nil:
 		// 5xx / 网络错误：回退 RPM，计入失败
 		f.scheduler.DecrementRPM(c.Request.Context(), account.ID)
-		f.scheduler.ReportResult(account.ID, false, duration)
+		f.scheduler.ReportResult(account.ID, false, duration, err.Error())
 	default:
 		// 其他 4xx（400/404/422 等客户端错误）：回退 RPM，不计入账户失败
 		f.scheduler.DecrementRPM(c.Request.Context(), account.ID)
@@ -245,7 +280,7 @@ func (f *Forwarder) Forward(c *gin.Context) {
 	if err != nil {
 		slog.Error("插件转发失败", "plugin", inst.Name, "error", err)
 		if !stream {
-			c.JSON(http.StatusBadGateway, gin.H{"error": "插件转发失败"})
+			openAIError(c, http.StatusBadGateway, "server_error", "upstream_error", "插件转发失败")
 		}
 		return
 	}
@@ -280,7 +315,8 @@ func (f *Forwarder) Forward(c *gin.Context) {
 	calcResult := f.calculator.Calculate(billing.CalculateInput{
 		InputTokens:           result.InputTokens,
 		OutputTokens:          result.OutputTokens,
-		CacheTokens:           result.CacheTokens,
+		CachedInputTokens:     result.CachedInputTokens,
+		ServiceTier:           result.ServiceTier,
 		Model:                 actualModel,
 		Platform:              inst.Platform,
 		GroupRateMultiplier:   groupRate,
@@ -301,14 +337,18 @@ func (f *Forwarder) Forward(c *gin.Context) {
 		Model:                 actualModel,
 		InputTokens:           result.InputTokens,
 		OutputTokens:          result.OutputTokens,
-		CacheTokens:           result.CacheTokens,
+		CachedInputTokens:     result.CachedInputTokens,
+		CacheTokens:           result.CachedInputTokens,
+		ReasoningOutputTokens: result.ReasoningOutputTokens,
 		InputCost:             calcResult.InputCost,
 		OutputCost:            calcResult.OutputCost,
+		CachedInputCost:       calcResult.CachedInputCost,
 		CacheCost:             calcResult.CacheCost,
 		TotalCost:             calcResult.TotalCost,
 		ActualCost:            calcResult.ActualCost,
 		RateMultiplier:        calcResult.RateMultiplier,
 		AccountRateMultiplier: calcResult.AccountRateMultiplier,
+		ServiceTier:           result.ServiceTier,
 		Stream:                stream,
 		DurationMs:            duration.Milliseconds(),
 		UserAgent:             c.Request.UserAgent(),

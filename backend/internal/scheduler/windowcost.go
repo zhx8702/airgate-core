@@ -15,10 +15,10 @@ import (
 )
 
 const (
-	windowCostCacheTTL      = 30 * time.Second
-	defaultWindowHours      = 5.0
-	windowCostThreshold     = 0.8 // 80% 进入 StickyOnly
-	defaultStickyReserve    = 10.0 // 为粘性会话预留的额外额度
+	windowCostCacheTTL   = 30 * time.Second
+	defaultWindowHours   = 5.0
+	windowCostThreshold  = 0.8  // 80% 进入 StickyOnly
+	defaultStickyReserve = 10.0 // 为粘性会话预留的额外额度
 )
 
 // WindowCostChecker 滑动窗口费用检查器

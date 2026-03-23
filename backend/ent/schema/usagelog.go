@@ -18,10 +18,14 @@ func (UsageLog) Fields() []ent.Field {
 		field.String("model").NotEmpty(),
 		field.Int("input_tokens").Default(0),
 		field.Int("output_tokens").Default(0),
+		field.Int("cached_input_tokens").Default(0),
 		field.Int("cache_tokens").Default(0),
+		field.Int("reasoning_output_tokens").Default(0),
 		field.Float("input_cost").Default(0).
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}),
 		field.Float("output_cost").Default(0).
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}),
+		field.Float("cached_input_cost").Default(0).
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}),
 		field.Float("cache_cost").Default(0).
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}),
@@ -31,6 +35,7 @@ func (UsageLog) Fields() []ent.Field {
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}),
 		field.Float("rate_multiplier").Default(1.0),
 		field.Float("account_rate_multiplier").Default(1.0),
+		field.String("service_tier").Default(""),
 		field.Bool("stream").Default(false),
 		field.Int64("duration_ms").Default(0),
 		field.Int64("first_token_ms").Default(0),
@@ -43,8 +48,8 @@ func (UsageLog) Fields() []ent.Field {
 func (UsageLog) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("user", User.Type).Ref("usage_logs").Unique().Required(),
-		edge.From("api_key", APIKey.Type).Ref("usage_logs").Unique().Required(),
+		edge.From("api_key", APIKey.Type).Ref("usage_logs").Unique(),
 		edge.From("account", Account.Type).Ref("usage_logs").Unique().Required(),
-		edge.From("group", Group.Type).Ref("usage_logs").Unique().Required(),
+		edge.From("group", Group.Type).Ref("usage_logs").Unique(),
 	}
 }

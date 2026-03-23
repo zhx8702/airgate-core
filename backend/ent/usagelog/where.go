@@ -75,9 +75,19 @@ func OutputTokens(v int) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldOutputTokens, v))
 }
 
+// CachedInputTokens applies equality check predicate on the "cached_input_tokens" field. It's identical to CachedInputTokensEQ.
+func CachedInputTokens(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldCachedInputTokens, v))
+}
+
 // CacheTokens applies equality check predicate on the "cache_tokens" field. It's identical to CacheTokensEQ.
 func CacheTokens(v int) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldCacheTokens, v))
+}
+
+// ReasoningOutputTokens applies equality check predicate on the "reasoning_output_tokens" field. It's identical to ReasoningOutputTokensEQ.
+func ReasoningOutputTokens(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldReasoningOutputTokens, v))
 }
 
 // InputCost applies equality check predicate on the "input_cost" field. It's identical to InputCostEQ.
@@ -88,6 +98,11 @@ func InputCost(v float64) predicate.UsageLog {
 // OutputCost applies equality check predicate on the "output_cost" field. It's identical to OutputCostEQ.
 func OutputCost(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldOutputCost, v))
+}
+
+// CachedInputCost applies equality check predicate on the "cached_input_cost" field. It's identical to CachedInputCostEQ.
+func CachedInputCost(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldCachedInputCost, v))
 }
 
 // CacheCost applies equality check predicate on the "cache_cost" field. It's identical to CacheCostEQ.
@@ -113,6 +128,11 @@ func RateMultiplier(v float64) predicate.UsageLog {
 // AccountRateMultiplier applies equality check predicate on the "account_rate_multiplier" field. It's identical to AccountRateMultiplierEQ.
 func AccountRateMultiplier(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldAccountRateMultiplier, v))
+}
+
+// ServiceTier applies equality check predicate on the "service_tier" field. It's identical to ServiceTierEQ.
+func ServiceTier(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldServiceTier, v))
 }
 
 // Stream applies equality check predicate on the "stream" field. It's identical to StreamEQ.
@@ -355,6 +375,46 @@ func OutputTokensLTE(v int) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldLTE(FieldOutputTokens, v))
 }
 
+// CachedInputTokensEQ applies the EQ predicate on the "cached_input_tokens" field.
+func CachedInputTokensEQ(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldCachedInputTokens, v))
+}
+
+// CachedInputTokensNEQ applies the NEQ predicate on the "cached_input_tokens" field.
+func CachedInputTokensNEQ(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldCachedInputTokens, v))
+}
+
+// CachedInputTokensIn applies the In predicate on the "cached_input_tokens" field.
+func CachedInputTokensIn(vs ...int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldCachedInputTokens, vs...))
+}
+
+// CachedInputTokensNotIn applies the NotIn predicate on the "cached_input_tokens" field.
+func CachedInputTokensNotIn(vs ...int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldCachedInputTokens, vs...))
+}
+
+// CachedInputTokensGT applies the GT predicate on the "cached_input_tokens" field.
+func CachedInputTokensGT(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldCachedInputTokens, v))
+}
+
+// CachedInputTokensGTE applies the GTE predicate on the "cached_input_tokens" field.
+func CachedInputTokensGTE(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldCachedInputTokens, v))
+}
+
+// CachedInputTokensLT applies the LT predicate on the "cached_input_tokens" field.
+func CachedInputTokensLT(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldCachedInputTokens, v))
+}
+
+// CachedInputTokensLTE applies the LTE predicate on the "cached_input_tokens" field.
+func CachedInputTokensLTE(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldCachedInputTokens, v))
+}
+
 // CacheTokensEQ applies the EQ predicate on the "cache_tokens" field.
 func CacheTokensEQ(v int) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldCacheTokens, v))
@@ -393,6 +453,46 @@ func CacheTokensLT(v int) predicate.UsageLog {
 // CacheTokensLTE applies the LTE predicate on the "cache_tokens" field.
 func CacheTokensLTE(v int) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldLTE(FieldCacheTokens, v))
+}
+
+// ReasoningOutputTokensEQ applies the EQ predicate on the "reasoning_output_tokens" field.
+func ReasoningOutputTokensEQ(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldReasoningOutputTokens, v))
+}
+
+// ReasoningOutputTokensNEQ applies the NEQ predicate on the "reasoning_output_tokens" field.
+func ReasoningOutputTokensNEQ(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldReasoningOutputTokens, v))
+}
+
+// ReasoningOutputTokensIn applies the In predicate on the "reasoning_output_tokens" field.
+func ReasoningOutputTokensIn(vs ...int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldReasoningOutputTokens, vs...))
+}
+
+// ReasoningOutputTokensNotIn applies the NotIn predicate on the "reasoning_output_tokens" field.
+func ReasoningOutputTokensNotIn(vs ...int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldReasoningOutputTokens, vs...))
+}
+
+// ReasoningOutputTokensGT applies the GT predicate on the "reasoning_output_tokens" field.
+func ReasoningOutputTokensGT(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldReasoningOutputTokens, v))
+}
+
+// ReasoningOutputTokensGTE applies the GTE predicate on the "reasoning_output_tokens" field.
+func ReasoningOutputTokensGTE(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldReasoningOutputTokens, v))
+}
+
+// ReasoningOutputTokensLT applies the LT predicate on the "reasoning_output_tokens" field.
+func ReasoningOutputTokensLT(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldReasoningOutputTokens, v))
+}
+
+// ReasoningOutputTokensLTE applies the LTE predicate on the "reasoning_output_tokens" field.
+func ReasoningOutputTokensLTE(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldReasoningOutputTokens, v))
 }
 
 // InputCostEQ applies the EQ predicate on the "input_cost" field.
@@ -473,6 +573,46 @@ func OutputCostLT(v float64) predicate.UsageLog {
 // OutputCostLTE applies the LTE predicate on the "output_cost" field.
 func OutputCostLTE(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldLTE(FieldOutputCost, v))
+}
+
+// CachedInputCostEQ applies the EQ predicate on the "cached_input_cost" field.
+func CachedInputCostEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldCachedInputCost, v))
+}
+
+// CachedInputCostNEQ applies the NEQ predicate on the "cached_input_cost" field.
+func CachedInputCostNEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldCachedInputCost, v))
+}
+
+// CachedInputCostIn applies the In predicate on the "cached_input_cost" field.
+func CachedInputCostIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldCachedInputCost, vs...))
+}
+
+// CachedInputCostNotIn applies the NotIn predicate on the "cached_input_cost" field.
+func CachedInputCostNotIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldCachedInputCost, vs...))
+}
+
+// CachedInputCostGT applies the GT predicate on the "cached_input_cost" field.
+func CachedInputCostGT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldCachedInputCost, v))
+}
+
+// CachedInputCostGTE applies the GTE predicate on the "cached_input_cost" field.
+func CachedInputCostGTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldCachedInputCost, v))
+}
+
+// CachedInputCostLT applies the LT predicate on the "cached_input_cost" field.
+func CachedInputCostLT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldCachedInputCost, v))
+}
+
+// CachedInputCostLTE applies the LTE predicate on the "cached_input_cost" field.
+func CachedInputCostLTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldCachedInputCost, v))
 }
 
 // CacheCostEQ applies the EQ predicate on the "cache_cost" field.
@@ -673,6 +813,71 @@ func AccountRateMultiplierLT(v float64) predicate.UsageLog {
 // AccountRateMultiplierLTE applies the LTE predicate on the "account_rate_multiplier" field.
 func AccountRateMultiplierLTE(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldLTE(FieldAccountRateMultiplier, v))
+}
+
+// ServiceTierEQ applies the EQ predicate on the "service_tier" field.
+func ServiceTierEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldServiceTier, v))
+}
+
+// ServiceTierNEQ applies the NEQ predicate on the "service_tier" field.
+func ServiceTierNEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldServiceTier, v))
+}
+
+// ServiceTierIn applies the In predicate on the "service_tier" field.
+func ServiceTierIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldServiceTier, vs...))
+}
+
+// ServiceTierNotIn applies the NotIn predicate on the "service_tier" field.
+func ServiceTierNotIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldServiceTier, vs...))
+}
+
+// ServiceTierGT applies the GT predicate on the "service_tier" field.
+func ServiceTierGT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldServiceTier, v))
+}
+
+// ServiceTierGTE applies the GTE predicate on the "service_tier" field.
+func ServiceTierGTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldServiceTier, v))
+}
+
+// ServiceTierLT applies the LT predicate on the "service_tier" field.
+func ServiceTierLT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldServiceTier, v))
+}
+
+// ServiceTierLTE applies the LTE predicate on the "service_tier" field.
+func ServiceTierLTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldServiceTier, v))
+}
+
+// ServiceTierContains applies the Contains predicate on the "service_tier" field.
+func ServiceTierContains(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContains(FieldServiceTier, v))
+}
+
+// ServiceTierHasPrefix applies the HasPrefix predicate on the "service_tier" field.
+func ServiceTierHasPrefix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasPrefix(FieldServiceTier, v))
+}
+
+// ServiceTierHasSuffix applies the HasSuffix predicate on the "service_tier" field.
+func ServiceTierHasSuffix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasSuffix(FieldServiceTier, v))
+}
+
+// ServiceTierEqualFold applies the EqualFold predicate on the "service_tier" field.
+func ServiceTierEqualFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEqualFold(FieldServiceTier, v))
+}
+
+// ServiceTierContainsFold applies the ContainsFold predicate on the "service_tier" field.
+func ServiceTierContainsFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContainsFold(FieldServiceTier, v))
 }
 
 // StreamEQ applies the EQ predicate on the "stream" field.

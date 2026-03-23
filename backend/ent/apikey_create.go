@@ -162,6 +162,14 @@ func (akc *APIKeyCreate) SetGroupID(id int) *APIKeyCreate {
 	return akc
 }
 
+// SetNillableGroupID sets the "group" edge to the Group entity by ID if the given value is not nil.
+func (akc *APIKeyCreate) SetNillableGroupID(id *int) *APIKeyCreate {
+	if id != nil {
+		akc = akc.SetGroupID(*id)
+	}
+	return akc
+}
+
 // SetGroup sets the "group" edge to the Group entity.
 func (akc *APIKeyCreate) SetGroup(g *Group) *APIKeyCreate {
 	return akc.SetGroupID(g.ID)
@@ -279,9 +287,6 @@ func (akc *APIKeyCreate) check() error {
 	}
 	if _, ok := akc.mutation.UserID(); !ok {
 		return &ValidationError{Name: "user", err: errors.New(`ent: missing required edge "APIKey.user"`)}
-	}
-	if _, ok := akc.mutation.GroupID(); !ok {
-		return &ValidationError{Name: "group", err: errors.New(`ent: missing required edge "APIKey.group"`)}
 	}
 	return nil
 }

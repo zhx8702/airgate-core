@@ -281,9 +281,12 @@ func (m *Manager) startGatewayPlugin(ctx context.Context, client *goplugin.Clien
 	if m.priceMgr != nil {
 		for _, model := range models {
 			m.priceMgr.SetPrice(platform, model.ID, billing.ModelPrice{
-				InputPerToken:  model.InputPrice / 1_000_000,
-				OutputPerToken: model.OutputPrice / 1_000_000,
-				CachePerToken:  model.CachePrice / 1_000_000,
+				InputPerToken:               model.InputPrice / 1_000_000,
+				OutputPerToken:              model.OutputPrice / 1_000_000,
+				CachedInputPerToken:         model.CachedInputPrice / 1_000_000,
+				InputPerTokenPriority:       model.InputPricePriority / 1_000_000,
+				OutputPerTokenPriority:      model.OutputPricePriority / 1_000_000,
+				CachedInputPerTokenPriority: model.CachedInputPricePriority / 1_000_000,
 			})
 		}
 	}

@@ -215,6 +215,14 @@ func (aku *APIKeyUpdate) SetGroupID(id int) *APIKeyUpdate {
 	return aku
 }
 
+// SetNillableGroupID sets the "group" edge to the Group entity by ID if the given value is not nil.
+func (aku *APIKeyUpdate) SetNillableGroupID(id *int) *APIKeyUpdate {
+	if id != nil {
+		aku = aku.SetGroupID(*id)
+	}
+	return aku
+}
+
 // SetGroup sets the "group" edge to the Group entity.
 func (aku *APIKeyUpdate) SetGroup(g *Group) *APIKeyUpdate {
 	return aku.SetGroupID(g.ID)
@@ -328,9 +336,6 @@ func (aku *APIKeyUpdate) check() error {
 	}
 	if _, ok := aku.mutation.UserID(); aku.mutation.UserCleared() && !ok {
 		return errors.New(`ent: clearing a required unique edge "APIKey.user"`)
-	}
-	if _, ok := aku.mutation.GroupID(); aku.mutation.GroupCleared() && !ok {
-		return errors.New(`ent: clearing a required unique edge "APIKey.group"`)
 	}
 	return nil
 }
@@ -711,6 +716,14 @@ func (akuo *APIKeyUpdateOne) SetGroupID(id int) *APIKeyUpdateOne {
 	return akuo
 }
 
+// SetNillableGroupID sets the "group" edge to the Group entity by ID if the given value is not nil.
+func (akuo *APIKeyUpdateOne) SetNillableGroupID(id *int) *APIKeyUpdateOne {
+	if id != nil {
+		akuo = akuo.SetGroupID(*id)
+	}
+	return akuo
+}
+
 // SetGroup sets the "group" edge to the Group entity.
 func (akuo *APIKeyUpdateOne) SetGroup(g *Group) *APIKeyUpdateOne {
 	return akuo.SetGroupID(g.ID)
@@ -837,9 +850,6 @@ func (akuo *APIKeyUpdateOne) check() error {
 	}
 	if _, ok := akuo.mutation.UserID(); akuo.mutation.UserCleared() && !ok {
 		return errors.New(`ent: clearing a required unique edge "APIKey.user"`)
-	}
-	if _, ok := akuo.mutation.GroupID(); akuo.mutation.GroupCleared() && !ok {
-		return errors.New(`ent: clearing a required unique edge "APIKey.group"`)
 	}
 	return nil
 }

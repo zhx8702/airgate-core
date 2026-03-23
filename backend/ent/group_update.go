@@ -134,6 +134,20 @@ func (gu *GroupUpdate) ClearModelRouting() *GroupUpdate {
 	return gu
 }
 
+// SetServiceTier sets the "service_tier" field.
+func (gu *GroupUpdate) SetServiceTier(s string) *GroupUpdate {
+	gu.mutation.SetServiceTier(s)
+	return gu
+}
+
+// SetNillableServiceTier sets the "service_tier" field if the given value is not nil.
+func (gu *GroupUpdate) SetNillableServiceTier(s *string) *GroupUpdate {
+	if s != nil {
+		gu.SetServiceTier(*s)
+	}
+	return gu
+}
+
 // SetSortWeight sets the "sort_weight" field.
 func (gu *GroupUpdate) SetSortWeight(i int) *GroupUpdate {
 	gu.mutation.ResetSortWeight()
@@ -443,6 +457,9 @@ func (gu *GroupUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if gu.mutation.ModelRoutingCleared() {
 		_spec.ClearField(group.FieldModelRouting, field.TypeJSON)
+	}
+	if value, ok := gu.mutation.ServiceTier(); ok {
+		_spec.SetField(group.FieldServiceTier, field.TypeString, value)
 	}
 	if value, ok := gu.mutation.SortWeight(); ok {
 		_spec.SetField(group.FieldSortWeight, field.TypeInt, value)
@@ -799,6 +816,20 @@ func (guo *GroupUpdateOne) ClearModelRouting() *GroupUpdateOne {
 	return guo
 }
 
+// SetServiceTier sets the "service_tier" field.
+func (guo *GroupUpdateOne) SetServiceTier(s string) *GroupUpdateOne {
+	guo.mutation.SetServiceTier(s)
+	return guo
+}
+
+// SetNillableServiceTier sets the "service_tier" field if the given value is not nil.
+func (guo *GroupUpdateOne) SetNillableServiceTier(s *string) *GroupUpdateOne {
+	if s != nil {
+		guo.SetServiceTier(*s)
+	}
+	return guo
+}
+
 // SetSortWeight sets the "sort_weight" field.
 func (guo *GroupUpdateOne) SetSortWeight(i int) *GroupUpdateOne {
 	guo.mutation.ResetSortWeight()
@@ -1138,6 +1169,9 @@ func (guo *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error
 	}
 	if guo.mutation.ModelRoutingCleared() {
 		_spec.ClearField(group.FieldModelRouting, field.TypeJSON)
+	}
+	if value, ok := guo.mutation.ServiceTier(); ok {
+		_spec.SetField(group.FieldServiceTier, field.TypeString, value)
 	}
 	if value, ok := guo.mutation.SortWeight(); ok {
 		_spec.SetField(group.FieldSortWeight, field.TypeInt, value)

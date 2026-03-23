@@ -5,20 +5,23 @@ type UsageLogResp struct {
 	ID                    int64   `json:"id"`
 	UserID                int64   `json:"user_id"`
 	APIKeyID              int64   `json:"api_key_id"`
+	APIKeyDeleted         bool    `json:"api_key_deleted"`
 	AccountID             int64   `json:"account_id"`
 	GroupID               int64   `json:"group_id"`
 	Platform              string  `json:"platform"`
 	Model                 string  `json:"model"`
 	InputTokens           int     `json:"input_tokens"`
 	OutputTokens          int     `json:"output_tokens"`
-	CacheTokens           int     `json:"cache_tokens"`
+	CachedInputTokens     int     `json:"cached_input_tokens"`
+	ReasoningOutputTokens int     `json:"reasoning_output_tokens"`
 	InputCost             float64 `json:"input_cost"`
 	OutputCost            float64 `json:"output_cost"`
-	CacheCost             float64 `json:"cache_cost"`
+	CachedInputCost       float64 `json:"cached_input_cost"`
 	TotalCost             float64 `json:"total_cost"`
 	ActualCost            float64 `json:"actual_cost"`
 	RateMultiplier        float64 `json:"rate_multiplier"`
 	AccountRateMultiplier float64 `json:"account_rate_multiplier"`
+	ServiceTier           string  `json:"service_tier,omitempty"`
 	Stream                bool    `json:"stream"`
 	DurationMs            int64   `json:"duration_ms"`
 	FirstTokenMs          int64   `json:"first_token_ms"`

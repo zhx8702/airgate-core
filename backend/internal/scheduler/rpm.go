@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	rpmKeyTTL      = 120 * time.Second
-	rpmThreshold   = 0.8 // 80% 进入 StickyOnly
+	rpmKeyTTL    = 120 * time.Second
+	rpmThreshold = 0.8 // 80% 进入 StickyOnly
 )
 
 // RPMCounter 账户级 RPM 计数器

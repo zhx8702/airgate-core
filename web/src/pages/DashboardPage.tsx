@@ -403,8 +403,7 @@ function TokenTrendCard({ trend }: { trend: DashboardTrendResp }) {
       time: fmtTime(d.time),
       input: d.input_tokens,
       output: d.output_tokens,
-      cacheCreation: d.cache_creation,
-      cacheRead: d.cache_read,
+      cachedInput: d.cached_input,
     })),
     [trend.token_trend],
   );
@@ -449,8 +448,7 @@ function TokenTrendCard({ trend }: { trend: DashboardTrendResp }) {
               const labels: Record<string, string> = {
                 input: t('dashboard.input'),
                 output: t('dashboard.output'),
-                cacheCreation: t('dashboard.cache_creation'),
-                cacheRead: t('dashboard.cache_read'),
+                cachedInput: t('dashboard.cached_input'),
               };
               return [fmtNum(Number(value)), labels[String(name)] || String(name)];
             }}
@@ -463,16 +461,14 @@ function TokenTrendCard({ trend }: { trend: DashboardTrendResp }) {
               const labels: Record<string, string> = {
                 input: t('dashboard.input'),
                 output: t('dashboard.output'),
-                cacheCreation: t('dashboard.cache_creation'),
-                cacheRead: t('dashboard.cache_read'),
+                cachedInput: t('dashboard.cached_input'),
               };
               return labels[value] || value;
             }}
           />
           <Line type="monotone" dataKey="input" stroke="#3b82f6" strokeWidth={2} dot={false} />
           <Line type="monotone" dataKey="output" stroke="#10b981" strokeWidth={2} dot={false} />
-          <Line type="monotone" dataKey="cacheCreation" stroke="#f59e0b" strokeWidth={2} dot={false} />
-          <Line type="monotone" dataKey="cacheRead" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+          <Line type="monotone" dataKey="cachedInput" stroke="#8b5cf6" strokeWidth={2} dot={false} />
         </LineChart>
       </ResponsiveContainer>
     </Card>

@@ -13,6 +13,7 @@ import (
 
 	"github.com/DouDOU-start/airgate-core/ent"
 	"github.com/DouDOU-start/airgate-core/ent/apikey"
+	entusagelog "github.com/DouDOU-start/airgate-core/ent/usagelog"
 	"github.com/DouDOU-start/airgate-core/ent/user"
 	"github.com/DouDOU-start/airgate-core/internal/auth"
 	"github.com/DouDOU-start/airgate-core/internal/server/dto"
@@ -276,8 +277,31 @@ func (h *APIKeyHandler) DeleteKey(c *gin.Context) {
 		return
 	}
 
-	if err := h.db.APIKey.DeleteOneID(id).Exec(c.Request.Context()); err != nil {
+	tx, err := h.db.Tx(c.Request.Context())
+	if err != nil {
+		slog.Error("开启事务失败", "error", err)
+		response.InternalError(c, "删除失败")
+		return
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	if err := tx.UsageLog.Update().
+		Where(entusagelog.HasAPIKeyWith(apikey.IDEQ(id))).
+		ClearAPIKey().
+		Exec(c.Request.Context()); err != nil {
+		slog.Error("清理密钥使用记录关联失败", "error", err)
+		response.InternalError(c, "删除失败")
+		return
+	}
+	if err := tx.APIKey.DeleteOneID(id).Exec(c.Request.Context()); err != nil {
 		slog.Error("删除密钥失败", "error", err)
+		response.InternalError(c, "删除失败")
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		slog.Error("提交删除事务失败", "error", err)
 		response.InternalError(c, "删除失败")
 		return
 	}
@@ -392,7 +416,7 @@ func (h *APIKeyHandler) RevealKey(c *gin.Context) {
 	plainKey, err := auth.DecryptAPIKey(k.KeyEncrypted, h.secret)
 	if err != nil {
 		slog.Error("解密 API 密钥失败", "error", err)
-		response.InternalError(c, "解密失败")
+		response.BadRequest(c, "该密钥无法解密，可能创建于不同加密密钥下，无法查看原文")
 		return
 	}
 
@@ -455,7 +479,8 @@ func toAPIKeyResp(k *ent.APIKey, rawKey string) dto.APIKeyResp {
 
 	// 关联的分组 ID
 	if k.Edges.Group != nil {
-		resp.GroupID = int64(k.Edges.Group.ID)
+		groupID := int64(k.Edges.Group.ID)
+		resp.GroupID = &groupID
 	}
 
 	return resp

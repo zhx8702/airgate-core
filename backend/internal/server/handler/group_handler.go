@@ -7,7 +7,10 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/DouDOU-start/airgate-core/ent"
+	"github.com/DouDOU-start/airgate-core/ent/apikey"
 	"github.com/DouDOU-start/airgate-core/ent/group"
+	"github.com/DouDOU-start/airgate-core/ent/usagelog"
+	"github.com/DouDOU-start/airgate-core/ent/usersubscription"
 	"github.com/DouDOU-start/airgate-core/internal/server/dto"
 	"github.com/DouDOU-start/airgate-core/internal/server/response"
 )
@@ -40,6 +43,9 @@ func (h *GroupHandler) ListGroups(c *gin.Context) {
 	// 平台筛选
 	if platform := c.Query("platform"); platform != "" {
 		query = query.Where(group.PlatformEQ(platform))
+	}
+	if serviceTier := c.Query("service_tier"); serviceTier != "" {
+		query = query.Where(group.ServiceTierEQ(serviceTier))
 	}
 
 	// 总数
@@ -106,6 +112,7 @@ func (h *GroupHandler) CreateGroup(c *gin.Context) {
 		SetRateMultiplier(req.RateMultiplier).
 		SetIsExclusive(req.IsExclusive).
 		SetSubscriptionType(group.SubscriptionType(req.SubscriptionType)).
+		SetServiceTier(req.ServiceTier).
 		SetSortWeight(req.SortWeight)
 
 	if req.Quotas != nil {
@@ -159,6 +166,9 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 	if req.ModelRouting != nil {
 		builder = builder.SetModelRouting(req.ModelRouting)
 	}
+	if req.ServiceTier != nil {
+		builder = builder.SetServiceTier(*req.ServiceTier)
+	}
 	if req.SortWeight != nil {
 		builder = builder.SetSortWeight(*req.SortWeight)
 	}
@@ -177,6 +187,88 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 	response.Success(c, toGroupResp(g))
 }
 
+// DeleteGroup 删除分组
+func (h *GroupHandler) DeleteGroup(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "无效的分组 ID")
+		return
+	}
+
+	tx, err := h.db.Tx(c.Request.Context())
+	if err != nil {
+		slog.Error("开启删除分组事务失败", "error", err)
+		response.InternalError(c, "删除失败")
+		return
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	if _, err = tx.Group.Get(c.Request.Context(), id); err != nil {
+		if ent.IsNotFound(err) {
+			response.NotFound(c, "分组不存在")
+			return
+		}
+		slog.Error("查询分组失败", "error", err)
+		response.InternalError(c, "删除失败")
+		return
+	}
+
+	hasSubscription, err := tx.UserSubscription.Query().
+		Where(usersubscription.HasGroupWith(group.IDEQ(id))).
+		Exist(c.Request.Context())
+	if err != nil {
+		slog.Error("检查分组订阅失败", "error", err)
+		response.InternalError(c, "删除失败")
+		return
+	}
+	if hasSubscription {
+		response.BadRequest(c, "该分组仍存在用户订阅，请先取消或迁移订阅后再删除")
+		return
+	}
+
+	if _, err = tx.APIKey.Update().
+		Where(apikey.HasGroupWith(group.IDEQ(id))).
+		ClearGroup().
+		Save(c.Request.Context()); err != nil {
+		slog.Error("解绑分组关联 API Key 失败", "error", err)
+		response.InternalError(c, "删除失败")
+		return
+	}
+
+	if _, err = tx.UsageLog.Update().
+		Where(usagelog.HasGroupWith(group.IDEQ(id))).
+		ClearGroup().
+		Save(c.Request.Context()); err != nil {
+		slog.Error("解绑分组关联使用记录失败", "error", err)
+		response.InternalError(c, "删除失败")
+		return
+	}
+
+	if err = tx.Group.DeleteOneID(id).Exec(c.Request.Context()); err != nil {
+		if ent.IsNotFound(err) {
+			response.NotFound(c, "分组不存在")
+			return
+		}
+		if ent.IsConstraintError(err) {
+			response.BadRequest(c, "该分组仍存在用户订阅，请先取消或迁移订阅后再删除")
+			return
+		}
+		slog.Error("删除分组失败", "error", err)
+		response.InternalError(c, "删除失败")
+		return
+	}
+
+	if err = tx.Commit(); err != nil {
+		slog.Error("提交删除分组事务失败", "error", err)
+		response.InternalError(c, "删除失败")
+		return
+	}
+
+	response.Success(c, nil)
+}
+
 // toGroupResp 将 ent.Group 转换为 dto.GroupResp
 func toGroupResp(g *ent.Group) dto.GroupResp {
 	return dto.GroupResp{
@@ -188,6 +280,7 @@ func toGroupResp(g *ent.Group) dto.GroupResp {
 		SubscriptionType: string(g.SubscriptionType),
 		Quotas:           g.Quotas,
 		ModelRouting:     g.ModelRouting,
+		ServiceTier:      g.ServiceTier,
 		SortWeight:       g.SortWeight,
 		TimeMixin: dto.TimeMixin{
 			CreatedAt: g.CreatedAt,

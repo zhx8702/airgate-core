@@ -30,7 +30,7 @@ func (APIKey) Fields() []ent.Field {
 func (APIKey) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("user", User.Type).Ref("api_keys").Unique().Required(),
-		edge.From("group", Group.Type).Ref("api_keys").Unique().Required(),
+		edge.From("group", Group.Type).Ref("api_keys").Unique(),
 		edge.To("usage_logs", UsageLog.Type),
 	}
 }

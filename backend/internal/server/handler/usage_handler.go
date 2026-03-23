@@ -104,15 +104,17 @@ func (h *UsageHandler) UserUsageStats(c *gin.Context) {
 	aggQuery = applyFilterQuery(aggQuery, &q)
 
 	var results []struct {
-		InputTokens  int64   `json:"input_tokens"`
-		OutputTokens int64   `json:"output_tokens"`
-		TotalCost    float64 `json:"total_cost"`
-		ActualCost   float64 `json:"actual_cost"`
+		InputTokens       int64   `json:"input_tokens"`
+		OutputTokens      int64   `json:"output_tokens"`
+		CachedInputTokens int64   `json:"cached_input_tokens"`
+		TotalCost         float64 `json:"total_cost"`
+		ActualCost        float64 `json:"actual_cost"`
 	}
 	err = aggQuery.
 		Aggregate(
 			ent.As(ent.Sum(usagelog.FieldInputTokens), "input_tokens"),
 			ent.As(ent.Sum(usagelog.FieldOutputTokens), "output_tokens"),
+			ent.As(ent.Sum(usagelog.FieldCachedInputTokens), "cached_input_tokens"),
 			ent.As(ent.Sum(usagelog.FieldTotalCost), "total_cost"),
 			ent.As(ent.Sum(usagelog.FieldActualCost), "actual_cost"),
 		).
@@ -121,7 +123,7 @@ func (h *UsageHandler) UserUsageStats(c *gin.Context) {
 	var totalTokens int64
 	var totalCost, totalActualCost float64
 	if err == nil && len(results) > 0 {
-		totalTokens = results[0].InputTokens + results[0].OutputTokens
+		totalTokens = results[0].InputTokens + results[0].OutputTokens + results[0].CachedInputTokens
 		totalCost = results[0].TotalCost
 		totalActualCost = results[0].ActualCost
 	}
@@ -197,14 +199,17 @@ func (h *UsageHandler) AdminUsageStats(c *gin.Context) {
 
 	// 使用 Ent 聚合查询获取总计
 	var results []struct {
-		TotalTokens     int64   `json:"sum_input_tokens"`
-		TotalCost       float64 `json:"sum_total_cost"`
-		TotalActualCost float64 `json:"sum_actual_cost"`
+		InputTokens       int64   `json:"sum_input_tokens"`
+		OutputTokens      int64   `json:"sum_output_tokens"`
+		CachedInputTokens int64   `json:"sum_cached_input_tokens"`
+		TotalCost         float64 `json:"sum_total_cost"`
+		TotalActualCost   float64 `json:"sum_actual_cost"`
 	}
 	err = h.db.UsageLog.Query().
 		Aggregate(
 			ent.Sum(usagelog.FieldInputTokens),
 			ent.Sum(usagelog.FieldOutputTokens),
+			ent.Sum(usagelog.FieldCachedInputTokens),
 			ent.Sum(usagelog.FieldTotalCost),
 			ent.Sum(usagelog.FieldActualCost),
 		).
@@ -213,7 +218,7 @@ func (h *UsageHandler) AdminUsageStats(c *gin.Context) {
 	var totalTokens int64
 	var totalCost, totalActualCost float64
 	if err == nil && len(results) > 0 {
-		totalTokens = results[0].TotalTokens
+		totalTokens = results[0].InputTokens + results[0].OutputTokens + results[0].CachedInputTokens
 		totalCost = results[0].TotalCost
 		totalActualCost = results[0].TotalActualCost
 	}
@@ -264,18 +269,21 @@ func toUsageLogResp(l *ent.UsageLog, userID int64) dto.UsageLogResp {
 	return dto.UsageLogResp{
 		ID:                    int64(l.ID),
 		UserID:                userID,
+		APIKeyDeleted:         l.Edges.APIKey == nil,
 		Platform:              l.Platform,
 		Model:                 l.Model,
 		InputTokens:           l.InputTokens,
 		OutputTokens:          l.OutputTokens,
-		CacheTokens:           l.CacheTokens,
+		CachedInputTokens:     l.CachedInputTokens,
+		ReasoningOutputTokens: l.ReasoningOutputTokens,
 		InputCost:             l.InputCost,
 		OutputCost:            l.OutputCost,
-		CacheCost:             l.CacheCost,
+		CachedInputCost:       l.CachedInputCost,
 		TotalCost:             l.TotalCost,
 		ActualCost:            l.ActualCost,
 		RateMultiplier:        l.RateMultiplier,
 		AccountRateMultiplier: l.AccountRateMultiplier,
+		ServiceTier:           l.ServiceTier,
 		Stream:                l.Stream,
 		DurationMs:            l.DurationMs,
 		FirstTokenMs:          l.FirstTokenMs,

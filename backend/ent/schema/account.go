@@ -24,7 +24,7 @@ func (Account) Fields() []ent.Field {
 		field.String("error_msg").Default(""),
 		field.Time("last_used_at").Optional().Nillable(),
 		field.JSON("extra", map[string]interface{}{}).Optional().Default(map[string]interface{}{}). // 扩展配置：max_rpm, max_window_cost, max_sessions 等
-													Comment("扩展配置（插件/调度器使用）"),
+														Comment("扩展配置（插件/调度器使用）"),
 		field.Time("created_at").Default(timeNow).Immutable(),
 		field.Time("updated_at").Default(timeNow).UpdateDefault(timeNow),
 	}

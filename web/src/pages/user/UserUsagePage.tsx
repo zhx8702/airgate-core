@@ -82,6 +82,15 @@ export default function UserUsagePage() {
       ),
     },
     {
+      key: 'cached_input_tokens',
+      title: t('usage.cached_input_tokens'),
+      render: (row) => (
+        <span className="font-mono text-text-secondary">
+          {row.cached_input_tokens > 0 ? row.cached_input_tokens.toLocaleString() : '-'}
+        </span>
+      ),
+    },
+    {
       key: 'total_cost',
       title: t('usage.total_cost'),
       render: (row) => (

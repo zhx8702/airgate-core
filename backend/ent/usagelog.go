@@ -29,12 +29,18 @@ type UsageLog struct {
 	InputTokens int `json:"input_tokens,omitempty"`
 	// OutputTokens holds the value of the "output_tokens" field.
 	OutputTokens int `json:"output_tokens,omitempty"`
+	// CachedInputTokens holds the value of the "cached_input_tokens" field.
+	CachedInputTokens int `json:"cached_input_tokens,omitempty"`
 	// CacheTokens holds the value of the "cache_tokens" field.
 	CacheTokens int `json:"cache_tokens,omitempty"`
+	// ReasoningOutputTokens holds the value of the "reasoning_output_tokens" field.
+	ReasoningOutputTokens int `json:"reasoning_output_tokens,omitempty"`
 	// InputCost holds the value of the "input_cost" field.
 	InputCost float64 `json:"input_cost,omitempty"`
 	// OutputCost holds the value of the "output_cost" field.
 	OutputCost float64 `json:"output_cost,omitempty"`
+	// CachedInputCost holds the value of the "cached_input_cost" field.
+	CachedInputCost float64 `json:"cached_input_cost,omitempty"`
 	// CacheCost holds the value of the "cache_cost" field.
 	CacheCost float64 `json:"cache_cost,omitempty"`
 	// TotalCost holds the value of the "total_cost" field.
@@ -45,6 +51,8 @@ type UsageLog struct {
 	RateMultiplier float64 `json:"rate_multiplier,omitempty"`
 	// AccountRateMultiplier holds the value of the "account_rate_multiplier" field.
 	AccountRateMultiplier float64 `json:"account_rate_multiplier,omitempty"`
+	// ServiceTier holds the value of the "service_tier" field.
+	ServiceTier string `json:"service_tier,omitempty"`
 	// Stream holds the value of the "stream" field.
 	Stream bool `json:"stream,omitempty"`
 	// DurationMs holds the value of the "duration_ms" field.
@@ -133,11 +141,11 @@ func (*UsageLog) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case usagelog.FieldStream:
 			values[i] = new(sql.NullBool)
-		case usagelog.FieldInputCost, usagelog.FieldOutputCost, usagelog.FieldCacheCost, usagelog.FieldTotalCost, usagelog.FieldActualCost, usagelog.FieldRateMultiplier, usagelog.FieldAccountRateMultiplier:
+		case usagelog.FieldInputCost, usagelog.FieldOutputCost, usagelog.FieldCachedInputCost, usagelog.FieldCacheCost, usagelog.FieldTotalCost, usagelog.FieldActualCost, usagelog.FieldRateMultiplier, usagelog.FieldAccountRateMultiplier:
 			values[i] = new(sql.NullFloat64)
-		case usagelog.FieldID, usagelog.FieldInputTokens, usagelog.FieldOutputTokens, usagelog.FieldCacheTokens, usagelog.FieldDurationMs, usagelog.FieldFirstTokenMs:
+		case usagelog.FieldID, usagelog.FieldInputTokens, usagelog.FieldOutputTokens, usagelog.FieldCachedInputTokens, usagelog.FieldCacheTokens, usagelog.FieldReasoningOutputTokens, usagelog.FieldDurationMs, usagelog.FieldFirstTokenMs:
 			values[i] = new(sql.NullInt64)
-		case usagelog.FieldPlatform, usagelog.FieldModel, usagelog.FieldUserAgent, usagelog.FieldIPAddress:
+		case usagelog.FieldPlatform, usagelog.FieldModel, usagelog.FieldServiceTier, usagelog.FieldUserAgent, usagelog.FieldIPAddress:
 			values[i] = new(sql.NullString)
 		case usagelog.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -194,11 +202,23 @@ func (ul *UsageLog) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				ul.OutputTokens = int(value.Int64)
 			}
+		case usagelog.FieldCachedInputTokens:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field cached_input_tokens", values[i])
+			} else if value.Valid {
+				ul.CachedInputTokens = int(value.Int64)
+			}
 		case usagelog.FieldCacheTokens:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field cache_tokens", values[i])
 			} else if value.Valid {
 				ul.CacheTokens = int(value.Int64)
+			}
+		case usagelog.FieldReasoningOutputTokens:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field reasoning_output_tokens", values[i])
+			} else if value.Valid {
+				ul.ReasoningOutputTokens = int(value.Int64)
 			}
 		case usagelog.FieldInputCost:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -211,6 +231,12 @@ func (ul *UsageLog) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field output_cost", values[i])
 			} else if value.Valid {
 				ul.OutputCost = value.Float64
+			}
+		case usagelog.FieldCachedInputCost:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field cached_input_cost", values[i])
+			} else if value.Valid {
+				ul.CachedInputCost = value.Float64
 			}
 		case usagelog.FieldCacheCost:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -241,6 +267,12 @@ func (ul *UsageLog) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field account_rate_multiplier", values[i])
 			} else if value.Valid {
 				ul.AccountRateMultiplier = value.Float64
+			}
+		case usagelog.FieldServiceTier:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field service_tier", values[i])
+			} else if value.Valid {
+				ul.ServiceTier = value.String
 			}
 		case usagelog.FieldStream:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -374,14 +406,23 @@ func (ul *UsageLog) String() string {
 	builder.WriteString("output_tokens=")
 	builder.WriteString(fmt.Sprintf("%v", ul.OutputTokens))
 	builder.WriteString(", ")
+	builder.WriteString("cached_input_tokens=")
+	builder.WriteString(fmt.Sprintf("%v", ul.CachedInputTokens))
+	builder.WriteString(", ")
 	builder.WriteString("cache_tokens=")
 	builder.WriteString(fmt.Sprintf("%v", ul.CacheTokens))
+	builder.WriteString(", ")
+	builder.WriteString("reasoning_output_tokens=")
+	builder.WriteString(fmt.Sprintf("%v", ul.ReasoningOutputTokens))
 	builder.WriteString(", ")
 	builder.WriteString("input_cost=")
 	builder.WriteString(fmt.Sprintf("%v", ul.InputCost))
 	builder.WriteString(", ")
 	builder.WriteString("output_cost=")
 	builder.WriteString(fmt.Sprintf("%v", ul.OutputCost))
+	builder.WriteString(", ")
+	builder.WriteString("cached_input_cost=")
+	builder.WriteString(fmt.Sprintf("%v", ul.CachedInputCost))
 	builder.WriteString(", ")
 	builder.WriteString("cache_cost=")
 	builder.WriteString(fmt.Sprintf("%v", ul.CacheCost))
@@ -397,6 +438,9 @@ func (ul *UsageLog) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("account_rate_multiplier=")
 	builder.WriteString(fmt.Sprintf("%v", ul.AccountRateMultiplier))
+	builder.WriteString(", ")
+	builder.WriteString("service_tier=")
+	builder.WriteString(ul.ServiceTier)
 	builder.WriteString(", ")
 	builder.WriteString("stream=")
 	builder.WriteString(fmt.Sprintf("%v", ul.Stream))

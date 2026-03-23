@@ -7,7 +7,7 @@ type APIKeyResp struct {
 	Key         string   `json:"key,omitempty"` // 仅创建时返回完整密钥
 	KeyPrefix   string   `json:"key_prefix"`    // sk-xxxx... 前缀展示
 	UserID      int64    `json:"user_id"`
-	GroupID     int64    `json:"group_id"`
+	GroupID     *int64   `json:"group_id"`
 	IPWhitelist []string `json:"ip_whitelist,omitempty"`
 	IPBlacklist []string `json:"ip_blacklist,omitempty"`
 	QuotaUSD    float64  `json:"quota_usd"`

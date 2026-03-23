@@ -37,8 +37,12 @@ const statusMap: Record<string, { variant: BadgeProps['variant']; label: string 
   installed: { variant: 'info', label: 'status.installed' },
 };
 
-export function StatusBadge({ status }: { status: string }) {
+export function StatusBadge({ status, tooltip }: { status: string; tooltip?: string }) {
   const { t } = useTranslation();
   const config = statusMap[status] || { variant: 'default' as const, label: status };
-  return <Badge variant={config.variant}>{t(config.label)}</Badge>;
+  return (
+    <span className={tooltip ? 'relative group cursor-help' : undefined} title={tooltip}>
+      <Badge variant={config.variant}>{t(config.label)}</Badge>
+    </span>
+  );
 }

@@ -18,6 +18,8 @@ export interface PageReq {
   page: number;
   page_size: number;
   keyword?: string;
+  platform?: string;
+  service_tier?: 'fast' | 'flex';
 }
 
 // ==================== Auth ====================
@@ -190,6 +192,7 @@ export interface GroupResp {
   subscription_type: 'standard' | 'subscription';
   quotas?: Record<string, unknown>;
   model_routing?: Record<string, number[]>;
+  service_tier?: 'fast' | 'flex';
   sort_weight: number;
   created_at: string;
   updated_at: string;
@@ -203,6 +206,7 @@ export interface CreateGroupReq {
   subscription_type: 'standard' | 'subscription';
   quotas?: Record<string, unknown>;
   model_routing?: Record<string, number[]>;
+  service_tier?: 'fast' | 'flex';
   sort_weight?: number;
 }
 
@@ -213,6 +217,7 @@ export interface UpdateGroupReq {
   subscription_type?: 'standard' | 'subscription';
   quotas?: Record<string, unknown>;
   model_routing?: Record<string, number[]>;
+  service_tier?: 'fast' | 'flex';
   sort_weight?: number;
 }
 
@@ -224,7 +229,7 @@ export interface APIKeyResp {
   key?: string;
   key_prefix: string;
   user_id: number;
-  group_id: number;
+  group_id: number | null;
   ip_whitelist?: string[];
   ip_blacklist?: string[];
   quota_usd: number;
@@ -306,20 +311,22 @@ export interface UsageLogResp {
   id: number;
   user_id: number;
   api_key_id: number;
+  api_key_deleted: boolean;
   account_id: number;
   group_id: number;
   platform: string;
   model: string;
   input_tokens: number;
   output_tokens: number;
-  cache_tokens: number;
+  cached_input_tokens: number;
   input_cost: number;
   output_cost: number;
-  cache_cost: number;
+  cached_input_cost: number;
   total_cost: number;
   actual_cost: number;
   rate_multiplier: number;
   account_rate_multiplier: number;
+  service_tier?: string;
   stream: boolean;
   duration_ms: number;
   first_token_ms: number;
@@ -528,8 +535,7 @@ export interface DashboardTimeBucket {
   time: string;
   input_tokens: number;
   output_tokens: number;
-  cache_creation: number;
-  cache_read: number;
+  cached_input: number;
 }
 
 export interface DashboardUserTrend {

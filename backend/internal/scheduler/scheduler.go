@@ -382,7 +382,8 @@ func (s *Scheduler) AddWindowCost(ctx context.Context, accountID int, cost float
 }
 
 // ReportResult 上报调度结果，用于动态调整
-func (s *Scheduler) ReportResult(accountID int, success bool, latency time.Duration) {
+// reason 为失败时的错误原因（可选），记录到账号 error_msg 便于排查
+func (s *Scheduler) ReportResult(accountID int, success bool, latency time.Duration, reason ...string) {
 	if success {
 		// 成功时清零失败计数
 		s.failCounts.Delete(accountID)
@@ -412,9 +413,13 @@ func (s *Scheduler) ReportResult(accountID int, success bool, latency time.Durat
 			"account_id", accountID,
 			"max_fail_count", s.maxFailCount,
 		)
+		errMsg := fmt.Sprintf("连续失败 %d 次，自动停用", count)
+		if len(reason) > 0 && reason[0] != "" {
+			errMsg = reason[0]
+		}
 		_ = s.db.Account.UpdateOneID(accountID).
 			SetStatus(account.StatusError).
-			SetErrorMsg(fmt.Sprintf("连续失败 %d 次，自动停用", count)).
+			SetErrorMsg(errMsg).
 			Exec(context.Background())
 		s.failCounts.Delete(accountID)
 	}

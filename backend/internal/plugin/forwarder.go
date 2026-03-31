@@ -43,7 +43,6 @@ type Forwarder struct {
 	concurrency *scheduler.ConcurrencyManager
 	limiter     *ratelimit.Limiter
 	calculator  *billing.Calculator
-	priceMgr    *billing.PriceManager
 	recorder    *billing.Recorder
 }
 
@@ -55,7 +54,6 @@ func NewForwarder(
 	concurrency *scheduler.ConcurrencyManager,
 	limiter *ratelimit.Limiter,
 	calculator *billing.Calculator,
-	priceMgr *billing.PriceManager,
 	recorder *billing.Recorder,
 ) *Forwarder {
 	return &Forwarder{
@@ -65,7 +63,6 @@ func NewForwarder(
 		concurrency: concurrency,
 		limiter:     limiter,
 		calculator:  calculator,
-		priceMgr:    priceMgr,
 		recorder:    recorder,
 	}
 }
@@ -310,18 +307,14 @@ func (f *Forwarder) Forward(c *gin.Context) {
 		groupRate = 1.0
 	}
 
-	price, _ := f.priceMgr.GetPrice(inst.Platform, actualModel)
 	calcResult := f.calculator.Calculate(billing.CalculateInput{
-		InputTokens:           result.InputTokens,
-		OutputTokens:          result.OutputTokens,
-		CachedInputTokens:     result.CachedInputTokens,
-		ServiceTier:           result.ServiceTier,
-		Model:                 actualModel,
-		Platform:              inst.Platform,
+		InputCost:             result.InputCost,
+		OutputCost:            result.OutputCost,
+		CachedInputCost:       result.CachedInputCost,
 		GroupRateMultiplier:   groupRate,
 		AccountRateMultiplier: account.RateMultiplier,
 		UserRateMultiplier:    1.0,
-	}, price)
+	})
 
 	// 11.5 增量更新窗口费用缓存（避免调度器使用过期数据）
 	f.scheduler.AddWindowCost(c.Request.Context(), account.ID, calcResult.ActualCost)

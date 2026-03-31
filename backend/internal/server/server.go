@@ -39,7 +39,6 @@ type Server struct {
 	// 核心服务组件
 	scheduler   *scheduler.Scheduler
 	concurrency *scheduler.ConcurrencyManager
-	priceMgr    *billing.PriceManager
 	calculator  *billing.Calculator
 	recorder    *billing.Recorder
 }
@@ -56,7 +55,6 @@ func NewServer(cfg *config.Config, db *ent.Client, rdb *redis.Client) *Server {
 	// 核心服务组件
 	sched := scheduler.NewScheduler(db, rdb)
 	concurrency := scheduler.NewConcurrencyManager(rdb)
-	priceMgr := billing.NewPriceManager()
 	calculator := billing.NewCalculator()
 	recorder := billing.NewRecorder(db, 0)
 
@@ -65,8 +63,8 @@ func NewServer(cfg *config.Config, db *ent.Client, rdb *redis.Client) *Server {
 	if pluginDir == "" {
 		pluginDir = "data/plugins"
 	}
-	pluginMgr := plugin.NewManager(pluginDir, cfg.Log.Level, priceMgr)
-	forwarder := plugin.NewForwarder(db, pluginMgr, sched, concurrency, limiter, calculator, priceMgr, recorder)
+	pluginMgr := plugin.NewManager(pluginDir, cfg.Log.Level)
+	forwarder := plugin.NewForwarder(db, pluginMgr, sched, concurrency, limiter, calculator, recorder)
 	marketplace := plugin.NewMarketplace(pluginDir)
 	dynamicRouter := NewDynamicRouter(forwarder)
 	extensionProxy := plugin.NewExtensionProxy(pluginMgr)
@@ -85,7 +83,6 @@ func NewServer(cfg *config.Config, db *ent.Client, rdb *redis.Client) *Server {
 		extensionProxy: extensionProxy,
 		scheduler:      sched,
 		concurrency:    concurrency,
-		priceMgr:       priceMgr,
 		calculator:     calculator,
 		recorder:       recorder,
 	}

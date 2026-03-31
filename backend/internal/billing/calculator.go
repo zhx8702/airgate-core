@@ -1,4 +1,4 @@
-// Package billing 提供费用计算、模型价格管理和使用量异步记录
+// Package billing 提供费用计算和使用量异步记录
 package billing
 
 // Calculator 费用计算器
@@ -11,12 +11,9 @@ func NewCalculator() *Calculator {
 
 // CalculateInput 计算输入参数
 type CalculateInput struct {
-	InputTokens       int // 输入 token 数量
-	OutputTokens      int // 输出 token 数量
-	CachedInputTokens int // 命中缓存的输入 token 数量
-	ServiceTier       string
-	Model             string
-	Platform          string
+	InputCost       float64 // 插件已计算的输入费用
+	OutputCost      float64 // 插件已计算的输出费用
+	CachedInputCost float64 // 插件已计算的缓存输入费用
 
 	// 三层倍率
 	GroupRateMultiplier   float64 // 分组倍率
@@ -26,9 +23,9 @@ type CalculateInput struct {
 
 // CalculateResult 计算结果
 type CalculateResult struct {
-	InputCost             float64 // 输入 token 费用
-	OutputCost            float64 // 输出 token 费用
-	CachedInputCost       float64 // cached input token 费用
+	InputCost             float64 // 输入费用
+	OutputCost            float64 // 输出费用
+	CachedInputCost       float64 // cached input 费用
 	TotalCost             float64 // 原始成本 = input + cached_input + output
 	ActualCost            float64 // 最终计费 = TotalCost * group * account * user
 	RateMultiplier        float64 // 最终综合倍率
@@ -36,33 +33,12 @@ type CalculateResult struct {
 }
 
 // Calculate 计算费用
-// 公式：
+// 插件层已完成单价 × token 的计算，Core 只做倍率乘法：
 //
-//	input_cost        = input_tokens * input_price
-//	cached_input_cost = cached_input_tokens * cached_input_price
-//	output_cost       = output_tokens * output_price
-//	total_cost        = input_cost + cached_input_cost + output_cost
-//	actual_cost       = total_cost * group_rate * account_rate * user_rate
-func (c *Calculator) Calculate(input CalculateInput, price ModelPrice) CalculateResult {
-	inputPrice := price.InputPerToken
-	outputPrice := price.OutputPerToken
-	cachedInputPrice := price.CachedInputPerToken
-	if input.ServiceTier == "priority" {
-		if price.InputPerTokenPriority > 0 {
-			inputPrice = price.InputPerTokenPriority
-		}
-		if price.OutputPerTokenPriority > 0 {
-			outputPrice = price.OutputPerTokenPriority
-		}
-		if price.CachedInputPerTokenPriority > 0 {
-			cachedInputPrice = price.CachedInputPerTokenPriority
-		}
-	}
-
-	inputCost := float64(input.InputTokens) * inputPrice
-	outputCost := float64(input.OutputTokens) * outputPrice
-	cachedInputCost := float64(input.CachedInputTokens) * cachedInputPrice
-	totalCost := inputCost + outputCost + cachedInputCost
+//	total_cost  = input_cost + cached_input_cost + output_cost
+//	actual_cost = total_cost * group_rate * account_rate * user_rate
+func (c *Calculator) Calculate(input CalculateInput) CalculateResult {
+	totalCost := input.InputCost + input.OutputCost + input.CachedInputCost
 
 	// 倍率默认为 1.0
 	groupRate := input.GroupRateMultiplier
@@ -79,14 +55,13 @@ func (c *Calculator) Calculate(input CalculateInput, price ModelPrice) Calculate
 	}
 
 	combinedRate := groupRate * accountRate * userRate
-	actualCost := totalCost * combinedRate
 
 	return CalculateResult{
-		InputCost:             inputCost,
-		OutputCost:            outputCost,
-		CachedInputCost:       cachedInputCost,
+		InputCost:             input.InputCost,
+		OutputCost:            input.OutputCost,
+		CachedInputCost:       input.CachedInputCost,
 		TotalCost:             totalCost,
-		ActualCost:            actualCost,
+		ActualCost:            totalCost * combinedRate,
 		RateMultiplier:        combinedRate,
 		AccountRateMultiplier: accountRate,
 	}

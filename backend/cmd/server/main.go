@@ -163,11 +163,14 @@ func startMainServer(cfg *config.Config) {
 	slog.Info("服务器已关闭")
 }
 
-// backfillKeyHints 为缺少 key_hint 的 API Key 回填 sk-...后4位
+// backfillKeyHints 为缺少或格式过旧的 key_hint 回填 sk-xxxx...xxxx
 func backfillKeyHints(db *ent.Client, secret string) {
 	ctx := context.Background()
 	keys, err := db.APIKey.Query().
-		Where(apikey.KeyHint("")).
+		Where(apikey.Or(
+			apikey.KeyHint(""),
+			apikey.KeyHintHasPrefix("sk-..."),
+		)).
 		All(ctx)
 	if err != nil {
 		slog.Warn("查询待回填 API Key 失败", "error", err)
@@ -186,7 +189,7 @@ func backfillKeyHints(db *ent.Client, secret string) {
 			slog.Warn("解密 API Key 失败，跳过", "id", k.ID, "error", err)
 			continue
 		}
-		hint := "sk-..." + plain[len(plain)-4:]
+		hint := plain[:7] + "..." + plain[len(plain)-4:]
 		if err := db.APIKey.UpdateOneID(k.ID).SetKeyHint(hint).Exec(ctx); err != nil {
 			slog.Warn("回填 key_hint 失败", "id", k.ID, "error", err)
 		}

@@ -137,8 +137,8 @@ func (h *APIKeyHandler) CreateKey(c *gin.Context) {
 		return
 	}
 
-	// 保存 key hint：sk-...后4位
-	keyHint := "sk-..." + rawKey[len(rawKey)-4:]
+	// 保存 key hint：sk-前4位...后4位
+	keyHint := rawKey[:7] + "..." + rawKey[len(rawKey)-4:]
 
 	builder := h.db.APIKey.Create().
 		SetName(req.Name).

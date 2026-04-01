@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { EmptyState } from './EmptyState';
 
@@ -38,7 +38,6 @@ export function Table<T extends Record<string, any>>({
   onPageSizeChange,
   autoHeight = false,
 }: TableProps<T>) {
-  const headerRef = useRef<HTMLDivElement>(null);
   const totalPages = Math.ceil(total / pageSize);
 
   if (loading) {
@@ -122,12 +121,11 @@ export function Table<T extends Record<string, any>>({
           </table>
         </div>
       ) : (
-        <div className="border border-glass-border bg-bg-elevated shadow-sm rounded-xl overflow-hidden flex flex-col" style={{ height: '494px' }}>
-          {/* 固定表头 — 仅水平跟随滚动 */}
-          <div className="flex-shrink-0 overflow-hidden border-b border-border" ref={headerRef}>
+        <div className="border border-glass-border bg-bg-elevated shadow-sm rounded-xl overflow-hidden" style={{ height: '494px' }}>
+          <div className="overflow-auto h-full" style={{ scrollbarGutter: 'stable' }}>
             <table className="w-full min-w-max">
               {colGroup}
-              <thead>
+              <thead className="sticky top-0 z-10 bg-bg-elevated" style={{ boxShadow: '0 1px 0 var(--ag-border)' }}>
                 <tr>
                   {columns.map((col) => (
                     <th
@@ -139,16 +137,6 @@ export function Table<T extends Record<string, any>>({
                   ))}
                 </tr>
               </thead>
-            </table>
-          </div>
-          {/* 可滚动表体 */}
-          <div className="flex-1 overflow-auto" onScroll={(e) => {
-            if (headerRef.current) {
-              headerRef.current.scrollLeft = (e.target as HTMLDivElement).scrollLeft;
-            }
-          }}>
-            <table className="w-full min-w-max">
-              {colGroup}
               {tableBody}
             </table>
           </div>

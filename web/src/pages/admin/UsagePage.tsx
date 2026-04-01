@@ -468,12 +468,11 @@ export default function UsagePage() {
           return <span className="text-text-tertiary text-xs">{t('usage.api_key_deleted')}</span>;
         }
         const hint = row.api_key_hint || `#${row.api_key_id}`;
-        const name = row.api_key_name;
+        const name = row.api_key_name || hint;
         return (
-          <div className="max-w-[180px]">
-            <div className="text-text-secondary font-mono text-xs">{hint}</div>
-            {name && <div className="text-[11px] text-text-tertiary truncate" title={name}>{name}</div>}
-          </div>
+          <span className="text-text-secondary font-mono text-xs cursor-default" title={hint}>
+            {name}
+          </span>
         );
       },
     },

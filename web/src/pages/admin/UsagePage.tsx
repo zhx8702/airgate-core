@@ -489,48 +489,61 @@ export default function UsagePage() {
       },
     },
     {
-      key: 'input_tokens',
-      title: t('usage.input_tokens'),
-      render: (row) => (
-        <span className="font-mono">
-          {row.input_tokens.toLocaleString()}
-        </span>
-      ),
+      key: 'tokens',
+      title: 'TOKEN',
+      render: (row) => {
+        const total = row.input_tokens + row.output_tokens + row.cached_input_tokens;
+        return (
+          <div className="group relative cursor-default">
+            <div className="font-mono text-xs flex items-center gap-1.5">
+              <span className="text-emerald-400">↓ {row.input_tokens.toLocaleString()}</span>
+              <span className="text-sky-400">↑ {row.output_tokens.toLocaleString()}</span>
+            </div>
+            {row.cached_input_tokens > 0 && (
+              <div className="text-[11px] font-mono text-text-tertiary">
+                ⊕ {fmtNum(row.cached_input_tokens)}
+              </div>
+            )}
+            {/* hover 明细 */}
+            <div className="absolute z-20 bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block">
+              <div className="bg-[#1a1a2e] border border-glass-border rounded-lg px-4 py-3 shadow-xl whitespace-nowrap">
+                <div className="text-xs font-semibold text-text mb-2">Token {t('usage.detail')}</div>
+                <div className="space-y-1 text-xs font-mono">
+                  <div className="flex justify-between gap-6">
+                    <span className="text-text-tertiary">{t('usage.input_tokens')}</span>
+                    <span className="text-text-secondary">{row.input_tokens.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between gap-6">
+                    <span className="text-text-tertiary">{t('usage.output_tokens')}</span>
+                    <span className="text-text-secondary">{row.output_tokens.toLocaleString()}</span>
+                  </div>
+                  {row.cached_input_tokens > 0 && (
+                    <div className="flex justify-between gap-6">
+                      <span className="text-text-tertiary">{t('usage.cached_input_tokens')}</span>
+                      <span className="text-text-secondary">{row.cached_input_tokens.toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between gap-6 pt-1 border-t border-glass-border">
+                    <span className="text-text-tertiary">{t('usage.total_tokens')}</span>
+                    <span className="text-primary font-semibold">{total.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      },
     },
     {
-      key: 'output_tokens',
-      title: t('usage.output_tokens'),
+      key: 'cost',
+      title: t('usage.cost'),
       render: (row) => (
-        <span className="font-mono">
-          {row.output_tokens.toLocaleString()}
-        </span>
-      ),
-    },
-    {
-      key: 'cached_input_tokens',
-      title: t('usage.cached_input_tokens'),
-      render: (row) => (
-        <span className="font-mono text-text-secondary">
-          {row.cached_input_tokens > 0 ? row.cached_input_tokens.toLocaleString() : '-'}
-        </span>
-      ),
-    },
-    {
-      key: 'total_cost',
-      title: t('usage.total_cost'),
-      render: (row) => (
-        <span className="font-mono">
-          ${row.total_cost.toFixed(6)}
-        </span>
-      ),
-    },
-    {
-      key: 'actual_cost',
-      title: t('usage.actual_cost'),
-      render: (row) => (
-        <span className="font-mono">
-          ${row.actual_cost.toFixed(6)}
-        </span>
+        <div className="font-mono text-xs text-right">
+          <div className="text-text">${row.total_cost.toFixed(6)}</div>
+          {row.actual_cost !== row.total_cost && (
+            <div className="text-text-tertiary">A ${row.actual_cost.toFixed(6)}</div>
+          )}
+        </div>
       ),
     },
     {

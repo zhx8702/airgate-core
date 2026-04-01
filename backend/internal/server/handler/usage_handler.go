@@ -578,7 +578,11 @@ func toUsageLogResp(l *ent.UsageLog, userID int64, userEmail string) dto.UsageLo
 	var accountName string
 	if l.Edges.Account != nil {
 		accountID = int64(l.Edges.Account.ID)
-		accountName = l.Edges.Account.Name
+		if email, ok := l.Edges.Account.Credentials["email"]; ok && email != "" {
+			accountName = email
+		} else {
+			accountName = l.Edges.Account.Name
+		}
 	}
 	return dto.UsageLogResp{
 		ID:                    int64(l.ID),

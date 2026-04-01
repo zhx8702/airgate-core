@@ -91,21 +91,6 @@ export function Table<T extends Record<string, any>>({
     </tbody>
   );
 
-  const tableHead = (
-    <thead>
-      <tr>
-        {columns.map((col) => (
-          <th
-            key={col.key}
-            className="px-4 py-3 text-center text-[10px] font-semibold text-text-tertiary uppercase tracking-widest"
-          >
-            {col.title}
-          </th>
-        ))}
-      </tr>
-    </thead>
-  );
-
   const colGroup = (
     <colgroup>
       {columns.map((col) => (
@@ -117,8 +102,8 @@ export function Table<T extends Record<string, any>>({
   return (
     <div className="space-y-4">
       {autoHeight ? (
-        <div className="border border-glass-border bg-bg-elevated shadow-sm rounded-xl overflow-hidden">
-          <table className="w-full table-fixed">
+        <div className="border border-glass-border bg-bg-elevated shadow-sm rounded-xl overflow-x-auto">
+          <table className="w-full min-w-max">
             {colGroup}
             <thead className="border-b border-border bg-black/[0.03]">
               <tr>
@@ -136,18 +121,22 @@ export function Table<T extends Record<string, any>>({
           </table>
         </div>
       ) : (
-        <div className="border border-glass-border bg-bg-elevated shadow-sm rounded-xl overflow-hidden flex flex-col" style={{ height: '494px' }}>
-          {/* 固定表头 */}
-          <div className="flex-shrink-0 border-b border-border bg-black/[0.03]">
-            <table className="w-full table-fixed">
+        <div className="border border-glass-border bg-bg-elevated shadow-sm rounded-xl overflow-hidden" style={{ height: '494px' }}>
+          <div className="overflow-auto h-full">
+            <table className="w-full min-w-max">
               {colGroup}
-              {tableHead}
-            </table>
-          </div>
-          {/* 可滚动表体 */}
-          <div className="overflow-auto flex-1">
-            <table className="w-full table-fixed">
-              {colGroup}
+              <thead className="sticky top-0 z-10 border-b border-border bg-bg-elevated" style={{ boxShadow: '0 1px 0 var(--ag-border)' }}>
+                <tr>
+                  {columns.map((col) => (
+                    <th
+                      key={col.key}
+                      className="px-4 py-3 text-center text-[10px] font-semibold text-text-tertiary uppercase tracking-widest bg-bg-elevated"
+                    >
+                      {col.title}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
               {tableBody}
             </table>
           </div>

@@ -456,23 +456,26 @@ export default function UsagePage() {
     {
       key: 'model',
       title: t('usage.model'),
-      render: (row) => (
-        <div>
-          <div className="text-text">{row.model}</div>
-          <div className="text-xs text-text-tertiary font-mono">
-            {row.api_key_deleted ? t('usage.api_key_deleted') : (row.api_key_name || `API Key #${row.api_key_id}`)}
-          </div>
-        </div>
-      ),
+      render: (row) => {
+        const keyLabel = row.api_key_deleted ? t('usage.api_key_deleted') : (row.api_key_name || `API Key #${row.api_key_id}`);
+        return (
+          <span className="text-text cursor-default" title={keyLabel}>
+            {row.model}
+          </span>
+        );
+      },
     },
     {
       key: 'account_name',
       title: t('usage.account'),
-      render: (row) => (
-        <span className="text-text-tertiary font-mono">
-          {row.account_name || `#${row.account_id}`}
-        </span>
-      ),
+      render: (row) => {
+        const label = row.account_name || `#${row.account_id}`;
+        return (
+          <span className="text-text-tertiary font-mono truncate max-w-[160px] inline-block" title={label}>
+            {label}
+          </span>
+        );
+      },
     },
     {
       key: 'input_tokens',

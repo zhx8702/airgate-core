@@ -57,6 +57,7 @@ func (h *UsageHandler) UserUsage(c *gin.Context) {
 	}
 
 	logs, err := query.
+		WithAPIKey().
 		Offset((q.Page - 1) * q.PageSize).
 		Limit(q.PageSize).
 		Order(ent.Desc(usagelog.FieldCreatedAt)).
@@ -69,7 +70,7 @@ func (h *UsageHandler) UserUsage(c *gin.Context) {
 
 	list := make([]dto.UsageLogResp, 0, len(logs))
 	for _, l := range logs {
-		list = append(list, toUsageLogResp(l, int64(uid)))
+		list = append(list, toUsageLogResp(l, int64(uid), ""))
 	}
 
 	response.Success(c, response.PagedData(list, int64(total), q.Page, q.PageSize))
@@ -168,6 +169,7 @@ func (h *UsageHandler) AdminUsage(c *gin.Context) {
 
 	logs, err := query.
 		WithUser().
+		WithAPIKey().
 		Offset((q.Page - 1) * q.PageSize).
 		Limit(q.PageSize).
 		Order(ent.Desc(usagelog.FieldCreatedAt)).
@@ -181,10 +183,12 @@ func (h *UsageHandler) AdminUsage(c *gin.Context) {
 	list := make([]dto.UsageLogResp, 0, len(logs))
 	for _, l := range logs {
 		var uid int64
+		var email string
 		if l.Edges.User != nil {
 			uid = int64(l.Edges.User.ID)
+			email = l.Edges.User.Email
 		}
-		list = append(list, toUsageLogResp(l, uid))
+		list = append(list, toUsageLogResp(l, uid, email))
 	}
 
 	response.Success(c, response.PagedData(list, int64(total), q.Page, q.PageSize))
@@ -562,11 +566,18 @@ func (h *UsageHandler) AdminUsageTrend(c *gin.Context) {
 }
 
 // toUsageLogResp 将 ent.UsageLog 转换为 dto.UsageLogResp
-func toUsageLogResp(l *ent.UsageLog, userID int64) dto.UsageLogResp {
+func toUsageLogResp(l *ent.UsageLog, userID int64, userEmail string) dto.UsageLogResp {
+	var apiKeyName string
+	apiKeyDeleted := l.Edges.APIKey == nil
+	if !apiKeyDeleted {
+		apiKeyName = l.Edges.APIKey.Name
+	}
 	return dto.UsageLogResp{
 		ID:                    int64(l.ID),
 		UserID:                userID,
-		APIKeyDeleted:         l.Edges.APIKey == nil,
+		UserEmail:             userEmail,
+		APIKeyName:            apiKeyName,
+		APIKeyDeleted:         apiKeyDeleted,
 		Platform:              l.Platform,
 		Model:                 l.Model,
 		InputTokens:           l.InputTokens,

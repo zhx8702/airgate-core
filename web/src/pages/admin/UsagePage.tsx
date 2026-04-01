@@ -449,7 +449,7 @@ export default function UsagePage() {
       title: t('usage.user_id'),
       render: (row) => (
         <span className="text-text-tertiary font-mono">
-          #{row.user_id}
+          {row.user_email || `#${row.user_id}`}
         </span>
       ),
     },
@@ -460,7 +460,7 @@ export default function UsagePage() {
         <div>
           <div className="text-text">{row.model}</div>
           <div className="text-xs text-text-tertiary font-mono">
-            {row.api_key_deleted ? t('usage.api_key_deleted') : `API Key #${row.api_key_id}`}
+            {row.api_key_deleted ? t('usage.api_key_deleted') : (row.api_key_name || `API Key #${row.api_key_id}`)}
           </div>
         </div>
       ),

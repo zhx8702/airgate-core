@@ -299,7 +299,9 @@ export interface AdjustSubscriptionReq {
 export interface UsageLogResp {
   id: number;
   user_id: number;
+  user_email?: string;
   api_key_id: number;
+  api_key_name?: string;
   api_key_deleted: boolean;
   account_id: number;
   group_id: number;

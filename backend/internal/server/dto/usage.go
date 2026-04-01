@@ -4,7 +4,9 @@ package dto
 type UsageLogResp struct {
 	ID                    int64   `json:"id"`
 	UserID                int64   `json:"user_id"`
+	UserEmail             string  `json:"user_email,omitempty"`
 	APIKeyID              int64   `json:"api_key_id"`
+	APIKeyName            string  `json:"api_key_name,omitempty"`
 	APIKeyDeleted         bool    `json:"api_key_deleted"`
 	AccountID             int64   `json:"account_id"`
 	GroupID               int64   `json:"group_id"`

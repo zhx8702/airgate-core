@@ -26,7 +26,6 @@ export interface TableProps<T> {
   separateHeader?: boolean;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function Table<T extends Record<string, any>>({
   columns,
   data,

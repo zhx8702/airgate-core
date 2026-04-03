@@ -46,7 +46,7 @@ export default function ProxiesPage() {
   const [testingId, setTestingId] = useState<number | null>(null);
 
   // 查询代理列表
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: queryKeys.proxies(page, pageSize),
     queryFn: () => proxiesApi.list({ page, page_size: pageSize }),
   });
@@ -245,6 +245,8 @@ export default function ProxiesPage() {
       <PageHeader
         title={t('proxies.title')}
         description={t('proxies.description')}
+        onRefresh={refetch}
+        refreshing={isFetching}
         actions={
           <Button icon={<Plus className="w-4 h-4" />} onClick={openCreate}>
             {t('proxies.create')}

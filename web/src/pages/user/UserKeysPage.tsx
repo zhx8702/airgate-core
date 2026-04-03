@@ -54,7 +54,7 @@ export default function UserKeysPage() {
   const { menu: moreMenu, menuRef: moreMenuRef, open: openMoreMenu, close: closeMoreMenu } = useDropdownMenu();
 
   // 密钥列表
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: queryKeys.userKeys(page, pageSize),
     queryFn: () => apikeysApi.list({ page, page_size: pageSize }),
   });
@@ -375,6 +375,8 @@ export default function UserKeysPage() {
     <div className="p-6">
       <PageHeader
         title={t('user_keys.title')}
+        onRefresh={refetch}
+        refreshing={isFetching}
         actions={
           <Button
             onClick={openCreate}

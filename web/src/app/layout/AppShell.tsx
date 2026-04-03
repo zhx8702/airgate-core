@@ -128,8 +128,8 @@ export function AppShell({ children }: AppShellProps) {
   });
   const pageTitle = activeItem ? t(activeItem.labelKey, { defaultValue: activeItem.labelKey }) : '';
   useEffect(() => {
-    document.title = pageTitle ? `${pageTitle} - AirGate` : 'AirGate';
-  }, [pageTitle]);
+    document.title = 'AirGate';
+  }, []);
 
   return (
     <div className="flex h-screen">

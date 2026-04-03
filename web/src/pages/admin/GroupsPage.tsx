@@ -42,7 +42,7 @@ export default function GroupsPage() {
   const [deletingGroup, setDeletingGroup] = useState<GroupResp | null>(null);
 
   // 查询分组列表
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: queryKeys.groups(page, pageSize, platformFilter),
     queryFn: () =>
       groupsApi.list({
@@ -236,6 +236,8 @@ export default function GroupsPage() {
       <PageHeader
         title={t('groups.title')}
         description={t('groups.description')}
+        onRefresh={refetch}
+        refreshing={isFetching}
         actions={
           <Button icon={<Plus className="w-4 h-4" />} onClick={() => setShowCreateModal(true)}>
             {t('groups.create')}

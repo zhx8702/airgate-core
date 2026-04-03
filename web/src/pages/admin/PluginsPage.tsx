@@ -35,7 +35,7 @@ export default function PluginsPage() {
   const [installOpen, setInstallOpen] = useState(false);
 
   // 已安装插件列表
-  const { data: pluginsData, isLoading: pluginsLoading } = useQuery({
+  const { data: pluginsData, isLoading: pluginsLoading, refetch: refetchPlugins, isFetching: pluginsFetching } = useQuery({
     queryKey: queryKeys.plugins(),
     queryFn: () => pluginsApi.list(FETCH_ALL_PARAMS),
   });
@@ -149,6 +149,8 @@ export default function PluginsPage() {
       <PageHeader
         title={t('plugins.title')}
         description={t('plugins.description')}
+        onRefresh={refetchPlugins}
+        refreshing={pluginsFetching}
         actions={
           <Button
             icon={<Plus className="w-4 h-4" />}

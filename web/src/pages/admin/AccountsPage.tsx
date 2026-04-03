@@ -101,7 +101,7 @@ export default function AccountsPage() {
   const [testingAccount, setTestingAccount] = useState<AccountResp | null>(null);
 
   // 查询账号列表
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: queryKeys.accounts(page, pageSize, keyword, platformFilter, statusFilter, groupFilter, proxyFilter),
     queryFn: () =>
       accountsApi.list({
@@ -516,6 +516,8 @@ export default function AccountsPage() {
       <PageHeader
         title={t('accounts.title')}
         description={t('accounts.description')}
+        onRefresh={refetch}
+        refreshing={isFetching}
         actions={
           <Button icon={<Plus className="w-4 h-4" />} onClick={() => setShowCreateModal(true)}>
             {t('accounts.create')}

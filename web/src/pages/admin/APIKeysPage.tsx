@@ -29,7 +29,7 @@ export default function APIKeysPage() {
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: queryKeys.apikeys(page, pageSize),
     queryFn: () => apikeysApi.list({ page, page_size: pageSize }),
   });
@@ -199,6 +199,8 @@ export default function APIKeysPage() {
       <PageHeader
         title={t('api_keys.title')}
         description={t('api_keys.description')}
+        onRefresh={refetch}
+        refreshing={isFetching}
         actions={
           <Button icon={<Plus className="w-4 h-4" />} onClick={() => setShowCreateModal(true)}>
             {t('api_keys.create')}

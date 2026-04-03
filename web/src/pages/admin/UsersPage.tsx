@@ -47,7 +47,7 @@ export default function UsersPage() {
 
   const { menu, menuRef, open: openMenu, close: closeMenu } = useDropdownMenu();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: queryKeys.users(page, pageSize, keyword, statusFilter),
     queryFn: () =>
       usersApi.list({
@@ -247,6 +247,8 @@ export default function UsersPage() {
     <div>
       <PageHeader
         title={t('users.title')}
+        onRefresh={refetch}
+        refreshing={isFetching}
         actions={
           <Button icon={<Plus className="w-4 h-4" />} onClick={() => setShowCreateModal(true)}>
             {t('users.create')}

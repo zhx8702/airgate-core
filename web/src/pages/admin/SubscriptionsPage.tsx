@@ -51,7 +51,7 @@ export default function SubscriptionsPage() {
   const [adjustingSub, setAdjustingSub] = useState<SubscriptionResp | null>(null);
 
   // 查询订阅列表
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: queryKeys.subscriptions(page, pageSize, statusFilter),
     queryFn: () =>
       subscriptionsApi.adminList({
@@ -190,6 +190,8 @@ export default function SubscriptionsPage() {
       <PageHeader
         title={t('subscriptions.title')}
         description={t('subscriptions.description')}
+        onRefresh={refetch}
+        refreshing={isFetching}
         actions={
           <div className="flex gap-2">
             <Button

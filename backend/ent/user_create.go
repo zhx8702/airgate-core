@@ -113,6 +113,34 @@ func (uc *UserCreate) SetGroupRates(m map[int64]float64) *UserCreate {
 	return uc
 }
 
+// SetBalanceAlertThreshold sets the "balance_alert_threshold" field.
+func (uc *UserCreate) SetBalanceAlertThreshold(f float64) *UserCreate {
+	uc.mutation.SetBalanceAlertThreshold(f)
+	return uc
+}
+
+// SetNillableBalanceAlertThreshold sets the "balance_alert_threshold" field if the given value is not nil.
+func (uc *UserCreate) SetNillableBalanceAlertThreshold(f *float64) *UserCreate {
+	if f != nil {
+		uc.SetBalanceAlertThreshold(*f)
+	}
+	return uc
+}
+
+// SetBalanceAlertNotified sets the "balance_alert_notified" field.
+func (uc *UserCreate) SetBalanceAlertNotified(b bool) *UserCreate {
+	uc.mutation.SetBalanceAlertNotified(b)
+	return uc
+}
+
+// SetNillableBalanceAlertNotified sets the "balance_alert_notified" field if the given value is not nil.
+func (uc *UserCreate) SetNillableBalanceAlertNotified(b *bool) *UserCreate {
+	if b != nil {
+		uc.SetBalanceAlertNotified(*b)
+	}
+	return uc
+}
+
 // SetStatus sets the "status" field.
 func (uc *UserCreate) SetStatus(u user.Status) *UserCreate {
 	uc.mutation.SetStatus(u)
@@ -281,6 +309,14 @@ func (uc *UserCreate) defaults() {
 		v := user.DefaultMaxConcurrency
 		uc.mutation.SetMaxConcurrency(v)
 	}
+	if _, ok := uc.mutation.BalanceAlertThreshold(); !ok {
+		v := user.DefaultBalanceAlertThreshold
+		uc.mutation.SetBalanceAlertThreshold(v)
+	}
+	if _, ok := uc.mutation.BalanceAlertNotified(); !ok {
+		v := user.DefaultBalanceAlertNotified
+		uc.mutation.SetBalanceAlertNotified(v)
+	}
 	if _, ok := uc.mutation.Status(); !ok {
 		v := user.DefaultStatus
 		uc.mutation.SetStatus(v)
@@ -329,6 +365,12 @@ func (uc *UserCreate) check() error {
 	}
 	if _, ok := uc.mutation.MaxConcurrency(); !ok {
 		return &ValidationError{Name: "max_concurrency", err: errors.New(`ent: missing required field "User.max_concurrency"`)}
+	}
+	if _, ok := uc.mutation.BalanceAlertThreshold(); !ok {
+		return &ValidationError{Name: "balance_alert_threshold", err: errors.New(`ent: missing required field "User.balance_alert_threshold"`)}
+	}
+	if _, ok := uc.mutation.BalanceAlertNotified(); !ok {
+		return &ValidationError{Name: "balance_alert_notified", err: errors.New(`ent: missing required field "User.balance_alert_notified"`)}
 	}
 	if _, ok := uc.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "User.status"`)}
@@ -401,6 +443,14 @@ func (uc *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := uc.mutation.GroupRates(); ok {
 		_spec.SetField(user.FieldGroupRates, field.TypeJSON, value)
 		_node.GroupRates = value
+	}
+	if value, ok := uc.mutation.BalanceAlertThreshold(); ok {
+		_spec.SetField(user.FieldBalanceAlertThreshold, field.TypeFloat64, value)
+		_node.BalanceAlertThreshold = value
+	}
+	if value, ok := uc.mutation.BalanceAlertNotified(); ok {
+		_spec.SetField(user.FieldBalanceAlertNotified, field.TypeBool, value)
+		_node.BalanceAlertNotified = value
 	}
 	if value, ok := uc.mutation.Status(); ok {
 		_spec.SetField(user.FieldStatus, field.TypeEnum, value)

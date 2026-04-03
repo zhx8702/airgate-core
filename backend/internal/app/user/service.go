@@ -11,14 +11,23 @@ const (
 	defaultPageSize = 20
 )
 
+// BalanceAlertFunc 余额预警回调（异步调用，不阻塞主流程）。
+type BalanceAlertFunc func(email string, balance float64, threshold float64)
+
 // Service 用户应用服务。
 type Service struct {
-	repo Repository
+	repo           Repository
+	onBalanceAlert BalanceAlertFunc
 }
 
 // NewService 创建用户服务。
 func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
+}
+
+// SetBalanceAlertCallback 设置余额预警回调。
+func (s *Service) SetBalanceAlertCallback(fn BalanceAlertFunc) {
+	s.onBalanceAlert = fn
 }
 
 // Get 获取用户。
@@ -131,13 +140,43 @@ func (s *Service) AdjustBalance(ctx context.Context, id int, change BalanceChang
 		return User{}, ErrInvalidBalanceAction
 	}
 
-	return s.repo.UpdateBalance(ctx, id, BalanceUpdate{
+	updated, err := s.repo.UpdateBalance(ctx, id, BalanceUpdate{
 		Action:        change.Action,
 		Amount:        change.Amount,
 		BeforeBalance: beforeBalance,
 		AfterBalance:  afterBalance,
 		Remark:        change.Remark,
 	})
+	if err != nil {
+		return User{}, err
+	}
+
+	// 余额预警检查
+	s.checkBalanceAlert(ctx, updated, beforeBalance)
+
+	return updated, nil
+}
+
+// UpdateBalanceAlert 更新余额预警阈值（0 表示关闭）。
+func (s *Service) UpdateBalanceAlert(ctx context.Context, userID int, threshold float64) error {
+	return s.repo.UpdateBalanceAlert(ctx, userID, threshold)
+}
+
+// checkBalanceAlert 检查余额是否低于预警阈值，触发通知。
+func (s *Service) checkBalanceAlert(ctx context.Context, user User, beforeBalance float64) {
+	threshold := user.BalanceAlertThreshold
+	if threshold <= 0 || s.onBalanceAlert == nil {
+		return
+	}
+	// 余额从高于阈值降到低于阈值，且尚未通知过
+	if user.Balance < threshold && !user.BalanceAlertNotified {
+		_ = s.repo.SetBalanceAlertNotified(ctx, user.ID, true)
+		go s.onBalanceAlert(user.Email, user.Balance, threshold)
+	}
+	// 余额回到阈值以上（充值），重置通知状态
+	if user.Balance >= threshold && user.BalanceAlertNotified {
+		_ = s.repo.SetBalanceAlertNotified(ctx, user.ID, false)
+	}
 }
 
 // Delete 删除用户。

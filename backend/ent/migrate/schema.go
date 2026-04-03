@@ -267,6 +267,8 @@ var (
 		{Name: "max_concurrency", Type: field.TypeInt, Default: 5},
 		{Name: "totp_secret", Type: field.TypeString, Nullable: true},
 		{Name: "group_rates", Type: field.TypeJSON, Nullable: true},
+		{Name: "balance_alert_threshold", Type: field.TypeFloat64, Default: 0},
+		{Name: "balance_alert_notified", Type: field.TypeBool, Default: false},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "disabled"}, Default: "active"},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},

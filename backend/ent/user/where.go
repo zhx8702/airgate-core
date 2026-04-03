@@ -85,6 +85,16 @@ func TotpSecret(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldTotpSecret, v))
 }
 
+// BalanceAlertThreshold applies equality check predicate on the "balance_alert_threshold" field. It's identical to BalanceAlertThresholdEQ.
+func BalanceAlertThreshold(v float64) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldBalanceAlertThreshold, v))
+}
+
+// BalanceAlertNotified applies equality check predicate on the "balance_alert_notified" field. It's identical to BalanceAlertNotifiedEQ.
+func BalanceAlertNotified(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldBalanceAlertNotified, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldCreatedAt, v))
@@ -473,6 +483,56 @@ func GroupRatesIsNil() predicate.User {
 // GroupRatesNotNil applies the NotNil predicate on the "group_rates" field.
 func GroupRatesNotNil() predicate.User {
 	return predicate.User(sql.FieldNotNull(FieldGroupRates))
+}
+
+// BalanceAlertThresholdEQ applies the EQ predicate on the "balance_alert_threshold" field.
+func BalanceAlertThresholdEQ(v float64) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldBalanceAlertThreshold, v))
+}
+
+// BalanceAlertThresholdNEQ applies the NEQ predicate on the "balance_alert_threshold" field.
+func BalanceAlertThresholdNEQ(v float64) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldBalanceAlertThreshold, v))
+}
+
+// BalanceAlertThresholdIn applies the In predicate on the "balance_alert_threshold" field.
+func BalanceAlertThresholdIn(vs ...float64) predicate.User {
+	return predicate.User(sql.FieldIn(FieldBalanceAlertThreshold, vs...))
+}
+
+// BalanceAlertThresholdNotIn applies the NotIn predicate on the "balance_alert_threshold" field.
+func BalanceAlertThresholdNotIn(vs ...float64) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldBalanceAlertThreshold, vs...))
+}
+
+// BalanceAlertThresholdGT applies the GT predicate on the "balance_alert_threshold" field.
+func BalanceAlertThresholdGT(v float64) predicate.User {
+	return predicate.User(sql.FieldGT(FieldBalanceAlertThreshold, v))
+}
+
+// BalanceAlertThresholdGTE applies the GTE predicate on the "balance_alert_threshold" field.
+func BalanceAlertThresholdGTE(v float64) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldBalanceAlertThreshold, v))
+}
+
+// BalanceAlertThresholdLT applies the LT predicate on the "balance_alert_threshold" field.
+func BalanceAlertThresholdLT(v float64) predicate.User {
+	return predicate.User(sql.FieldLT(FieldBalanceAlertThreshold, v))
+}
+
+// BalanceAlertThresholdLTE applies the LTE predicate on the "balance_alert_threshold" field.
+func BalanceAlertThresholdLTE(v float64) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldBalanceAlertThreshold, v))
+}
+
+// BalanceAlertNotifiedEQ applies the EQ predicate on the "balance_alert_notified" field.
+func BalanceAlertNotifiedEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldBalanceAlertNotified, v))
+}
+
+// BalanceAlertNotifiedNEQ applies the NEQ predicate on the "balance_alert_notified" field.
+func BalanceAlertNotifiedNEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldBalanceAlertNotified, v))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.

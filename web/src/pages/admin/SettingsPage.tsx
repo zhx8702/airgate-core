@@ -10,7 +10,7 @@ import { Switch } from '../../shared/components/Switch';
 import { Card } from '../../shared/components/Card';
 import { useToast } from '../../shared/components/Toast';
 import {
-  Save, Loader2, Globe, UserPlus, Gift, Mail, Send, Upload, X,
+  Save, Loader2, Globe, UserPlus, Gift, Mail, Send, Upload, X, Eye, RotateCcw,
 } from 'lucide-react';
 import type { SettingItem, TestSMTPReq } from '../../shared/types';
 
@@ -33,7 +33,23 @@ const DEFAULT_KEYS = [
 const SMTP_KEYS = [
   'smtp_host', 'smtp_port', 'smtp_username', 'smtp_password',
   'smtp_from_email', 'smtp_from_name', 'smtp_use_tls',
+  'email_template_subject', 'email_template_body',
 ] as const;
+
+const DEFAULT_EMAIL_SUBJECT = '{{site_name}} - 邮箱验证码';
+const DEFAULT_EMAIL_BODY = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 420px; margin: 0 auto; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb;">
+  <div style="padding: 32px 28px;">
+    <div style="font-size: 16px; font-weight: 600; color: #111; margin-bottom: 20px;">{{site_name}}</div>
+    <p style="color: #555; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">您好，您正在注册账户，请使用以下验证码完成操作：</p>
+    <div style="background: #f7f8fa; border: 1px solid #eef0f3; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 24px;">
+      <span style="font-size: 32px; font-weight: 700; letter-spacing: 10px; color: #111;">{{code}}</span>
+    </div>
+    <p style="color: #999; font-size: 12px; line-height: 1.6; margin: 0;">验证码 10 分钟内有效，请勿泄露给他人。如非本人操作，请忽略此邮件。</p>
+  </div>
+  <div style="border-top: 1px solid #f0f0f0; padding: 14px 28px;">
+    <p style="color: #c0c0c0; font-size: 11px; margin: 0; text-align: center;">此邮件由 {{site_name}} 系统自动发送，请勿直接回复</p>
+  </div>
+</div>`;
 
 // ==================== Tab 定义 ====================
 
@@ -259,7 +275,7 @@ export default function SettingsPage() {
           </Card>
         )}
 
-        {activeTab === 'smtp' && (
+        {activeTab === 'smtp' && (<>
           <Card
             title={t('settings.smtp_config')}
             extra={
@@ -308,7 +324,20 @@ export default function SettingsPage() {
               />
             </div>
           </Card>
-        )}
+
+          {/* 邮件模板 */}
+          <EmailTemplateEditor
+            subject={val('email_template_subject') || DEFAULT_EMAIL_SUBJECT}
+            body={val('email_template_body') || DEFAULT_EMAIL_BODY}
+            onSubjectChange={(v) => set('email_template_subject', v)}
+            onBodyChange={(v) => set('email_template_body', v)}
+            onReset={() => {
+              set('email_template_subject', DEFAULT_EMAIL_SUBJECT);
+              set('email_template_body', DEFAULT_EMAIL_BODY);
+            }}
+            siteName={val('site_name') || 'AirGate'}
+          />
+        </>)}
       </div>
 
       {/* Save button */}
@@ -323,6 +352,104 @@ export default function SettingsPage() {
         </Button>
       </div>
     </div>
+  );
+}
+
+// ==================== Email Template Editor ====================
+
+function EmailTemplateEditor({
+  subject, body, onSubjectChange, onBodyChange, onReset, siteName,
+}: {
+  subject: string;
+  body: string;
+  onSubjectChange: (v: string) => void;
+  onBodyChange: (v: string) => void;
+  onReset: () => void;
+  siteName: string;
+}) {
+  const { t } = useTranslation();
+  const [showPreview, setShowPreview] = useState(false);
+
+  // 模板变量替换预览
+  const previewHtml = body
+    .replace(/\{\{site_name\}\}/g, siteName)
+    .replace(/\{\{code\}\}/g, '888888')
+    .replace(/\{\{email\}\}/g, 'user@example.com');
+
+  return (
+    <Card
+      title={t('settings.email_template')}
+      extra={
+        <div className="flex items-center gap-1.5">
+          <Button
+            size="sm"
+            variant={showPreview ? 'primary' : 'ghost'}
+            icon={<Eye className="w-3.5 h-3.5" />}
+            onClick={() => setShowPreview(!showPreview)}
+          >
+            {t('settings.template_preview')}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={<RotateCcw className="w-3.5 h-3.5" />}
+            onClick={onReset}
+          >
+            {t('settings.template_reset')}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        <div className="text-[11px] text-text-tertiary space-x-3">
+          <span>{t('settings.template_vars')}:</span>
+          {['site_name', 'code', 'email'].map((v) => (
+            <code key={v} className="px-1.5 py-0.5 rounded bg-surface border border-glass-border text-primary">{`{{${v}}}`}</code>
+          ))}
+        </div>
+        <Field label={t('settings.template_subject')}>
+          <Input value={subject} onChange={(e) => onSubjectChange(e.target.value)} />
+        </Field>
+        {showPreview ? (
+          <div>
+            <label className="block text-[13px] font-medium text-text-secondary mb-1.5">
+              {t('settings.template_preview')}
+            </label>
+            {/* 模拟邮件客户端 */}
+            <div className="max-w-[520px] mx-auto border border-glass-border rounded-xl overflow-hidden shadow-sm">
+              {/* 邮件头 */}
+              <div className="px-4 py-2.5 border-b border-glass-border bg-bg-hover/50 text-[11px] space-y-0.5">
+                <div className="flex gap-2">
+                  <span className="text-text-tertiary w-8 shrink-0">From</span>
+                  <span className="text-text-secondary">{siteName}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="text-text-tertiary w-8 shrink-0">To</span>
+                  <span className="text-text-secondary">user@example.com</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="text-text-tertiary w-8 shrink-0">Sub</span>
+                  <span className="text-text font-medium">{subject.replace(/\{\{site_name\}\}/g, siteName).replace(/\{\{code\}\}/g, '888888')}</span>
+                </div>
+              </div>
+              {/* 邮件正文 */}
+              <div className="bg-[#f8f9fa] p-5">
+                <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <Field label={t('settings.template_body')} hint={t('settings.template_body_hint')}>
+            <Textarea
+              value={body}
+              onChange={(e) => onBodyChange(e.target.value)}
+              rows={12}
+              className="font-mono text-xs"
+            />
+          </Field>
+        )}
+      </div>
+    </Card>
   );
 }
 

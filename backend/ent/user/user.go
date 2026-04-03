@@ -31,6 +31,10 @@ const (
 	FieldTotpSecret = "totp_secret"
 	// FieldGroupRates holds the string denoting the group_rates field in the database.
 	FieldGroupRates = "group_rates"
+	// FieldBalanceAlertThreshold holds the string denoting the balance_alert_threshold field in the database.
+	FieldBalanceAlertThreshold = "balance_alert_threshold"
+	// FieldBalanceAlertNotified holds the string denoting the balance_alert_notified field in the database.
+	FieldBalanceAlertNotified = "balance_alert_notified"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -95,6 +99,8 @@ var Columns = []string{
 	FieldMaxConcurrency,
 	FieldTotpSecret,
 	FieldGroupRates,
+	FieldBalanceAlertThreshold,
+	FieldBalanceAlertNotified,
 	FieldStatus,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -127,6 +133,10 @@ var (
 	DefaultBalance float64
 	// DefaultMaxConcurrency holds the default value on creation for the "max_concurrency" field.
 	DefaultMaxConcurrency int
+	// DefaultBalanceAlertThreshold holds the default value on creation for the "balance_alert_threshold" field.
+	DefaultBalanceAlertThreshold float64
+	// DefaultBalanceAlertNotified holds the default value on creation for the "balance_alert_notified" field.
+	DefaultBalanceAlertNotified bool
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -228,6 +238,16 @@ func ByMaxConcurrency(opts ...sql.OrderTermOption) OrderOption {
 // ByTotpSecret orders the results by the totp_secret field.
 func ByTotpSecret(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTotpSecret, opts...).ToFunc()
+}
+
+// ByBalanceAlertThreshold orders the results by the balance_alert_threshold field.
+func ByBalanceAlertThreshold(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBalanceAlertThreshold, opts...).ToFunc()
+}
+
+// ByBalanceAlertNotified orders the results by the balance_alert_notified field.
+func ByBalanceAlertNotified(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBalanceAlertNotified, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.

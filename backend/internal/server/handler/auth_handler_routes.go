@@ -132,8 +132,20 @@ func (h *AuthHandler) SendVerifyCode(c *gin.Context) {
 		return
 	}
 
-	// 读取站点名称
+	// 读取站点名称和邮件模板
 	siteName := "AirGate"
+	emailSubjectTpl := ""
+	emailBodyTpl := ""
+
+	smtpSettings, _ := h.settingsService.List(c.Request.Context(), "smtp")
+	for _, s := range smtpSettings {
+		switch s.Key {
+		case "email_template_subject":
+			emailSubjectTpl = s.Value
+		case "email_template_body":
+			emailBodyTpl = s.Value
+		}
+	}
 	siteSettings, _ := h.settingsService.List(c.Request.Context(), "site")
 	for _, s := range siteSettings {
 		if s.Key == "site_name" && s.Value != "" {
@@ -141,17 +153,34 @@ func (h *AuthHandler) SendVerifyCode(c *gin.Context) {
 		}
 	}
 
-	subject := fmt.Sprintf("%s - 邮箱验证码", siteName)
-	body := fmt.Sprintf(`
-		<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
-			<h2 style="color: #333; margin-bottom: 8px;">%s</h2>
-			<p style="color: #666; font-size: 14px; margin-bottom: 24px;">您正在注册账户，请使用以下验证码完成注册：</p>
-			<div style="background: #f5f5f5; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 24px;">
-				<span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #333;">%s</span>
-			</div>
-			<p style="color: #999; font-size: 12px;">验证码 10 分钟内有效，请勿泄露给他人。</p>
-		</div>
-	`, siteName, code)
+	// 默认模板
+	if emailSubjectTpl == "" {
+		emailSubjectTpl = "{{site_name}} - 邮箱验证码"
+	}
+	if emailBodyTpl == "" {
+		emailBodyTpl = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 420px; margin: 0 auto; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb;">
+<div style="padding: 32px 28px;">
+<div style="font-size: 16px; font-weight: 600; color: #111; margin-bottom: 20px;">{{site_name}}</div>
+<p style="color: #555; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">您好，您正在注册账户，请使用以下验证码完成操作：</p>
+<div style="background: #f7f8fa; border: 1px solid #eef0f3; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 24px;">
+<span style="font-size: 32px; font-weight: 700; letter-spacing: 10px; color: #111;">{{code}}</span>
+</div>
+<p style="color: #999; font-size: 12px; line-height: 1.6; margin: 0;">验证码 10 分钟内有效，请勿泄露给他人。如非本人操作，请忽略此邮件。</p>
+</div>
+<div style="border-top: 1px solid #f0f0f0; padding: 14px 28px;">
+<p style="color: #c0c0c0; font-size: 11px; margin: 0; text-align: center;">此邮件由 {{site_name}} 系统自动发送，请勿直接回复</p>
+</div>
+</div>`
+	}
+
+	// 变量替换
+	replacer := strings.NewReplacer(
+		"{{site_name}}", siteName,
+		"{{code}}", code,
+		"{{email}}", req.Email,
+	)
+	subject := replacer.Replace(emailSubjectTpl)
+	body := replacer.Replace(emailBodyTpl)
 
 	if err := m.Send(req.Email, subject, body); err != nil {
 		slog.Error("发送验证码邮件失败", "email", req.Email, "error", err)

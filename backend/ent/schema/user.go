@@ -23,6 +23,8 @@ func (User) Fields() []ent.Field {
 		field.Int("max_concurrency").Default(5),
 		field.String("totp_secret").Optional().Nillable().Sensitive(),
 		field.JSON("group_rates", map[int64]float64{}).Optional(),
+		field.Float("balance_alert_threshold").Default(0), // 0 表示关闭预警
+		field.Bool("balance_alert_notified").Default(false),
 		field.Enum("status").Values("active", "disabled").Default("active"),
 		field.Time("created_at").Default(timeNow).Immutable(),
 		field.Time("updated_at").Default(timeNow).UpdateDefault(timeNow),

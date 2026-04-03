@@ -1,6 +1,11 @@
 package bootstrap
 
 import (
+	"context"
+	"fmt"
+	"log/slog"
+	"strconv"
+
 	"github.com/DouDOU-start/airgate-core/ent"
 	appaccount "github.com/DouDOU-start/airgate-core/internal/app/account"
 	appapikey "github.com/DouDOU-start/airgate-core/internal/app/apikey"
@@ -69,6 +74,11 @@ func NewHTTPHandlers(dep HTTPDependencies) *HTTPHandlers {
 	settingsService := appsettings.NewService(settingsStore)
 	userStore := store.NewUserStore(dep.DB)
 	userService := appuser.NewService(userStore)
+
+	// 余额预警回调：从设置读取 SMTP 配置发送邮件
+	userService.SetBalanceAlertCallback(func(email string, balance float64, threshold float64) {
+		balanceAlertSendEmail(settingsService, email, balance, threshold)
+	})
 	usageStore := store.NewUsageStore(dep.DB)
 	usageService := appusage.NewService(usageStore)
 
@@ -84,5 +94,81 @@ func NewHTTPHandlers(dep HTTPDependencies) *HTTPHandlers {
 		Settings:     handler.NewSettingsHandler(settingsService),
 		Dashboard:    handler.NewDashboardHandler(dashboardService),
 		Plugin:       handler.NewPluginHandler(pluginAdminService),
+	}
+}
+
+// balanceAlertSendEmail 发送余额预警邮件。
+func balanceAlertSendEmail(settingsService *appsettings.Service, email string, balance, threshold float64) {
+	ctx := context.Background()
+
+	// 读取 SMTP 配置
+	smtpSettings, err := settingsService.List(ctx, "smtp")
+	if err != nil {
+		slog.Error("余额预警：读取 SMTP 设置失败", "error", err)
+		return
+	}
+	cfg := mailer.Config{}
+	for _, s := range smtpSettings {
+		switch s.Key {
+		case "smtp_host":
+			cfg.Host = s.Value
+		case "smtp_port":
+			cfg.Port, _ = strconv.Atoi(s.Value)
+		case "smtp_username":
+			cfg.Username = s.Value
+		case "smtp_password":
+			cfg.Password = s.Value
+		case "smtp_from_email":
+			cfg.FromAddr = s.Value
+		case "smtp_from_name":
+			cfg.FromName = s.Value
+		case "smtp_use_tls":
+			cfg.UseTLS = s.Value == "true"
+		}
+	}
+	if cfg.Host == "" {
+		slog.Warn("余额预警：SMTP 未配置，跳过发送")
+		return
+	}
+	if cfg.Port == 0 {
+		cfg.Port = 587
+	}
+
+	// 读取站点名称
+	siteName := "AirGate"
+	siteSettings, _ := settingsService.List(ctx, "site")
+	for _, s := range siteSettings {
+		if s.Key == "site_name" && s.Value != "" {
+			siteName = s.Value
+		}
+	}
+
+	subject := fmt.Sprintf("%s - 余额预警", siteName)
+	body := fmt.Sprintf(`<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 420px; margin: 0 auto; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb;">
+<div style="padding: 32px 28px;">
+<div style="font-size: 16px; font-weight: 600; color: #111; margin-bottom: 20px;">%s</div>
+<p style="color: #555; font-size: 14px; line-height: 1.6; margin: 0 0 16px;">您的账户余额已低于预警阈值：</p>
+<div style="background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+<div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+<span style="color: #92400e; font-size: 13px;">当前余额</span>
+<span style="color: #92400e; font-size: 16px; font-weight: 700;">$%.4f</span>
+</div>
+<div style="display: flex; justify-content: space-between;">
+<span style="color: #92400e; font-size: 13px;">预警阈值</span>
+<span style="color: #92400e; font-size: 13px;">$%.2f</span>
+</div>
+</div>
+<p style="color: #999; font-size: 12px; line-height: 1.6; margin: 0;">请及时充值以免影响正常使用。余额回到阈值以上后，预警将自动重置。</p>
+</div>
+<div style="border-top: 1px solid #f0f0f0; padding: 14px 28px;">
+<p style="color: #c0c0c0; font-size: 11px; margin: 0; text-align: center;">此邮件由 %s 系统自动发送</p>
+</div>
+</div>`, siteName, balance, threshold, siteName)
+
+	m := mailer.New(cfg)
+	if err := m.Send(email, subject, body); err != nil {
+		slog.Error("余额预警邮件发送失败", "email", email, "error", err)
+	} else {
+		slog.Info("余额预警邮件已发送", "email", email, "balance", balance, "threshold", threshold)
 	}
 }

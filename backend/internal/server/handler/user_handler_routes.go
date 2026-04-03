@@ -48,6 +48,29 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	response.Success(c, toUserRespFromDomain(item))
 }
 
+// UpdateBalanceAlert 更新余额预警设置。
+func (h *UserHandler) UpdateBalanceAlert(c *gin.Context) {
+	userID, ok := currentUserID(c)
+	if !ok {
+		response.Unauthorized(c, "用户未认证")
+		return
+	}
+
+	var req struct {
+		Threshold float64 `json:"threshold"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BindError(c, err)
+		return
+	}
+
+	if err := h.service.UpdateBalanceAlert(c.Request.Context(), userID, req.Threshold); err != nil {
+		response.InternalError(c, "更新余额预警失败")
+		return
+	}
+	response.Success(c, nil)
+}
+
 // ChangePassword 修改当前用户密码。
 func (h *UserHandler) ChangePassword(c *gin.Context) {
 	userID, ok := currentUserID(c)

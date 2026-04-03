@@ -276,19 +276,36 @@ func applyUserMutationUpdate(builder *ent.UserUpdateOne, mutation appuser.Mutati
 	}
 }
 
+// UpdateBalanceAlert 更新余额预警阈值。
+func (s *UserStore) UpdateBalanceAlert(ctx context.Context, userID int, threshold float64) error {
+	return s.db.User.UpdateOneID(userID).
+		SetBalanceAlertThreshold(threshold).
+		SetBalanceAlertNotified(false). // 改阈值时重置通知状态
+		Exec(ctx)
+}
+
+// SetBalanceAlertNotified 设置余额预警通知状态。
+func (s *UserStore) SetBalanceAlertNotified(ctx context.Context, userID int, notified bool) error {
+	return s.db.User.UpdateOneID(userID).
+		SetBalanceAlertNotified(notified).
+		Exec(ctx)
+}
+
 func mapUser(item *ent.User) appuser.User {
 	result := appuser.User{
-		ID:             item.ID,
-		Email:          item.Email,
-		Username:       item.Username,
-		PasswordHash:   item.PasswordHash,
-		Balance:        item.Balance,
-		Role:           item.Role.String(),
-		MaxConcurrency: item.MaxConcurrency,
-		GroupRates:     cloneUserGroupRates(item.GroupRates),
-		Status:         item.Status.String(),
-		CreatedAt:      item.CreatedAt,
-		UpdatedAt:      item.UpdatedAt,
+		ID:                    item.ID,
+		Email:                 item.Email,
+		Username:              item.Username,
+		PasswordHash:          item.PasswordHash,
+		Balance:               item.Balance,
+		Role:                  item.Role.String(),
+		MaxConcurrency:        item.MaxConcurrency,
+		GroupRates:            cloneUserGroupRates(item.GroupRates),
+		BalanceAlertThreshold: item.BalanceAlertThreshold,
+		BalanceAlertNotified:  item.BalanceAlertNotified,
+		Status:                item.Status.String(),
+		CreatedAt:             item.CreatedAt,
+		UpdatedAt:             item.UpdatedAt,
 	}
 	if item.Edges.AllowedGroups != nil {
 		result.AllowedGroupIDs = make([]int64, 0, len(item.Edges.AllowedGroups))

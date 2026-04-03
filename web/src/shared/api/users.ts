@@ -13,6 +13,7 @@ export const usersApi = {
   me: () => get<UserResp>('/api/v1/users/me'),
   updateProfile: (data: UpdateProfileReq) => put<void>('/api/v1/users/me', data),
   changePassword: (data: ChangePasswordReq) => post<void>('/api/v1/users/me/password', data),
+  updateBalanceAlert: (threshold: number) => put<void>('/api/v1/users/me/balance-alert', { threshold }),
 
   // 管理员接口
   list: (params: PageReq & { status?: string; role?: string }) =>

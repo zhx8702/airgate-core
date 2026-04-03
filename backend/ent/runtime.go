@@ -385,12 +385,20 @@ func init() {
 	userDescMaxConcurrency := userFields[5].Descriptor()
 	// user.DefaultMaxConcurrency holds the default value on creation for the max_concurrency field.
 	user.DefaultMaxConcurrency = userDescMaxConcurrency.Default.(int)
+	// userDescBalanceAlertThreshold is the schema descriptor for balance_alert_threshold field.
+	userDescBalanceAlertThreshold := userFields[8].Descriptor()
+	// user.DefaultBalanceAlertThreshold holds the default value on creation for the balance_alert_threshold field.
+	user.DefaultBalanceAlertThreshold = userDescBalanceAlertThreshold.Default.(float64)
+	// userDescBalanceAlertNotified is the schema descriptor for balance_alert_notified field.
+	userDescBalanceAlertNotified := userFields[9].Descriptor()
+	// user.DefaultBalanceAlertNotified holds the default value on creation for the balance_alert_notified field.
+	user.DefaultBalanceAlertNotified = userDescBalanceAlertNotified.Default.(bool)
 	// userDescCreatedAt is the schema descriptor for created_at field.
-	userDescCreatedAt := userFields[9].Descriptor()
+	userDescCreatedAt := userFields[11].Descriptor()
 	// user.DefaultCreatedAt holds the default value on creation for the created_at field.
 	user.DefaultCreatedAt = userDescCreatedAt.Default.(func() time.Time)
 	// userDescUpdatedAt is the schema descriptor for updated_at field.
-	userDescUpdatedAt := userFields[10].Descriptor()
+	userDescUpdatedAt := userFields[12].Descriptor()
 	// user.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	user.DefaultUpdatedAt = userDescUpdatedAt.Default.(func() time.Time)
 	// user.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

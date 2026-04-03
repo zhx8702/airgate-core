@@ -34,6 +34,10 @@ type User struct {
 	TotpSecret *string `json:"-"`
 	// GroupRates holds the value of the "group_rates" field.
 	GroupRates map[int64]float64 `json:"group_rates,omitempty"`
+	// BalanceAlertThreshold holds the value of the "balance_alert_threshold" field.
+	BalanceAlertThreshold float64 `json:"balance_alert_threshold,omitempty"`
+	// BalanceAlertNotified holds the value of the "balance_alert_notified" field.
+	BalanceAlertNotified bool `json:"balance_alert_notified,omitempty"`
 	// Status holds the value of the "status" field.
 	Status user.Status `json:"status,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -115,7 +119,9 @@ func (*User) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case user.FieldGroupRates:
 			values[i] = new([]byte)
-		case user.FieldBalance:
+		case user.FieldBalanceAlertNotified:
+			values[i] = new(sql.NullBool)
+		case user.FieldBalance, user.FieldBalanceAlertThreshold:
 			values[i] = new(sql.NullFloat64)
 		case user.FieldID, user.FieldMaxConcurrency:
 			values[i] = new(sql.NullInt64)
@@ -194,6 +200,18 @@ func (u *User) assignValues(columns []string, values []any) error {
 				if err := json.Unmarshal(*value, &u.GroupRates); err != nil {
 					return fmt.Errorf("unmarshal field group_rates: %w", err)
 				}
+			}
+		case user.FieldBalanceAlertThreshold:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field balance_alert_threshold", values[i])
+			} else if value.Valid {
+				u.BalanceAlertThreshold = value.Float64
+			}
+		case user.FieldBalanceAlertNotified:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field balance_alert_notified", values[i])
+			} else if value.Valid {
+				u.BalanceAlertNotified = value.Bool
 			}
 		case user.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -295,6 +313,12 @@ func (u *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("group_rates=")
 	builder.WriteString(fmt.Sprintf("%v", u.GroupRates))
+	builder.WriteString(", ")
+	builder.WriteString("balance_alert_threshold=")
+	builder.WriteString(fmt.Sprintf("%v", u.BalanceAlertThreshold))
+	builder.WriteString(", ")
+	builder.WriteString("balance_alert_notified=")
+	builder.WriteString(fmt.Sprintf("%v", u.BalanceAlertNotified))
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", u.Status))

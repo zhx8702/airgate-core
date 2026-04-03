@@ -46,6 +46,7 @@ func (s *Server) registerRoutes() {
 		userGroup.GET("/users/me", handlers.User.GetMe)
 		userGroup.PUT("/users/me", handlers.User.UpdateProfile)
 		userGroup.POST("/users/me/password", handlers.User.ChangePassword)
+		userGroup.PUT("/users/me/balance-alert", handlers.User.UpdateBalanceAlert)
 
 		// API Key 管理
 		userGroup.GET("/api-keys", handlers.APIKey.ListKeys)

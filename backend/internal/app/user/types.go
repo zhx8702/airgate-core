@@ -7,18 +7,20 @@ import (
 
 // User 用户领域对象。
 type User struct {
-	ID              int
-	Email           string
-	Username        string
-	PasswordHash    string
-	Balance         float64
-	Role            string
-	MaxConcurrency  int
-	GroupRates      map[int64]float64
-	AllowedGroupIDs []int64
-	Status          string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	ID                    int
+	Email                 string
+	Username              string
+	PasswordHash          string
+	Balance               float64
+	Role                  string
+	MaxConcurrency        int
+	GroupRates            map[int64]float64
+	AllowedGroupIDs       []int64
+	BalanceAlertThreshold float64
+	BalanceAlertNotified  bool
+	Status                string
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
 }
 
 // ListFilter 用户列表筛选。
@@ -155,4 +157,6 @@ type Repository interface {
 	Delete(context.Context, int) error
 	ListBalanceLogs(context.Context, int, int, int) ([]BalanceLog, int64, error)
 	ListAPIKeys(context.Context, int, int, int) ([]APIKey, int64, error)
+	UpdateBalanceAlert(ctx context.Context, userID int, threshold float64) error
+	SetBalanceAlertNotified(ctx context.Context, userID int, notified bool) error
 }

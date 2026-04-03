@@ -634,6 +634,13 @@
     "smtp_from_name": "From Name",
     "smtp_use_tls": "Use TLS",
     "smtp_use_tls_desc": "Connect to SMTP server with TLS encryption (usually port 465)",
+    "email_template": "Email Template",
+    "template_subject": "Subject",
+    "template_body": "Body",
+    "template_body_hint": "Supports HTML. Use {{site_name}} {{code}} {{email}} as variables",
+    "template_preview": "Preview",
+    "template_reset": "Reset Default",
+    "template_vars": "Variables",
     "smtp_test": "Send Test Email",
     "smtp_test_prompt": "Enter the email address to receive the test email:",
     "smtp_test_success": "Test email sent, please check your inbox"
@@ -661,7 +668,13 @@
     "password_mismatch": "New passwords do not match",
     "password_too_short": "New password must be at least 6 characters",
     "username_updated": "Username updated",
-    "password_changed": "Password changed"
+    "password_changed": "Password changed",
+    "balance_alert": "Balance Alert",
+    "balance_alert_enabled": "Enable Balance Alert",
+    "balance_alert_desc": "Send email notification when balance drops below threshold",
+    "balance_alert_threshold": "Alert Threshold (USD)",
+    "balance_alert_hint": "Current balance: ${{balance}}",
+    "balance_alert_saved": "Balance alert settings saved"
   },
 
   "user_keys": {

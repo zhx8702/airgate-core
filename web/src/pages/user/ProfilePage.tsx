@@ -9,6 +9,8 @@ import { Badge } from '../../shared/components/Badge';
 import { Card } from '../../shared/components/Card';
 import { Button } from '../../shared/components/Button';
 import { Input } from '../../shared/components/Input';
+import { useMutation } from '@tanstack/react-query';
+import { Switch } from '../../shared/components/Switch';
 import {
   User,
   Mail,
@@ -18,6 +20,7 @@ import {
   Save,
   Lock,
   KeyRound,
+  Bell,
 } from 'lucide-react';
 
 export default function ProfilePage() {
@@ -119,6 +122,12 @@ export default function ProfilePage() {
         </div>
       </Card>
 
+      {/* 余额预警 */}
+      <BalanceAlertCard
+        threshold={user.balance_alert_threshold}
+        balance={user.balance}
+      />
+
       {/* 修改用户名 */}
       <Card title={t('profile.change_username')} className="mb-6">
         <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4">
@@ -187,5 +196,63 @@ export default function ProfilePage() {
         </div>
       </Card>
     </div>
+  );
+}
+
+/* ==================== 余额预警卡片 ==================== */
+
+function BalanceAlertCard({ threshold, balance }: { threshold: number; balance: number }) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const [enabled, setEnabled] = useState(threshold > 0);
+  const [value, setValue] = useState(threshold > 0 ? String(threshold) : '');
+
+  const mutation = useMutation({
+    mutationFn: (newThreshold: number) => usersApi.updateBalanceAlert(newThreshold),
+    onSuccess: () => toast('success', t('profile.balance_alert_saved')),
+    onError: (err: Error) => toast('error', err.message),
+  });
+
+  function handleSave() {
+    const num = enabled ? parseFloat(value) || 0 : 0;
+    mutation.mutate(num);
+  }
+
+  return (
+    <Card title={t('profile.balance_alert')} className="mb-6">
+      <div className="space-y-4">
+        <Switch
+          label={t('profile.balance_alert_enabled')}
+          description={t('profile.balance_alert_desc')}
+          checked={enabled}
+          onChange={(v) => {
+            setEnabled(v);
+            if (!v) mutation.mutate(0);
+          }}
+        />
+        {enabled && (
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4">
+            <div className="flex-1">
+              <Input
+                label={t('profile.balance_alert_threshold')}
+                value={value}
+                inputMode="decimal"
+                onChange={(e) => setValue(e.target.value)}
+                placeholder="5.00"
+                icon={<Bell className="w-4 h-4" />}
+                hint={t('profile.balance_alert_hint', { balance: balance.toFixed(2) })}
+              />
+            </div>
+            <Button
+              onClick={handleSave}
+              loading={mutation.isPending}
+              icon={<Save className="w-4 h-4" />}
+            >
+              {t('common.save')}
+            </Button>
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }

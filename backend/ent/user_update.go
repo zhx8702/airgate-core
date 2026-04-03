@@ -163,6 +163,41 @@ func (uu *UserUpdate) ClearGroupRates() *UserUpdate {
 	return uu
 }
 
+// SetBalanceAlertThreshold sets the "balance_alert_threshold" field.
+func (uu *UserUpdate) SetBalanceAlertThreshold(f float64) *UserUpdate {
+	uu.mutation.ResetBalanceAlertThreshold()
+	uu.mutation.SetBalanceAlertThreshold(f)
+	return uu
+}
+
+// SetNillableBalanceAlertThreshold sets the "balance_alert_threshold" field if the given value is not nil.
+func (uu *UserUpdate) SetNillableBalanceAlertThreshold(f *float64) *UserUpdate {
+	if f != nil {
+		uu.SetBalanceAlertThreshold(*f)
+	}
+	return uu
+}
+
+// AddBalanceAlertThreshold adds f to the "balance_alert_threshold" field.
+func (uu *UserUpdate) AddBalanceAlertThreshold(f float64) *UserUpdate {
+	uu.mutation.AddBalanceAlertThreshold(f)
+	return uu
+}
+
+// SetBalanceAlertNotified sets the "balance_alert_notified" field.
+func (uu *UserUpdate) SetBalanceAlertNotified(b bool) *UserUpdate {
+	uu.mutation.SetBalanceAlertNotified(b)
+	return uu
+}
+
+// SetNillableBalanceAlertNotified sets the "balance_alert_notified" field if the given value is not nil.
+func (uu *UserUpdate) SetNillableBalanceAlertNotified(b *bool) *UserUpdate {
+	if b != nil {
+		uu.SetBalanceAlertNotified(*b)
+	}
+	return uu
+}
+
 // SetStatus sets the "status" field.
 func (uu *UserUpdate) SetStatus(u user.Status) *UserUpdate {
 	uu.mutation.SetStatus(u)
@@ -476,6 +511,15 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if uu.mutation.GroupRatesCleared() {
 		_spec.ClearField(user.FieldGroupRates, field.TypeJSON)
+	}
+	if value, ok := uu.mutation.BalanceAlertThreshold(); ok {
+		_spec.SetField(user.FieldBalanceAlertThreshold, field.TypeFloat64, value)
+	}
+	if value, ok := uu.mutation.AddedBalanceAlertThreshold(); ok {
+		_spec.AddField(user.FieldBalanceAlertThreshold, field.TypeFloat64, value)
+	}
+	if value, ok := uu.mutation.BalanceAlertNotified(); ok {
+		_spec.SetField(user.FieldBalanceAlertNotified, field.TypeBool, value)
 	}
 	if value, ok := uu.mutation.Status(); ok {
 		_spec.SetField(user.FieldStatus, field.TypeEnum, value)
@@ -858,6 +902,41 @@ func (uuo *UserUpdateOne) ClearGroupRates() *UserUpdateOne {
 	return uuo
 }
 
+// SetBalanceAlertThreshold sets the "balance_alert_threshold" field.
+func (uuo *UserUpdateOne) SetBalanceAlertThreshold(f float64) *UserUpdateOne {
+	uuo.mutation.ResetBalanceAlertThreshold()
+	uuo.mutation.SetBalanceAlertThreshold(f)
+	return uuo
+}
+
+// SetNillableBalanceAlertThreshold sets the "balance_alert_threshold" field if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableBalanceAlertThreshold(f *float64) *UserUpdateOne {
+	if f != nil {
+		uuo.SetBalanceAlertThreshold(*f)
+	}
+	return uuo
+}
+
+// AddBalanceAlertThreshold adds f to the "balance_alert_threshold" field.
+func (uuo *UserUpdateOne) AddBalanceAlertThreshold(f float64) *UserUpdateOne {
+	uuo.mutation.AddBalanceAlertThreshold(f)
+	return uuo
+}
+
+// SetBalanceAlertNotified sets the "balance_alert_notified" field.
+func (uuo *UserUpdateOne) SetBalanceAlertNotified(b bool) *UserUpdateOne {
+	uuo.mutation.SetBalanceAlertNotified(b)
+	return uuo
+}
+
+// SetNillableBalanceAlertNotified sets the "balance_alert_notified" field if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableBalanceAlertNotified(b *bool) *UserUpdateOne {
+	if b != nil {
+		uuo.SetBalanceAlertNotified(*b)
+	}
+	return uuo
+}
+
 // SetStatus sets the "status" field.
 func (uuo *UserUpdateOne) SetStatus(u user.Status) *UserUpdateOne {
 	uuo.mutation.SetStatus(u)
@@ -1201,6 +1280,15 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 	}
 	if uuo.mutation.GroupRatesCleared() {
 		_spec.ClearField(user.FieldGroupRates, field.TypeJSON)
+	}
+	if value, ok := uuo.mutation.BalanceAlertThreshold(); ok {
+		_spec.SetField(user.FieldBalanceAlertThreshold, field.TypeFloat64, value)
+	}
+	if value, ok := uuo.mutation.AddedBalanceAlertThreshold(); ok {
+		_spec.AddField(user.FieldBalanceAlertThreshold, field.TypeFloat64, value)
+	}
+	if value, ok := uuo.mutation.BalanceAlertNotified(); ok {
+		_spec.SetField(user.FieldBalanceAlertNotified, field.TypeBool, value)
 	}
 	if value, ok := uuo.mutation.Status(); ok {
 		_spec.SetField(user.FieldStatus, field.TypeEnum, value)

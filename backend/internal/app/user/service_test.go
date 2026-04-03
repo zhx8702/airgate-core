@@ -74,6 +74,10 @@ func (s stubRepository) Delete(_ context.Context, _ int) error { return nil }
 func (s stubRepository) ListBalanceLogs(_ context.Context, _ int, _, _ int) ([]BalanceLog, int64, error) {
 	return nil, 0, nil
 }
+func (s stubRepository) UpdateBalanceAlert(_ context.Context, _ int, _ float64) error { return nil }
+func (s stubRepository) SetBalanceAlertNotified(_ context.Context, _ int, _ bool) error {
+	return nil
+}
 func (s stubRepository) ListAPIKeys(ctx context.Context, userID, page, pageSize int) ([]APIKey, int64, error) {
 	if s.listAPIKeys == nil {
 		return nil, 0, nil

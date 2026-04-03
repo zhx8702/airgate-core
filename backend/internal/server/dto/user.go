@@ -2,15 +2,16 @@ package dto
 
 // UserResp 用户响应
 type UserResp struct {
-	ID              int64             `json:"id"`
-	Email           string            `json:"email"`
-	Username        string            `json:"username"`
-	Balance         float64           `json:"balance"`
-	Role            string            `json:"role"` // admin / user
-	MaxConcurrency  int               `json:"max_concurrency"`
-	GroupRates      map[int64]float64 `json:"group_rates,omitempty"`       // 用户专属分组倍率
-	AllowedGroupIDs []int64           `json:"allowed_group_ids,omitempty"` // 已分配的专属分组 ID
-	Status          string            `json:"status"`
+	ID                    int64             `json:"id"`
+	Email                 string            `json:"email"`
+	Username              string            `json:"username"`
+	Balance               float64           `json:"balance"`
+	Role                  string            `json:"role"` // admin / user
+	MaxConcurrency        int               `json:"max_concurrency"`
+	GroupRates            map[int64]float64 `json:"group_rates,omitempty"`       // 用户专属分组倍率
+	AllowedGroupIDs       []int64           `json:"allowed_group_ids,omitempty"` // 已分配的专属分组 ID
+	BalanceAlertThreshold float64           `json:"balance_alert_threshold"`
+	Status                string            `json:"status"`
 	TimeMixin
 }
 

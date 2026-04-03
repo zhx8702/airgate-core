@@ -58,6 +58,7 @@ export interface UserResp {
 
   group_rates?: Record<number, number>;
   allowed_group_ids?: number[];
+  balance_alert_threshold: number;
   status: string;
   created_at: string;
   updated_at: string;

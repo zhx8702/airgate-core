@@ -8,15 +8,16 @@ import (
 
 func toUserRespFromDomain(item appuser.User) dto.UserResp {
 	return dto.UserResp{
-		ID:              int64(item.ID),
-		Email:           item.Email,
-		Username:        item.Username,
-		Balance:         item.Balance,
-		Role:            item.Role,
-		MaxConcurrency:  item.MaxConcurrency,
-		GroupRates:      item.GroupRates,
-		AllowedGroupIDs: item.AllowedGroupIDs,
-		Status:          item.Status,
+		ID:                    int64(item.ID),
+		Email:                 item.Email,
+		Username:              item.Username,
+		Balance:               item.Balance,
+		Role:                  item.Role,
+		MaxConcurrency:        item.MaxConcurrency,
+		GroupRates:            item.GroupRates,
+		AllowedGroupIDs:       item.AllowedGroupIDs,
+		BalanceAlertThreshold: item.BalanceAlertThreshold,
+		Status:                item.Status,
 		TimeMixin: dto.TimeMixin{
 			CreatedAt: item.CreatedAt,
 			UpdatedAt: item.UpdatedAt,

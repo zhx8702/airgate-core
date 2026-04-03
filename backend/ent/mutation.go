@@ -10016,41 +10016,44 @@ func (m *UsageLogMutation) ResetEdge(name string) error {
 // UserMutation represents an operation that mutates the User nodes in the graph.
 type UserMutation struct {
 	config
-	op                    Op
-	typ                   string
-	id                    *int
-	email                 *string
-	password_hash         *string
-	username              *string
-	balance               *float64
-	addbalance            *float64
-	role                  *user.Role
-	max_concurrency       *int
-	addmax_concurrency    *int
-	totp_secret           *string
-	group_rates           *map[int64]float64
-	status                *user.Status
-	created_at            *time.Time
-	updated_at            *time.Time
-	clearedFields         map[string]struct{}
-	api_keys              map[int]struct{}
-	removedapi_keys       map[int]struct{}
-	clearedapi_keys       bool
-	subscriptions         map[int]struct{}
-	removedsubscriptions  map[int]struct{}
-	clearedsubscriptions  bool
-	usage_logs            map[int]struct{}
-	removedusage_logs     map[int]struct{}
-	clearedusage_logs     bool
-	allowed_groups        map[int]struct{}
-	removedallowed_groups map[int]struct{}
-	clearedallowed_groups bool
-	balance_logs          map[int]struct{}
-	removedbalance_logs   map[int]struct{}
-	clearedbalance_logs   bool
-	done                  bool
-	oldValue              func(context.Context) (*User, error)
-	predicates            []predicate.User
+	op                         Op
+	typ                        string
+	id                         *int
+	email                      *string
+	password_hash              *string
+	username                   *string
+	balance                    *float64
+	addbalance                 *float64
+	role                       *user.Role
+	max_concurrency            *int
+	addmax_concurrency         *int
+	totp_secret                *string
+	group_rates                *map[int64]float64
+	balance_alert_threshold    *float64
+	addbalance_alert_threshold *float64
+	balance_alert_notified     *bool
+	status                     *user.Status
+	created_at                 *time.Time
+	updated_at                 *time.Time
+	clearedFields              map[string]struct{}
+	api_keys                   map[int]struct{}
+	removedapi_keys            map[int]struct{}
+	clearedapi_keys            bool
+	subscriptions              map[int]struct{}
+	removedsubscriptions       map[int]struct{}
+	clearedsubscriptions       bool
+	usage_logs                 map[int]struct{}
+	removedusage_logs          map[int]struct{}
+	clearedusage_logs          bool
+	allowed_groups             map[int]struct{}
+	removedallowed_groups      map[int]struct{}
+	clearedallowed_groups      bool
+	balance_logs               map[int]struct{}
+	removedbalance_logs        map[int]struct{}
+	clearedbalance_logs        bool
+	done                       bool
+	oldValue                   func(context.Context) (*User, error)
+	predicates                 []predicate.User
 }
 
 var _ ent.Mutation = (*UserMutation)(nil)
@@ -10505,6 +10508,98 @@ func (m *UserMutation) ResetGroupRates() {
 	delete(m.clearedFields, user.FieldGroupRates)
 }
 
+// SetBalanceAlertThreshold sets the "balance_alert_threshold" field.
+func (m *UserMutation) SetBalanceAlertThreshold(f float64) {
+	m.balance_alert_threshold = &f
+	m.addbalance_alert_threshold = nil
+}
+
+// BalanceAlertThreshold returns the value of the "balance_alert_threshold" field in the mutation.
+func (m *UserMutation) BalanceAlertThreshold() (r float64, exists bool) {
+	v := m.balance_alert_threshold
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalanceAlertThreshold returns the old "balance_alert_threshold" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldBalanceAlertThreshold(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalanceAlertThreshold is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalanceAlertThreshold requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalanceAlertThreshold: %w", err)
+	}
+	return oldValue.BalanceAlertThreshold, nil
+}
+
+// AddBalanceAlertThreshold adds f to the "balance_alert_threshold" field.
+func (m *UserMutation) AddBalanceAlertThreshold(f float64) {
+	if m.addbalance_alert_threshold != nil {
+		*m.addbalance_alert_threshold += f
+	} else {
+		m.addbalance_alert_threshold = &f
+	}
+}
+
+// AddedBalanceAlertThreshold returns the value that was added to the "balance_alert_threshold" field in this mutation.
+func (m *UserMutation) AddedBalanceAlertThreshold() (r float64, exists bool) {
+	v := m.addbalance_alert_threshold
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBalanceAlertThreshold resets all changes to the "balance_alert_threshold" field.
+func (m *UserMutation) ResetBalanceAlertThreshold() {
+	m.balance_alert_threshold = nil
+	m.addbalance_alert_threshold = nil
+}
+
+// SetBalanceAlertNotified sets the "balance_alert_notified" field.
+func (m *UserMutation) SetBalanceAlertNotified(b bool) {
+	m.balance_alert_notified = &b
+}
+
+// BalanceAlertNotified returns the value of the "balance_alert_notified" field in the mutation.
+func (m *UserMutation) BalanceAlertNotified() (r bool, exists bool) {
+	v := m.balance_alert_notified
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalanceAlertNotified returns the old "balance_alert_notified" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldBalanceAlertNotified(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalanceAlertNotified is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalanceAlertNotified requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalanceAlertNotified: %w", err)
+	}
+	return oldValue.BalanceAlertNotified, nil
+}
+
+// ResetBalanceAlertNotified resets all changes to the "balance_alert_notified" field.
+func (m *UserMutation) ResetBalanceAlertNotified() {
+	m.balance_alert_notified = nil
+}
+
 // SetStatus sets the "status" field.
 func (m *UserMutation) SetStatus(u user.Status) {
 	m.status = &u
@@ -10917,7 +11012,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 13)
 	if m.email != nil {
 		fields = append(fields, user.FieldEmail)
 	}
@@ -10941,6 +11036,12 @@ func (m *UserMutation) Fields() []string {
 	}
 	if m.group_rates != nil {
 		fields = append(fields, user.FieldGroupRates)
+	}
+	if m.balance_alert_threshold != nil {
+		fields = append(fields, user.FieldBalanceAlertThreshold)
+	}
+	if m.balance_alert_notified != nil {
+		fields = append(fields, user.FieldBalanceAlertNotified)
 	}
 	if m.status != nil {
 		fields = append(fields, user.FieldStatus)
@@ -10975,6 +11076,10 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.TotpSecret()
 	case user.FieldGroupRates:
 		return m.GroupRates()
+	case user.FieldBalanceAlertThreshold:
+		return m.BalanceAlertThreshold()
+	case user.FieldBalanceAlertNotified:
+		return m.BalanceAlertNotified()
 	case user.FieldStatus:
 		return m.Status()
 	case user.FieldCreatedAt:
@@ -11006,6 +11111,10 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldTotpSecret(ctx)
 	case user.FieldGroupRates:
 		return m.OldGroupRates(ctx)
+	case user.FieldBalanceAlertThreshold:
+		return m.OldBalanceAlertThreshold(ctx)
+	case user.FieldBalanceAlertNotified:
+		return m.OldBalanceAlertNotified(ctx)
 	case user.FieldStatus:
 		return m.OldStatus(ctx)
 	case user.FieldCreatedAt:
@@ -11077,6 +11186,20 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetGroupRates(v)
 		return nil
+	case user.FieldBalanceAlertThreshold:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalanceAlertThreshold(v)
+		return nil
+	case user.FieldBalanceAlertNotified:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalanceAlertNotified(v)
+		return nil
 	case user.FieldStatus:
 		v, ok := value.(user.Status)
 		if !ok {
@@ -11112,6 +11235,9 @@ func (m *UserMutation) AddedFields() []string {
 	if m.addmax_concurrency != nil {
 		fields = append(fields, user.FieldMaxConcurrency)
 	}
+	if m.addbalance_alert_threshold != nil {
+		fields = append(fields, user.FieldBalanceAlertThreshold)
+	}
 	return fields
 }
 
@@ -11124,6 +11250,8 @@ func (m *UserMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedBalance()
 	case user.FieldMaxConcurrency:
 		return m.AddedMaxConcurrency()
+	case user.FieldBalanceAlertThreshold:
+		return m.AddedBalanceAlertThreshold()
 	}
 	return nil, false
 }
@@ -11146,6 +11274,13 @@ func (m *UserMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddMaxConcurrency(v)
+		return nil
+	case user.FieldBalanceAlertThreshold:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBalanceAlertThreshold(v)
 		return nil
 	}
 	return fmt.Errorf("unknown User numeric field %s", name)
@@ -11212,6 +11347,12 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldGroupRates:
 		m.ResetGroupRates()
+		return nil
+	case user.FieldBalanceAlertThreshold:
+		m.ResetBalanceAlertThreshold()
+		return nil
+	case user.FieldBalanceAlertNotified:
+		m.ResetBalanceAlertNotified()
 		return nil
 	case user.FieldStatus:
 		m.ResetStatus()

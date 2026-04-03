@@ -444,6 +444,7 @@ export default function UsagePage() {
       key: 'api_key',
       title: 'API Key',
       width: '160px',
+      hideOnMobile: true,
       render: (row) => {
         if (row.api_key_deleted) {
           return <span className="block max-w-full truncate text-text-tertiary text-xs">{t('usage.api_key_deleted')}</span>;
@@ -461,6 +462,7 @@ export default function UsagePage() {
       key: 'account_name',
       title: t('usage.account'),
       width: '160px',
+      hideOnMobile: true,
       render: (row) => {
         const label = row.account_name || `#${row.account_id}`;
         return (

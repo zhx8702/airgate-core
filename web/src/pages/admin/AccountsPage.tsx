@@ -276,6 +276,7 @@ export default function AccountsPage() {
       key: 'scheduling',
       title: t('accounts.scheduling'),
       width: '80px',
+      hideOnMobile: true,
       render: (row) => (
         <button
           onClick={(e) => {
@@ -299,6 +300,7 @@ export default function AccountsPage() {
       key: 'rate_multiplier',
       title: t('accounts.rate_multiplier'),
       width: '80px',
+      hideOnMobile: true,
       render: (row) => (
         <span className="font-mono" style={{ color: 'var(--ag-primary)' }}>
           {row.rate_multiplier}x
@@ -309,6 +311,7 @@ export default function AccountsPage() {
       key: 'proxy_id',
       title: t('accounts.proxy'),
       width: '80px',
+      hideOnMobile: true,
       render: (row) =>
         row.proxy_id ? (
           <span className="inline-flex items-center gap-1">
@@ -322,6 +325,7 @@ export default function AccountsPage() {
     {
       key: 'groups',
       title: t('accounts.groups'),
+      hideOnMobile: true,
       render: (row) => {
         if (!row.group_ids || row.group_ids.length === 0) {
           return <span style={{ color: 'var(--ag-text-tertiary)' }}>-</span>;
@@ -346,6 +350,7 @@ export default function AccountsPage() {
       key: 'usage_window',
       title: t('accounts.usage_window'),
       width: '200px',
+      hideOnMobile: true,
       render: (row: AccountResp) => {
         const usage = usageData?.accounts?.[String(row.id)];
         if (!usage) return <span style={{ color: 'var(--ag-text-tertiary)' }}>-</span>;
@@ -425,6 +430,7 @@ export default function AccountsPage() {
       key: 'last_used_at',
       title: t('accounts.last_used'),
       width: '120px',
+      hideOnMobile: true,
       render: (row) => {
         if (!row.last_used_at) {
           return <span style={{ color: 'var(--ag-text-tertiary)' }}>-</span>;
@@ -450,6 +456,7 @@ export default function AccountsPage() {
       key: 'expires_at',
       title: t('accounts.expires_at'),
       width: '120px',
+      hideOnMobile: true,
       render: (row) => {
         const subUntil = row.credentials?.subscription_active_until;
         if (!subUntil) {
@@ -514,13 +521,14 @@ export default function AccountsPage() {
     <div>
       {/* 筛选 */}
       <div className="flex items-end gap-3 mb-5 flex-wrap">
-        <Input
-          value={keyword}
-          onChange={(e) => { setKeyword(e.target.value); setPage(1); }}
-          placeholder={t('common.search')}
-          icon={<Search className="w-4 h-4" />}
-          style={{ width: 200 }}
-        />
+        <div className="w-full sm:w-[200px]">
+          <Input
+            value={keyword}
+            onChange={(e) => { setKeyword(e.target.value); setPage(1); }}
+            placeholder={t('common.search')}
+            icon={<Search className="w-4 h-4" />}
+          />
+        </div>
         <Select
           className="min-w-0"
           value={platformFilter}

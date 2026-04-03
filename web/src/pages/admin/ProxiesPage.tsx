@@ -158,6 +158,7 @@ export default function ProxiesPage() {
       key: 'id',
       title: t('common.id'),
       width: '60px',
+      hideOnMobile: true,
       render: (row) => (
         <span className="text-text-tertiary font-mono">
           {row.id}
@@ -190,6 +191,7 @@ export default function ProxiesPage() {
     {
       key: 'username',
       title: t('proxies.username'),
+      hideOnMobile: true,
       render: (row) => (
         <span className="text-text-secondary">
           {row.username || '-'}

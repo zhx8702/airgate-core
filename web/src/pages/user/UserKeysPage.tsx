@@ -229,6 +229,7 @@ export default function UserKeysPage() {
     {
       key: 'key_prefix',
       title: t('user_keys.title'),
+      hideOnMobile: true,
       render: (row) => (
         <span
           className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-sm border border-glass-border bg-surface text-text-secondary font-mono"
@@ -277,6 +278,7 @@ export default function UserKeysPage() {
     {
       key: 'expires_at',
       title: t('user_keys.expires_at'),
+      hideOnMobile: true,
       render: (row) =>
         row.expires_at
           ? new Date(row.expires_at).toLocaleDateString('zh-CN')

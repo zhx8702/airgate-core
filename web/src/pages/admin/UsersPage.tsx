@@ -140,6 +140,7 @@ export default function UsersPage() {
       key: 'id',
       title: 'ID',
       width: '60px',
+      hideOnMobile: true,
       render: (row) => <span className="text-text-tertiary font-mono">{row.id}</span>,
     },
     {
@@ -161,6 +162,7 @@ export default function UsersPage() {
     {
       key: 'username',
       title: t('users.username'),
+      hideOnMobile: true,
       render: (row) => <span className="text-text-secondary">{row.username || '-'}</span>,
     },
     {
@@ -204,6 +206,7 @@ export default function UsersPage() {
     {
       key: 'created_at',
       title: t('users.created_at'),
+      hideOnMobile: true,
       render: (row) => (
         <span className="text-xs text-text-secondary">{formatDateTime(row.created_at)}</span>
       ),

@@ -76,6 +76,7 @@ export default function APIKeysPage() {
       key: 'id',
       title: t('common.id'),
       width: '60px',
+      hideOnMobile: true,
       render: (row) => <span className="font-mono">{row.id}</span>,
     },
     {
@@ -91,6 +92,7 @@ export default function APIKeysPage() {
     {
       key: 'key_prefix',
       title: t('api_keys.key_prefix'),
+      hideOnMobile: true,
       render: (row) => (
         <code
           className="text-xs px-2 py-0.5 rounded"
@@ -150,6 +152,7 @@ export default function APIKeysPage() {
     {
       key: 'expires_at',
       title: t('api_keys.expire_time'),
+      hideOnMobile: true,
       render: (row) => <span className="font-mono">{formatExpiry(row.expires_at)}</span>,
     },
     {

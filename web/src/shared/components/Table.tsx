@@ -1,6 +1,7 @@
 import { useMemo, useRef, useCallback, type ReactNode, type CSSProperties } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { EmptyState } from './EmptyState';
+import { useIsMobile } from '../hooks/useMediaQuery';
 
 export interface Column<T> {
   key: string;
@@ -9,6 +10,8 @@ export interface Column<T> {
   width?: string;
   fixed?: 'left' | 'right';
   align?: 'left' | 'center' | 'right';
+  /** Hide this column in mobile card view */
+  hideOnMobile?: boolean;
 }
 
 export interface TableProps<T> {
@@ -41,6 +44,7 @@ export function Table<T extends Record<string, any>>({
   autoHeight = false,
 }: TableProps<T>) {
   const totalPages = Math.ceil(total / pageSize);
+  const isMobile = useIsMobile();
 
   // Sync horizontal scroll between fixed header and scrollable body
   const headerRef = useRef<HTMLDivElement>(null);
@@ -75,7 +79,81 @@ export function Table<T extends Record<string, any>>({
   const thBaseClass = 'px-5 py-3 text-xs font-semibold text-text-tertiary uppercase tracking-wider whitespace-nowrap bg-bg-elevated';
   const tdBaseClass = 'px-5 py-3 text-sm text-text-secondary whitespace-nowrap align-middle';
 
+  // --- Pagination (shared between desktop & mobile) ---
+  const pagination = onPageChange && (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-text-tertiary font-mono">
+          共 {total} 条 · 第 {page}/{totalPages} 页
+        </span>
+        {onPageSizeChange && (
+          <select
+            value={pageSize}
+            onChange={(e) => { onPageSizeChange(Number(e.target.value)); onPageChange(1); }}
+            className="text-xs text-text-secondary bg-transparent border border-glass-border rounded px-1.5 py-0.5 cursor-pointer hover:border-primary transition-colors outline-none"
+          >
+            {pageSizeOptions.map((s) => (
+              <option key={s} value={s}>{s} 条/页</option>
+            ))}
+          </select>
+        )}
+      </div>
+      <div className="flex items-center gap-1">
+        <button
+          className="flex items-center justify-center w-8 h-8 rounded-sm text-text-secondary hover:bg-bg-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        {generatePageNumbers(page, totalPages).map((p, i) =>
+          p === '...' ? (
+            <span key={`ellipsis-${i}`} className="w-8 text-center text-text-tertiary text-xs">
+              ···
+            </span>
+          ) : (
+            <button
+              key={p}
+              className={`flex items-center justify-center w-8 h-8 rounded-sm text-xs font-medium transition-all ${
+                p === page
+                  ? 'bg-primary text-text-inverse shadow-md'
+                  : 'text-text-secondary hover:bg-bg-hover'
+              }`}
+              onClick={() => onPageChange(p as number)}
+            >
+              {p}
+            </button>
+          ),
+        )}
+        <button
+          className="flex items-center justify-center w-8 h-8 rounded-sm text-text-secondary hover:bg-bg-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          disabled={page >= totalPages}
+          onClick={() => onPageChange(page + 1)}
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+
+  // --- Loading ---
   if (loading) {
+    if (isMobile) {
+      return (
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="border border-glass-border bg-bg-elevated shadow-sm rounded-xl p-4 space-y-3">
+              {Array.from({ length: 4 }).map((_, j) => (
+                <div key={j} className="flex items-center justify-between">
+                  <div className="h-3 ag-shimmer rounded w-16" style={{ animationDelay: `${(i * 4 + j) * 80}ms` }} />
+                  <div className="h-3 ag-shimmer rounded w-24" style={{ animationDelay: `${(i * 4 + j) * 80 + 40}ms` }} />
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      );
+    }
     return (
       <div className="border border-glass-border bg-bg-elevated shadow-sm rounded-xl overflow-hidden">
         <div className="flex gap-4 px-4 py-3 border-b border-border bg-black/[0.03]">
@@ -94,6 +172,7 @@ export function Table<T extends Record<string, any>>({
     );
   }
 
+  // --- Empty ---
   if (data.length === 0) {
     return (
       <div className="border border-glass-border bg-bg-elevated shadow-sm rounded-xl">
@@ -102,6 +181,57 @@ export function Table<T extends Record<string, any>>({
     );
   }
 
+  // --- Mobile card view ---
+  if (isMobile) {
+    const mobileColumns = columns.filter((col) => !col.hideOnMobile);
+    const actionCol = mobileColumns.find((col) => col.key === 'actions');
+    const fieldCols = mobileColumns.filter((col) => col.key !== 'actions');
+    // First column as card header, rest as detail rows
+    const [headerCol, ...detailCols] = fieldCols;
+
+    return (
+      <div className="space-y-4">
+        <div className="space-y-3">
+          {data.map((row, i) => (
+            <div
+              key={rowKey ? rowKey(row) : i}
+              className="border border-glass-border bg-bg-elevated shadow-sm rounded-xl overflow-hidden"
+            >
+              {/* Card header: first column + actions */}
+              {headerCol && (
+                <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-2">
+                  <div className="text-sm text-text font-medium min-w-0 flex-1">
+                    {headerCol.render ? headerCol.render(row) : String(row[headerCol.key] ?? '')}
+                  </div>
+                  {actionCol && (
+                    <div className="flex items-center shrink-0">
+                      {actionCol.render ? actionCol.render(row) : null}
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Detail rows */}
+              {detailCols.length > 0 && (
+                <div className="px-4 pb-3 pt-1 space-y-0.5">
+                  {detailCols.map((col) => (
+                    <div key={col.key} className="flex items-center justify-between py-1 min-h-[28px]">
+                      <span className="text-[11px] text-text-tertiary shrink-0 mr-3">{col.title}</span>
+                      <div className="text-xs text-text-secondary">
+                        {col.render ? col.render(row) : String(row[col.key] ?? '')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        {pagination}
+      </div>
+    );
+  }
+
+  // --- Desktop table view ---
   const colGroup = (
     <colgroup>
       {columns.map((col) => <col key={col.key} style={{ width: col.width }} />)}
@@ -181,61 +311,7 @@ export function Table<T extends Record<string, any>>({
       )}
 
       {/* 分页 */}
-      {onPageChange && (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-text-tertiary font-mono">
-              共 {total} 条 · 第 {page}/{totalPages} 页
-            </span>
-            {onPageSizeChange && (
-              <select
-                value={pageSize}
-                onChange={(e) => { onPageSizeChange(Number(e.target.value)); onPageChange(1); }}
-                className="text-xs text-text-secondary bg-transparent border border-glass-border rounded px-1.5 py-0.5 cursor-pointer hover:border-primary transition-colors outline-none"
-              >
-                {pageSizeOptions.map((s) => (
-                  <option key={s} value={s}>{s} 条/页</option>
-                ))}
-              </select>
-            )}
-          </div>
-          <div className="flex items-center gap-1">
-            <button
-              className="flex items-center justify-center w-8 h-8 rounded-sm text-text-secondary hover:bg-bg-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              disabled={page <= 1}
-              onClick={() => onPageChange(page - 1)}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            {generatePageNumbers(page, totalPages).map((p, i) =>
-              p === '...' ? (
-                <span key={`ellipsis-${i}`} className="w-8 text-center text-text-tertiary text-xs">
-                  ···
-                </span>
-              ) : (
-                <button
-                  key={p}
-                  className={`flex items-center justify-center w-8 h-8 rounded-sm text-xs font-medium transition-all ${
-                    p === page
-                      ? 'bg-primary text-text-inverse shadow-md'
-                      : 'text-text-secondary hover:bg-bg-hover'
-                  }`}
-                  onClick={() => onPageChange(p as number)}
-                >
-                  {p}
-                </button>
-              ),
-            )}
-            <button
-              className="flex items-center justify-center w-8 h-8 rounded-sm text-text-secondary hover:bg-bg-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              disabled={page >= totalPages}
-              onClick={() => onPageChange(page + 1)}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
+      {pagination}
     </div>
   );
 }

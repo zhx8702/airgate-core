@@ -121,6 +121,7 @@ export default function GroupsPage() {
       key: 'rate_multiplier',
       title: t('groups.rate_multiplier'),
       width: '80px',
+      hideOnMobile: true,
       render: (row) => (
         <span className="font-mono" style={{ color: 'var(--ag-primary)' }}>
           {row.rate_multiplier}x
@@ -131,6 +132,7 @@ export default function GroupsPage() {
       key: 'is_exclusive',
       title: t('groups.group_type'),
       width: '80px',
+      hideOnMobile: true,
       render: (row) =>
         row.is_exclusive ? (
           <Badge variant="warning">{t('groups.type_exclusive')}</Badge>
@@ -142,6 +144,7 @@ export default function GroupsPage() {
       key: 'account_stats',
       title: t('groups.account_stats'),
       width: '160px',
+      hideOnMobile: true,
       render: (row) => (
         <div className="text-xs leading-relaxed">
           <div>
@@ -183,6 +186,7 @@ export default function GroupsPage() {
       key: 'capacity',
       title: t('groups.capacity'),
       width: '120px',
+      hideOnMobile: true,
       render: (row) => (
         <div>
           <span className="font-mono" style={{ color: row.capacity_used > 0 ? 'var(--ag-primary)' : undefined }}>
@@ -197,6 +201,7 @@ export default function GroupsPage() {
       key: 'sort_weight',
       title: t('groups.sort_weight'),
       width: '80px',
+      hideOnMobile: true,
       render: (row) => (
         <span className="inline-flex items-center gap-1 font-mono">
           <ArrowUpDown className="w-3 h-3" style={{ color: 'var(--ag-text-tertiary)' }} />

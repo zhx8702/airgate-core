@@ -27,6 +27,7 @@ import {
   Sun,
   Moon,
   Menu,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface AppShellProps {
@@ -172,18 +173,18 @@ export function AppShell({ children }: AppShellProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
+      <nav className="flex-1 overflow-y-auto py-4 px-2.5 space-y-5">
         {sections.map((section, si) => (
           <div key={si}>
             {section.titleKey && !sidebarCollapsed && (
-              <p className="text-[10px] font-medium text-text-tertiary uppercase tracking-[0.1em] px-2.5 mb-1.5">
+              <p className="text-[10px] font-medium text-text-tertiary uppercase tracking-[0.12em] px-2.5 mb-2">
                 {t(section.titleKey)}
               </p>
             )}
             {sidebarCollapsed && si > 0 && (
-              <div className="h-px mx-3 mb-2 bg-border" />
+              <div className="h-px mx-3 mb-2.5 bg-border" />
             )}
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               {section.items.map((item) => {
                 const isActive = !!matchRoute({ to: item.path, fuzzy: item.path !== '/' });
                 const isExactDashboard = item.path === '/' && !!matchRoute({ to: '/' });
@@ -194,7 +195,7 @@ export function AppShell({ children }: AppShellProps) {
                     key={item.path}
                     to={item.path}
                     className={`group flex items-center gap-2.5 rounded-[10px] transition-all duration-150 relative ${
-                      sidebarCollapsed ? 'justify-center px-0 py-2.5 mx-1' : 'px-2.5 py-[7px]'
+                      sidebarCollapsed ? 'justify-center px-0 py-2.5 mx-1' : 'px-2.5 py-2'
                     } ${
                       active
                         ? 'bg-primary-subtle text-primary'
@@ -305,17 +306,18 @@ export function AppShell({ children }: AppShellProps) {
 
             {/* User info */}
             <div className="flex items-center gap-2.5 pl-1">
-              <div className="text-right hidden sm:block">
-                <p className="text-xs font-medium text-text leading-tight">
-                  {user?.username || user?.email}
-                </p>
-                <p className="text-[10px] text-text-tertiary leading-tight font-mono">
-                  {user?.role === 'admin' ? t('nav.admin') : t('nav.user')}
-                </p>
-              </div>
-              <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary-subtle text-[10px] font-bold text-primary">
-                {user?.email?.charAt(0).toUpperCase() || 'U'}
-              </div>
+              <span className="text-xs font-medium text-text hidden sm:inline">
+                {user?.username || user?.email}
+              </span>
+              {isAdmin ? (
+                <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary-subtle text-primary" title={t('nav.admin')}>
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+              ) : (
+                <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary-subtle text-[10px] font-bold text-primary">
+                  {user?.email?.charAt(0).toUpperCase() || 'U'}
+                </div>
+              )}
               <button
                 onClick={logout}
                 className="flex items-center justify-center w-7 h-7 rounded-[10px] text-text-tertiary hover:text-danger hover:bg-danger-subtle transition-all"

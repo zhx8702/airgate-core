@@ -176,6 +176,7 @@ export function useUsageColumns(): Column<UsageLogResp>[] {
       key: 'stream',
       title: t('usage.stream'),
       width: '84px',
+      hideOnMobile: true,
       render: (row) => (
         <Badge variant={row.stream ? 'info' : 'default'}>
           {row.stream ? t('common.yes') : t('common.no')}
@@ -186,6 +187,7 @@ export function useUsageColumns(): Column<UsageLogResp>[] {
       key: 'first_token_ms',
       title: t('usage.first_token'),
       width: '96px',
+      hideOnMobile: true,
       render: (row) => (
         <span className="font-mono text-xs text-text-secondary">
           {row.first_token_ms > 0 ? (row.first_token_ms >= 1000 ? `${(row.first_token_ms / 1000).toFixed(2)}s` : `${row.first_token_ms}ms`) : '-'}
@@ -196,6 +198,7 @@ export function useUsageColumns(): Column<UsageLogResp>[] {
       key: 'duration_ms',
       title: t('usage.duration'),
       width: '96px',
+      hideOnMobile: true,
       render: (row) => (
         <span className="font-mono text-xs">
           {row.duration_ms >= 1000 ? `${(row.duration_ms / 1000).toFixed(2)}s` : `${row.duration_ms}ms`}

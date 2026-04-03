@@ -118,6 +118,7 @@ export default function SubscriptionsPage() {
       key: 'id',
       title: t('common.id'),
       width: '60px',
+      hideOnMobile: true,
       render: (row) => (
         <span className="font-mono">
           {row.id}

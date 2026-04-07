@@ -46,6 +46,26 @@ export default function PluginsPage() {
     enabled: activeTab === 'marketplace',
   });
 
+  // 市场卡片直接安装（GitHub Release）
+  const [installingRepo, setInstallingRepo] = useState<string | null>(null);
+  const marketInstallMutation = useMutation({
+    mutationFn: (repo: string) => pluginsApi.installGithub(repo),
+    onSuccess: () => {
+      toast('success', t('plugins.github_success'));
+      // 插件前端模块需要整页重载才能生效
+      window.location.reload();
+    },
+    onError: (err: Error) => {
+      toast('error', err.message);
+      setInstallingRepo(null);
+    },
+  });
+
+  function handleMarketInstall(repo: string) {
+    setInstallingRepo(repo);
+    marketInstallMutation.mutate(repo);
+  }
+
   // 卸载插件
   const uninstallMutation = useMutation({
     mutationFn: (name: string) => pluginsApi.uninstall(name),
@@ -200,6 +220,8 @@ export default function PluginsPage() {
                 <MarketplaceCard
                   key={plugin.name}
                   plugin={plugin}
+                  installing={installingRepo === plugin.github_repo && marketInstallMutation.isPending}
+                  onInstall={handleMarketInstall}
                 />
               ))}
               {(marketData?.list ?? []).length === 0 && (
@@ -417,10 +439,15 @@ function InstallPluginModal({
 // 插件市场卡片组件
 function MarketplaceCard({
   plugin,
+  installing,
+  onInstall,
 }: {
   plugin: MarketplacePluginResp;
+  installing: boolean;
+  onInstall: (repo: string) => void;
 }) {
   const { t } = useTranslation();
+  const canInstall = !!plugin.github_repo;
 
   return (
     <Card>
@@ -445,6 +472,12 @@ function MarketplaceCard({
             v{plugin.version}
           </span>
         </div>
+        {plugin.github_repo && (
+          <div className="flex items-center gap-1 text-xs text-text-tertiary mb-3 font-mono">
+            <Github className="w-3 h-3" />
+            {plugin.github_repo}
+          </div>
+        )}
         <div className="pt-3 border-t border-border">
           {plugin.installed ? (
             <Badge variant="success">{t('plugins.already_installed')}</Badge>
@@ -452,7 +485,9 @@ function MarketplaceCard({
             <Button
               size="sm"
               icon={<Download className="w-3.5 h-3.5" />}
-              disabled
+              disabled={!canInstall || installing}
+              loading={installing}
+              onClick={() => plugin.github_repo && onInstall(plugin.github_repo)}
             >
               {t('common.install')}
             </Button>

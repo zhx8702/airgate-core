@@ -46,6 +46,7 @@ type MarketplacePlugin struct {
 	Description string
 	Author      string
 	Type        string
+	GithubRepo  string
 	Installed   bool
 }
 

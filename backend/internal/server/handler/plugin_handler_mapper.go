@@ -42,6 +42,7 @@ func toMarketplacePluginResp(item apppluginadmin.MarketplacePlugin) dto.Marketpl
 		Description: item.Description,
 		Author:      item.Author,
 		Type:        item.Type,
+		GithubRepo:  item.GithubRepo,
 		Installed:   item.Installed,
 	}
 }

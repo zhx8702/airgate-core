@@ -67,7 +67,15 @@ func NewServer(cfg *config.Config, db *ent.Client, rdb *redis.Client) *Server {
 	}
 	pluginMgr := plugin.NewManager(pluginDir, cfg.Log.Level)
 	forwarder := plugin.NewForwarder(db, pluginMgr, sched, concurrency, limiter, calculator, recorder)
-	marketplace := plugin.NewMarketplace(pluginDir)
+
+	marketOpts := []plugin.MarketplaceOption{
+		plugin.WithGithubToken(cfg.Plugins.Marketplace.GithubToken),
+		plugin.WithRefreshInterval(cfg.Plugins.Marketplace.RefreshInterval),
+	}
+	if entries := convertMarketEntries(cfg.Plugins.Marketplace.Plugins); len(entries) > 0 {
+		marketOpts = append(marketOpts, plugin.WithEntries(entries))
+	}
+	marketplace := plugin.NewMarketplace(pluginDir, marketOpts...)
 	dynamicRouter := NewDynamicRouter(forwarder)
 	extensionProxy := plugin.NewExtensionProxy(pluginMgr)
 
@@ -109,6 +117,24 @@ func NewServer(cfg *config.Config, db *ent.Client, rdb *redis.Client) *Server {
 	return s
 }
 
+// convertMarketEntries 把 config 层 MarketEntry 转换为 plugin 层 MarketplacePlugin
+func convertMarketEntries(entries []config.MarketEntry) []plugin.MarketplacePlugin {
+	if len(entries) == 0 {
+		return nil
+	}
+	out := make([]plugin.MarketplacePlugin, 0, len(entries))
+	for _, e := range entries {
+		out = append(out, plugin.MarketplacePlugin{
+			Name:        e.Name,
+			Description: e.Description,
+			Author:      e.Author,
+			Type:        e.Type,
+			GithubRepo:  e.GithubRepo,
+		})
+	}
+	return out
+}
+
 // Start 启动 HTTP 服务器（阻塞）
 func (s *Server) Start() error {
 	slog.Info("AirGate Core 服务器启动", "addr", s.srv.Addr)
@@ -131,6 +157,11 @@ func (s *Server) StartPlugins(ctx context.Context) {
 			slog.Error("加载开发插件失败", "name", dev.Name, "path", dev.Path, "error", err)
 		}
 	}
+
+	// 启动插件市场后台同步（默认开启，配置 plugins.marketplace.disabled=true 可关闭）
+	if !s.cfg.Plugins.Marketplace.Disabled {
+		s.marketplace.Start(context.Background())
+	}
 }
 
 // Shutdown 优雅关闭服务器
@@ -139,6 +170,11 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 	// 停止使用量记录器
 	s.recorder.Stop()
+
+	// 停止插件市场后台同步
+	if !s.cfg.Plugins.Marketplace.Disabled {
+		s.marketplace.Stop()
+	}
 
 	// 停止所有插件
 	s.pluginMgr.StopAll(ctx)

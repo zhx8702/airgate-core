@@ -112,6 +112,7 @@ func (s *Service) ListMarketplace(ctx context.Context) ([]MarketplacePlugin, err
 			Description: item.Description,
 			Author:      item.Author,
 			Type:        item.Type,
+			GithubRepo:  item.GithubRepo,
 			Installed:   installed[item.Name],
 		})
 	}

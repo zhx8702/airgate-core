@@ -53,5 +53,6 @@ type MarketplacePluginResp struct {
 	Description string `json:"description"`
 	Author      string `json:"author"`
 	Type        string `json:"type"`
+	GithubRepo  string `json:"github_repo,omitempty"`
 	Installed   bool   `json:"installed"`
 }

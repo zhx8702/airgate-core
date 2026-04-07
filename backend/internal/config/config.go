@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"os"
 	"strconv"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -41,8 +42,26 @@ type LogConfig struct {
 
 // PluginsConfig 插件配置
 type PluginsConfig struct {
-	Dir string      `yaml:"dir"` // 插件二进制目录，默认 data/plugins
-	Dev []DevPlugin `yaml:"dev"` // 开发模式：直接从源码加载的插件
+	Dir         string            `yaml:"dir"`         // 插件二进制目录，默认 data/plugins
+	Dev         []DevPlugin       `yaml:"dev"`         // 开发模式：直接从源码加载的插件
+	Marketplace MarketplaceConfig `yaml:"marketplace"` // 插件市场配置
+}
+
+// MarketplaceConfig 插件市场配置
+type MarketplaceConfig struct {
+	Disabled        bool          `yaml:"disabled"`         // 关闭市场后台同步（默认开启）
+	RefreshInterval time.Duration `yaml:"refresh_interval"` // 同步间隔，默认 1h
+	GithubToken     string        `yaml:"github_token"`     // GitHub Token，提高 API 限流上限
+	Plugins         []MarketEntry `yaml:"plugins"`          // 自定义市场条目（可选，覆盖默认列表）
+}
+
+// MarketEntry 市场插件条目（绑定到 GitHub 仓库）
+type MarketEntry struct {
+	Name        string `yaml:"name"`        // 插件名称（与 Info().ID 一致）
+	Description string `yaml:"description"` // 描述（兜底值，未拉到 release 时使用）
+	Author      string `yaml:"author"`      // 作者
+	Type        string `yaml:"type"`        // gateway / payment / extension
+	GithubRepo  string `yaml:"github_repo"` // owner/repo
 }
 
 // DevPlugin 开发模式插件
@@ -170,6 +189,7 @@ func applyEnvOverrides(cfg *Config) {
 
 	// 插件
 	envStr("PLUGINS_DIR", &cfg.Plugins.Dir)
+	envStr("PLUGINS_MARKETPLACE_GITHUB_TOKEN", &cfg.Plugins.Marketplace.GithubToken)
 }
 
 // envStr 如果环境变量存在，覆盖目标字符串

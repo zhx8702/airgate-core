@@ -486,6 +486,7 @@ export interface MarketplacePluginResp {
   description: string;
   author: string;
   type: string;
+  github_repo?: string;
   installed: boolean;
 }
 

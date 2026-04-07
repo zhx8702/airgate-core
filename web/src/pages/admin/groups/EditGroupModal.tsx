@@ -32,6 +32,7 @@ export function GroupFormModal({
   onSubmit,
   loading,
   platforms,
+  instructionPresets,
 }: {
   open: boolean;
   title: string;
@@ -40,6 +41,7 @@ export function GroupFormModal({
   onSubmit: (data: CreateGroupReq | UpdateGroupReq) => void;
   loading: boolean;
   platforms: string[];
+  instructionPresets: (platform: string) => string[];
 }) {
   const { t } = useTranslation();
   const isEdit = !!group;
@@ -169,16 +171,16 @@ export function GroupFormModal({
           icon={<ArrowUpDown className="w-4 h-4" />}
         />
 
-        {/* 强制 Instructions */}
-        <div>
+        {/* 强制 Instructions — 仅插件声明了预设时显示 */}
+        {instructionPresets(form.platform).length > 0 && <div>
           <label className="block text-xs font-medium uppercase tracking-wider mb-1.5" style={{ color: 'var(--ag-text-secondary)' }}>
-            {t('groups.force_instructions', 'Force Instructions')}
+            {t('groups.force_instructions')}
           </label>
           <p className="text-[11px] mb-2" style={{ color: 'var(--ag-text-tertiary)' }}>
-            {t('groups.force_instructions_hint', '留空则不覆盖。可填预设名 (default / simple / nsfw) 或自定义内容')}
+            {t('groups.force_instructions_hint')}
           </p>
-          <div className="flex gap-2 mb-2">
-            {['', 'default', 'simple', 'nsfw'].map((preset) => (
+          <div className="flex gap-2 mb-2 flex-wrap">
+            {['', ...instructionPresets(form.platform)].map((preset) => (
               <button
                 key={preset}
                 type="button"
@@ -190,11 +192,11 @@ export function GroupFormModal({
                   color: form.force_instructions === preset ? 'var(--ag-primary)' : 'var(--ag-text-secondary)',
                 }}
               >
-                {preset || t('groups.instructions_none', '不覆盖')}
+                {preset || t('groups.instructions_none')}
               </button>
             ))}
           </div>
-          {form.force_instructions && !['default', 'simple', 'nsfw'].includes(form.force_instructions) && (
+          {form.force_instructions && !instructionPresets(form.platform).includes(form.force_instructions) && (
             <textarea
               className="w-full rounded-lg border px-3 py-2 text-sm"
               style={{
@@ -205,10 +207,10 @@ export function GroupFormModal({
               rows={4}
               value={form.force_instructions}
               onChange={(e) => setForm({ ...form, force_instructions: e.target.value })}
-              placeholder={t('groups.instructions_custom_placeholder', '输入自定义 instructions 内容...')}
+              placeholder={t('groups.instructions_custom_placeholder')}
             />
           )}
-        </div>
+        </div>}
 
         {/* 配额限制 -- 仅订阅制显示 */}
         {form.subscription_type === 'subscription' && (

@@ -26,7 +26,7 @@ import type { GroupResp, CreateGroupReq, UpdateGroupReq } from '../../shared/typ
 
 export default function GroupsPage() {
   const { t } = useTranslation();
-  const { platforms, platformName } = usePlatforms();
+  const { platforms, platformName, instructionPresets } = usePlatforms();
 
   const PLATFORM_OPTIONS = [
     { value: '', label: t('groups.all_platforms') },
@@ -282,6 +282,7 @@ export default function GroupsPage() {
         onSubmit={(data) => createMutation.mutate(data as CreateGroupReq)}
         loading={createMutation.isPending}
         platforms={platforms}
+        instructionPresets={instructionPresets}
       />
 
       {/* 编辑弹窗 */}
@@ -296,6 +297,7 @@ export default function GroupsPage() {
           }
           loading={updateMutation.isPending}
           platforms={platforms}
+          instructionPresets={instructionPresets}
         />
       )}
 

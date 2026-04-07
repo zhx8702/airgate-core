@@ -26,16 +26,17 @@ func (s *Service) List() []PluginMeta {
 	result := make([]PluginMeta, 0, len(allMeta))
 	for _, item := range allMeta {
 		result = append(result, PluginMeta{
-			Name:          item.Name,
-			DisplayName:   item.DisplayName,
-			Version:       item.Version,
-			Author:        item.Author,
-			Type:          item.Type,
-			Platform:      item.Platform,
-			AccountTypes:  append([]sdk.AccountType(nil), item.AccountTypes...),
-			FrontendPages: append([]sdk.FrontendPage(nil), item.FrontendPages...),
-			HasWebAssets:  item.HasWebAssets,
-			IsDev:         item.IsDev,
+			Name:               item.Name,
+			DisplayName:        item.DisplayName,
+			Version:            item.Version,
+			Author:             item.Author,
+			Type:               item.Type,
+			Platform:           item.Platform,
+			AccountTypes:       append([]sdk.AccountType(nil), item.AccountTypes...),
+			FrontendPages:      append([]sdk.FrontendPage(nil), item.FrontendPages...),
+			InstructionPresets: append([]string(nil), item.InstructionPresets...),
+			HasWebAssets:       item.HasWebAssets,
+			IsDev:              item.IsDev,
 		})
 	}
 	return result

@@ -475,6 +475,7 @@ export interface PluginResp {
     icon?: string;
     description?: string;
   }>;
+  instruction_presets?: string[];
   has_web_assets?: boolean;
   is_dev?: boolean;
 }

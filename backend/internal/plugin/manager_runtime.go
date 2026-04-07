@@ -12,7 +12,6 @@ import (
 
 	sdk "github.com/DouDOU-start/airgate-sdk"
 	sdkgrpc "github.com/DouDOU-start/airgate-sdk/grpc"
-	"github.com/DouDOU-start/airgate-sdk/shared"
 )
 
 // LoadAll 启动时扫描插件目录，发现可执行二进制则直接加载。
@@ -105,10 +104,10 @@ func (m *Manager) IsDev(name string) bool {
 
 func (m *Manager) startPlugin(ctx context.Context, requestedName string, cmd *exec.Cmd, binaryDir string) (string, error) {
 	client := goplugin.NewClient(&goplugin.ClientConfig{
-		HandshakeConfig: shared.Handshake,
+		HandshakeConfig: sdkgrpc.Handshake,
 		Plugins: goplugin.PluginSet{
-			shared.PluginKeyGateway:   &sdkgrpc.GatewayGRPCPlugin{},
-			shared.PluginKeyExtension: &sdkgrpc.ExtensionGRPCPlugin{},
+			sdkgrpc.PluginKeyGateway:   &sdkgrpc.GatewayGRPCPlugin{},
+			sdkgrpc.PluginKeyExtension: &sdkgrpc.ExtensionGRPCPlugin{},
 		},
 		Cmd:              cmd,
 		AllowedProtocols: []goplugin.Protocol{goplugin.ProtocolGRPC},
@@ -122,7 +121,7 @@ func (m *Manager) startPlugin(ctx context.Context, requestedName string, cmd *ex
 		return "", fmt.Errorf("连接插件进程失败: %w", err)
 	}
 
-	raw, err := rpcClient.Dispense(shared.PluginKeyGateway)
+	raw, err := rpcClient.Dispense(sdkgrpc.PluginKeyGateway)
 	if err != nil {
 		client.Kill()
 		return "", fmt.Errorf("获取插件接口失败: %w", err)
@@ -135,7 +134,7 @@ func (m *Manager) startPlugin(ctx context.Context, requestedName string, cmd *ex
 
 	info := probe.Info()
 	if info.Type == sdk.PluginTypeExtension {
-		extRaw, err := rpcClient.Dispense(shared.PluginKeyExtension)
+		extRaw, err := rpcClient.Dispense(sdkgrpc.PluginKeyExtension)
 		if err != nil {
 			client.Kill()
 			return "", fmt.Errorf("获取 extension 插件接口失败: %w", err)
@@ -181,16 +180,17 @@ func (m *Manager) startGatewayPlugin(ctx context.Context, client *goplugin.Clien
 	}
 
 	instance := &PluginInstance{
-		Name:        canonicalName,
-		SourceName:  normalizePluginName(requestedName),
-		BinaryDir:   normalizePluginName(binaryDir),
-		DisplayName: info.Name,
-		Version:     info.Version,
-		Author:      info.Author,
-		Platform:    platform,
-		Type:        pluginType,
-		Client:      client,
-		Gateway:     gateway,
+		Name:               canonicalName,
+		SourceName:         normalizePluginName(requestedName),
+		BinaryDir:          normalizePluginName(binaryDir),
+		DisplayName:        info.Name,
+		Version:            info.Version,
+		Author:             info.Author,
+		Platform:           platform,
+		Type:               pluginType,
+		InstructionPresets: info.InstructionPresets,
+		Client:             client,
+		Gateway:            gateway,
 	}
 
 	m.mu.Lock()

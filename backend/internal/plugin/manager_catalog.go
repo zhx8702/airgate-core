@@ -167,13 +167,14 @@ func (m *Manager) GetAllPluginMeta() []PluginMeta {
 	for _, inst := range m.instances {
 		_, isDev := m.devPaths[inst.Name]
 		meta := PluginMeta{
-			Name:        inst.Name,
-			DisplayName: inst.DisplayName,
-			Version:     inst.Version,
-			Author:      inst.Author,
-			Type:        inst.Type,
-			Platform:    inst.Platform,
-			IsDev:       isDev,
+			Name:               inst.Name,
+			DisplayName:        inst.DisplayName,
+			Version:            inst.Version,
+			Author:             inst.Author,
+			Type:               inst.Type,
+			Platform:           inst.Platform,
+			InstructionPresets: inst.InstructionPresets,
+			IsDev:              isDev,
 		}
 		if types, ok := m.accountTypeCache[inst.Platform]; ok {
 			meta.AccountTypes = cloneAccountTypes(types)

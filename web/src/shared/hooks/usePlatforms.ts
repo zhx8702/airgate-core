@@ -27,6 +27,7 @@ export function usePlatforms() {
       const resp = await pluginsApi.list(FETCH_ALL_PARAMS);
       const platformSet = new Set<string>();
       const nameMap: Record<string, string> = {};
+      const presetsMap: Record<string, string[]> = {};
       for (const p of resp.list) {
         if (!p.platform) continue;
         platformSet.add(p.platform);
@@ -34,8 +35,11 @@ export function usePlatforms() {
           const raw = p.display_name || p.name || '';
           nameMap[p.platform] = raw ? extractPlatformName(raw) : capitalize(p.platform);
         }
+        if (p.instruction_presets?.length && !presetsMap[p.platform]) {
+          presetsMap[p.platform] = p.instruction_presets;
+        }
       }
-      return { platforms: [...platformSet], nameMap };
+      return { platforms: [...platformSet], nameMap, presetsMap };
     },
     staleTime: 60_000,
     enabled: !isAPIKeySession,
@@ -45,6 +49,8 @@ export function usePlatforms() {
     platforms: data?.platforms ?? [],
     /** platform 标识符 → 显示名（如 "openai" → "OpenAI"） */
     platformName: (platform: string) => data?.nameMap[platform] || capitalize(platform),
+    /** platform → 插件声明的 instruction 预设列表 */
+    instructionPresets: (platform: string) => data?.presetsMap[platform] ?? [],
     isLoading,
   };
 }

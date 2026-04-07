@@ -26,16 +26,17 @@ type MarketplaceReader interface {
 
 // PluginMeta 插件元信息。
 type PluginMeta struct {
-	Name          string
-	DisplayName   string
-	Version       string
-	Author        string
-	Type          string
-	Platform      string
-	AccountTypes  []sdk.AccountType
-	FrontendPages []sdk.FrontendPage
-	HasWebAssets  bool
-	IsDev         bool
+	Name               string
+	DisplayName        string
+	Version            string
+	Author             string
+	Type               string
+	Platform           string
+	AccountTypes       []sdk.AccountType
+	FrontendPages      []sdk.FrontendPage
+	InstructionPresets []string
+	HasWebAssets       bool
+	IsDev              bool
 }
 
 // MarketplacePlugin 市场插件条目。

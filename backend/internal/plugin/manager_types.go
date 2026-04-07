@@ -13,17 +13,18 @@ import (
 
 // PluginInstance 运行中的插件实例。
 type PluginInstance struct {
-	Name        string
-	SourceName  string
-	BinaryDir   string
-	DisplayName string
-	Version     string
-	Author      string
-	Platform    string
-	Type        string // "gateway", "extension"
-	Client      *goplugin.Client
-	Gateway     *sdkgrpc.GatewayGRPCClient
-	Extension   *sdkgrpc.ExtensionGRPCClient
+	Name               string
+	SourceName         string
+	BinaryDir          string
+	DisplayName        string
+	Version            string
+	Author             string
+	Platform           string
+	Type               string // "gateway", "extension"
+	InstructionPresets []string
+	Client             *goplugin.Client
+	Gateway            *sdkgrpc.GatewayGRPCClient
+	Extension          *sdkgrpc.ExtensionGRPCClient
 }
 
 // Manager 插件管理器。
@@ -45,16 +46,17 @@ type Manager struct {
 
 // PluginMeta 插件运行时元信息。
 type PluginMeta struct {
-	Name          string
-	DisplayName   string
-	Version       string
-	Author        string
-	Type          string
-	Platform      string
-	AccountTypes  []sdk.AccountType
-	FrontendPages []sdk.FrontendPage
-	HasWebAssets  bool
-	IsDev         bool
+	Name               string
+	DisplayName        string
+	Version            string
+	Author             string
+	Type               string
+	Platform           string
+	AccountTypes       []sdk.AccountType
+	FrontendPages      []sdk.FrontendPage
+	InstructionPresets []string
+	HasWebAssets       bool
+	IsDev              bool
 }
 
 // NewManager 创建插件管理器。

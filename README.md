@@ -159,19 +159,53 @@ make dev       # 启动前后端开发服务器
 
 更多命令见 `make help`。
 
-### 方式 3：自建镜像
+### 方式 3：服务器源码构建（自托管，不走 registry）
 
-如果你想 fork 后用自己的镜像仓库：
+适合**单机自部署、不想配 GitHub Actions / 镜像仓库**的场景：直接在生产服务器上 git pull 源码、本地 `docker build` 出镜像、用生产 compose 跑起来。整条链路在服务器自闭环，不依赖 ghcr.io，也不需要 push 到任何 registry。
 
 ```bash
-# 构建上下文必须是包含 airgate-sdk 的父目录
-docker build -f airgate-core/deploy/Dockerfile -t my-registry/airgate-core:dev ..
+# 1. 选一个部署目录，并排克隆 sdk + core（Dockerfile 要求两者同父目录）
+sudo mkdir -p /opt/airgate && cd /opt/airgate
+sudo git clone https://github.com/DouDOU-start/airgate-sdk.git
+sudo git clone https://github.com/DouDOU-start/airgate-core.git
 
-# 然后在 .env 里覆盖
-echo "AIRGATE_IMAGE=my-registry/airgate-core" >> .env
-echo "AIRGATE_IMAGE_TAG=dev" >> .env
-docker compose up -d
+# 2. 本地构建镜像（构建上下文必须是父目录 .）
+cd /opt/airgate
+sudo docker build -f airgate-core/deploy/Dockerfile -t airgate-core:local .
+
+# 3. 准备运行目录与 .env（与源码目录解耦，便于备份）
+sudo mkdir -p /opt/airgate/run && cd /opt/airgate/run
+sudo cp /opt/airgate/airgate-core/deploy/docker-compose.yml .
+sudo cp /opt/airgate/airgate-core/deploy/.env.example .env
+
+# 4. 编辑 .env：填三个必填密码 + 把镜像指向本地构建产物
+sudo vim .env
+# 关键三行：
+#   AIRGATE_IMAGE=airgate-core
+#   AIRGATE_IMAGE_TAG=local
+#   DB_PASSWORD=$(openssl rand -hex 24)      # 实际填上生成的值
+#   REDIS_PASSWORD=$(openssl rand -hex 24)
+#   JWT_SECRET=$(openssl rand -hex 32)
+
+# 5. 启动
+sudo docker compose up -d
+sudo docker compose logs -f core
 ```
+
+启动完成后访问 `http://<your-host>:9517`，按引导创建管理员账号。生产 compose 会带来正确的 named volume / healthcheck / restart 策略 / ulimits，与方式 1 完全等价，唯一区别只是镜像来源换成了本地构建。
+
+**升级**（同样在服务器上）：
+
+```bash
+cd /opt/airgate/airgate-sdk && sudo git pull
+cd /opt/airgate/airgate-core && sudo git pull
+cd /opt/airgate
+sudo docker build -f airgate-core/deploy/Dockerfile -t airgate-core:local .
+cd /opt/airgate/run
+sudo docker compose up -d   # 镜像 ID 变化会触发 core 容器重建
+```
+
+> ⚠️ **不要使用方式 2 的 dev compose 上生产**。dev compose 用 `go run` 启动、源码 bind-mount 进容器、密码全部硬编码（`airgate` / `airgate-dev` / `airgate-docker-secret-change-me`），仅供本地开发。生产必须通过 `docker build` 产出静态镜像，并使用 [deploy/docker-compose.yml](deploy/docker-compose.yml) + .env 的真实密码。
 
 ## 🏗 架构
 

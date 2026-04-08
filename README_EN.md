@@ -159,19 +159,54 @@ make dev       # Start dev servers
 
 See `make help` for more commands.
 
-### Method 3: Build Your Own Image
+### Method 3: Build From Source on the Server (self-hosted, no registry)
 
-If you want to fork and host your own image:
+For **single-host self-deployment without GitHub Actions or any image registry**: clone the source on the production server, run `docker build` locally, and start it with the production compose. The whole pipeline lives on the server — no ghcr.io, no `docker push` required.
 
 ```bash
-# Build context must be the parent directory containing airgate-sdk
-docker build -f airgate-core/deploy/Dockerfile -t my-registry/airgate-core:dev ..
+# 1. Pick a deploy directory and clone sdk + core side-by-side
+#    (the Dockerfile expects them in the same parent directory)
+sudo mkdir -p /opt/airgate && cd /opt/airgate
+sudo git clone https://github.com/DouDOU-start/airgate-sdk.git
+sudo git clone https://github.com/DouDOU-start/airgate-core.git
 
-# Then override in .env
-echo "AIRGATE_IMAGE=my-registry/airgate-core" >> .env
-echo "AIRGATE_IMAGE_TAG=dev" >> .env
-docker compose up -d
+# 2. Build the image locally (build context must be the parent dir .)
+cd /opt/airgate
+sudo docker build -f airgate-core/deploy/Dockerfile -t airgate-core:local .
+
+# 3. Prepare a runtime directory with its own .env (decoupled from source)
+sudo mkdir -p /opt/airgate/run && cd /opt/airgate/run
+sudo cp /opt/airgate/airgate-core/deploy/docker-compose.yml .
+sudo cp /opt/airgate/airgate-core/deploy/.env.example .env
+
+# 4. Edit .env: set the three required passwords + point to the local image
+sudo vim .env
+# Key lines:
+#   AIRGATE_IMAGE=airgate-core
+#   AIRGATE_IMAGE_TAG=local
+#   DB_PASSWORD=$(openssl rand -hex 24)      # actually paste the generated value
+#   REDIS_PASSWORD=$(openssl rand -hex 24)
+#   JWT_SECRET=$(openssl rand -hex 32)
+
+# 5. Start
+sudo docker compose up -d
+sudo docker compose logs -f core
 ```
+
+Once started, visit `http://<your-host>:9517` and follow the wizard to create the admin account. The production compose brings proper named volumes / healthchecks / restart policies / ulimits — fully equivalent to Method 1, the only difference is the image source.
+
+**Upgrades** (also on the server):
+
+```bash
+cd /opt/airgate/airgate-sdk && sudo git pull
+cd /opt/airgate/airgate-core && sudo git pull
+cd /opt/airgate
+sudo docker build -f airgate-core/deploy/Dockerfile -t airgate-core:local .
+cd /opt/airgate/run
+sudo docker compose up -d   # changed image id triggers core container recreate
+```
+
+> ⚠️ **Do NOT use Method 2's dev compose for production.** Dev compose runs `go run` on every start, bind-mounts host source code into the container, and hardcodes weak passwords (`airgate` / `airgate-dev` / `airgate-docker-secret-change-me`). It is for local development only. Production must go through `docker build` to produce a static image, and use [deploy/docker-compose.yml](deploy/docker-compose.yml) with real secrets in `.env`.
 
 ## 🏗 Architecture
 

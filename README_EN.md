@@ -86,52 +86,86 @@ See [airgate-openai](https://github.com/DouDOU-start/airgate-openai) for a compl
 
 ## 🚀 Deployment
 
-### Method 1: One-liner Install (simplest)
+Pick one. Both are production-ready.
 
-If your host has Docker, a single command downloads everything, generates secrets, starts containers, and waits for health:
+| Path | Best for | You provide |
+|---|---|---|
+| **1A. Bare-metal install.sh** | You already run PostgreSQL + Redis, want the leanest setup, prefer systemd | PostgreSQL 15+ / Redis 7+ |
+| **1B. Docker Compose** | A clean server, want pg + redis + core all containerized | Docker only |
+
+> ⚠️ Pick one — do NOT mix. Running both 1A and 1B gives you two database instances fighting each other.
+
+### Method 1A: Bare-metal install (systemd; bring your own PostgreSQL + Redis)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/install.sh | sudo bash
 ```
 
 [install.sh](deploy/install.sh) will:
 
-1. Verify required tools (docker, docker compose, curl, openssl)
-2. Interactively ask for install dir (default `./airgate`), HTTP port (default 9517), image tag
-3. Create `data/{postgres,redis,plugins,uploads}` under the install dir — all persistent data lives here
-4. Generate `DB_PASSWORD` / `REDIS_PASSWORD` / `JWT_SECRET` via `openssl rand`, write `.env` (mode 600)
-5. `docker compose pull && docker compose up -d`, then poll `/healthz`
-6. Print the access URL and useful follow-up commands
+1. Detect OS / arch (linux/amd64 or linux/arm64)
+2. Download `airgate-core-{os}-{arch}` from the latest GitHub Release (the frontend SPA and translation files are `//go:embed`-ed into the binary — single file, ready to run)
+3. Install to `/opt/airgate-core/airgate-core` with sha256 verification
+4. Create system user `airgate` and directories `/etc/airgate-core` / `/var/lib/airgate-core`
+5. Install systemd unit `airgate-core.service`
 
-After it finishes, visit `http://<your-host>:9517`. The install wizard will **automatically skip the DB / Redis steps** (env vars are already set) and only ask you to create the admin account. Then go to **Plugin Management → Marketplace** and install plugins on demand.
+The script does **not** start the service nor write `config.yaml` — that's deliberate so you can review first:
 
-> Don't trust `curl | bash`? Download first: `curl -fsSL .../install.sh -o install.sh && bash install.sh`.
-> CI usage: `NON_INTERACTIVE=1 AIRGATE_DIR=/srv/airgate bash install.sh`.
+```bash
+sudo systemctl start airgate-core
+sudo systemctl enable airgate-core
 
-### Method 1b: Manual Docker Compose
+# Then visit http://<your-host>:9517 — the wizard will ask for:
+#   - PostgreSQL connection (your existing instance)
+#   - Redis connection (your existing instance)
+#   - Admin account
+# Final config gets written to /etc/airgate-core/config.yaml
+```
 
-If you want full control over each step, or you're integrating into ansible / k8s helmfile / similar:
+After the admin UI is up, go to **Plugin Management → Marketplace** to install gateway-openai / payment-epay / airgate-health on demand (`/var/lib/airgate-core/plugins` is the persistent location).
+
+**Upgrade / uninstall**:
+
+```bash
+# Upgrade to latest (config and data preserved)
+curl -sSL https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/install.sh | sudo bash -s -- upgrade
+
+# Pin a specific version
+curl -sSL https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/install.sh | sudo bash -s -- -v v0.1.0
+
+# Uninstall (keeps /etc/airgate-core and /var/lib/airgate-core by default)
+curl -sSL https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/install.sh | sudo bash -s -- uninstall -y
+```
+
+**Common commands**:
+
+```bash
+sudo systemctl status airgate-core    # status
+sudo journalctl -u airgate-core -f    # logs
+sudo systemctl restart airgate-core   # restart
+```
+
+### Method 1B: Docker Compose (bundles PostgreSQL + Redis)
 
 ```bash
 mkdir airgate && cd airgate
+curl -sSL https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/docker-deploy.sh | bash
 
-# Download deployment files
-curl -O https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/docker-compose.yml
-curl -O https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/.env.example
-mv .env.example .env
-
-# Edit three required values: DB_PASSWORD / REDIS_PASSWORD / JWT_SECRET
-vim .env
-
-# Pre-create persistent dirs (avoids docker creating them as root)
-mkdir -p data/postgres data/redis data/plugins data/uploads
-
-# Start
+# Review the generated files, then start
 docker compose up -d
 docker compose logs -f core
 ```
 
-Once started, visit `http://<your-host>:9517` and follow the wizard to create the admin account. All data lives under `./data/`, so backup is just `tar czf backup.tgz data .env`.
+[docker-deploy.sh](deploy/docker-deploy.sh) only prepares files — it does NOT run `up -d` for you, so you can audit first:
+
+1. Verify `docker` / `docker compose` are installed
+2. Create `data/{postgres,redis,plugins,uploads}` under the current directory
+3. Download `docker-compose.yml`
+4. Generate `DB_PASSWORD` / `REDIS_PASSWORD` / `JWT_SECRET` via `openssl rand` and write `.env` (mode 600)
+
+After you `up -d`, visit `http://<your-host>:9517`. The install wizard will **automatically skip the DB / Redis steps** (env vars are already set) and only ask you to create the admin account.
+
+All persistent data lives under `./data/`, so backup is just `tar czf backup.tgz data .env`.
 
 **Key environment variables** (full list in [.env.example](deploy/.env.example)):
 
@@ -148,7 +182,7 @@ Once started, visit `http://<your-host>:9517` and follow the wizard to create th
 
 ### Method 2: Run from Source (Development)
 
-For development or running the full stack inside containers. Pick one of the two paths:
+For development or contributions. Pick one of the two paths:
 
 **A. Fully containerized (recommended, zero host dependencies)**
 
@@ -165,8 +199,6 @@ docker compose -f deploy/docker-compose.dev.yml up
 
 [deploy/docker-compose.dev.yml](deploy/docker-compose.dev.yml) brings up postgres + redis, builds the sdk / core frontends, and runs core via `go run ./cmd/server` — all inside containers. Visit `http://localhost:9517` once it is up.
 
-You will land on a clean core. Open **Plugin Management → Marketplace** in the admin UI to one-click install gateway-openai / payment-epay / airgate-health (the `data/plugins` directory is a persistent volume — installs survive restarts).
-
 **B. Run on the host directly**
 
 Requires Go 1.25+, Node 22+, local Postgres + Redis, and the sibling [`airgate-sdk`](https://github.com/DouDOU-start/airgate-sdk) repo:
@@ -182,54 +214,7 @@ make dev       # Start dev servers
 
 See `make help` for more commands.
 
-### Method 3: Build From Source on the Server (self-hosted, no registry)
-
-For **single-host self-deployment without GitHub Actions or any image registry**: clone the source on the production server, run `docker build` locally, and start it with the production compose. The whole pipeline lives on the server — no ghcr.io, no `docker push` required.
-
-```bash
-# 1. Pick a deploy directory and clone sdk + core side-by-side
-#    (the Dockerfile expects them in the same parent directory)
-sudo mkdir -p /opt/airgate && cd /opt/airgate
-sudo git clone https://github.com/DouDOU-start/airgate-sdk.git
-sudo git clone https://github.com/DouDOU-start/airgate-core.git
-
-# 2. Build the image locally (build context must be the parent dir .)
-cd /opt/airgate
-sudo docker build -f airgate-core/deploy/Dockerfile -t airgate-core:local .
-
-# 3. Prepare a runtime directory with its own .env (decoupled from source)
-sudo mkdir -p /opt/airgate/run && cd /opt/airgate/run
-sudo cp /opt/airgate/airgate-core/deploy/docker-compose.yml .
-sudo cp /opt/airgate/airgate-core/deploy/.env.example .env
-
-# 4. Edit .env: set the three required passwords + point to the local image
-sudo vim .env
-# Key lines:
-#   AIRGATE_IMAGE=airgate-core
-#   AIRGATE_IMAGE_TAG=local
-#   DB_PASSWORD=$(openssl rand -hex 24)      # actually paste the generated value
-#   REDIS_PASSWORD=$(openssl rand -hex 24)
-#   JWT_SECRET=$(openssl rand -hex 32)
-
-# 5. Start
-sudo docker compose up -d
-sudo docker compose logs -f core
-```
-
-Once started, visit `http://<your-host>:9517` and follow the wizard to create the admin account. The production compose brings proper named volumes / healthchecks / restart policies / ulimits — fully equivalent to Method 1, the only difference is the image source.
-
-**Upgrades** (also on the server):
-
-```bash
-cd /opt/airgate/airgate-sdk && sudo git pull
-cd /opt/airgate/airgate-core && sudo git pull
-cd /opt/airgate
-sudo docker build -f airgate-core/deploy/Dockerfile -t airgate-core:local .
-cd /opt/airgate/run
-sudo docker compose up -d   # changed image id triggers core container recreate
-```
-
-> ⚠️ **Do NOT use Method 2's dev compose for production.** Dev compose runs `go run` on every start, bind-mounts host source code into the container, and hardcodes weak passwords (`airgate` / `airgate-dev` / `airgate-docker-secret-change-me`). It is for local development only. Production must go through `docker build` to produce a static image, and use [deploy/docker-compose.yml](deploy/docker-compose.yml) with real secrets in `.env`.
+> ⚠️ **Do NOT use the dev compose for production.** It runs `go run`, bind-mounts host source, and hardcodes weak passwords (`airgate` / `airgate-dev`). It is for local development only. For production use Method 1A or 1B.
 
 ## 🏗 Architecture
 
@@ -287,28 +272,35 @@ airgate-core/
 │       ├── pages/admin/      # Admin pages
 │       ├── shared/api/       # API client
 │       └── i18n/             # zh / en strings
-├── deploy/                   # Docker deployment
-│   ├── install.sh            # One-liner install script (curl | bash)
-│   ├── docker-compose.yml    # Production (pulls ghcr.io image)
-│   ├── docker-compose.dev.yml# Development (source mount)
-│   ├── Dockerfile            # Multi-stage build
-│   ├── config.docker.yaml    # Image-baked default config
-│   └── .env.example          # Environment template
+├── deploy/                       # Deployment
+│   ├── install.sh                # Bare-metal installer (systemd; curl | sudo bash)
+│   ├── docker-deploy.sh          # Docker compose helper (curl | bash)
+│   ├── airgate-core.service      # systemd unit
+│   ├── docker-compose.yml        # Production compose (pulls ghcr.io image)
+│   ├── docker-compose.dev.yml    # Development compose (source mount)
+│   ├── Dockerfile                # Multi-stage build
+│   ├── config.docker.yaml        # Image-baked default config
+│   └── .env.example              # Environment template (for docker deploy)
 ├── .github/workflows/
-│   ├── ci.yml                # PR checks
-│   └── release.yml           # Tag-triggered buildx multi-arch push to ghcr.io
+│   ├── ci.yml                    # PR checks
+│   └── release.yml               # Tag-triggered: multi-arch image + native binaries
 └── Makefile
 ```
 
 ## 🔧 Operations
 
 - **Health check**: `GET /healthz` public endpoint, ready for docker / k8s
-- **Persistence**: All data lives in `./data/{postgres,redis,plugins,uploads}` (bind mounts). Backup is `tar czf backup.tgz data .env`
-- **Upgrade**: Edit `AIRGATE_IMAGE_TAG` in `.env` → `docker compose pull && docker compose up -d`
-- **DB migrations**: Ent schema changes regenerate code via `make ent`; auto-migrate on startup
+- **Self-contained binary**: Frontend SPA and translation files are `//go:embed`-ed into the binary. Bare-metal installs are a single file with no extra static asset directories to manage.
+- **Persistence**:
+  - **Bare-metal (1A)**: `/var/lib/airgate-core/{plugins,uploads}` + `/etc/airgate-core/config.yaml`. PostgreSQL / Redis are managed by you.
+  - **Docker (1B)**: All data lives in `./data/{postgres,redis,plugins,uploads}` (bind mounts). Backup is `tar czf backup.tgz data .env`.
+- **Upgrade**:
+  - Bare-metal: `curl -sSL .../install.sh | sudo bash -s -- upgrade`
+  - Docker: edit `AIRGATE_IMAGE_TAG` in `.env` → `docker compose pull && docker compose up -d`
+- **DB migrations**: Ent schema changes regenerate code via `make ent`; core auto-migrates on startup
 - **Plugin upgrade**: Marketplace → click refresh → uninstall old version → reinstall
 
-> **Migrating existing named-volume deployments**: Older compose files used named volumes `postgres_data` / `redis_data` / `airgate_plugins` / `airgate_uploads`. The new compose uses `./data/*` bind mounts. To migrate:
+> **Migrating existing Docker named-volume deployments**: Older compose files used named volumes `postgres_data` / `redis_data` / `airgate_plugins` / `airgate_uploads`. The new compose uses `./data/*` bind mounts. To migrate:
 > ```bash
 > docker compose down
 > mkdir -p data/postgres data/redis data/plugins data/uploads
@@ -316,7 +308,6 @@ airgate-core/
 > docker run --rm -v <project>_redis_data:/from    -v $(pwd)/data/redis:/to    alpine cp -a /from/. /to/
 > docker run --rm -v <project>_airgate_plugins:/from -v $(pwd)/data/plugins:/to alpine cp -a /from/. /to/
 > docker run --rm -v <project>_airgate_uploads:/from -v $(pwd)/data/uploads:/to alpine cp -a /from/. /to/
-> # Pull new compose
 > curl -O https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/docker-compose.yml
 > docker compose up -d
 > # After verifying everything works, drop the old named volumes

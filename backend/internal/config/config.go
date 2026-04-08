@@ -71,10 +71,13 @@ type DevPlugin struct {
 }
 
 // ServerConfig HTTP 服务器配置
+//
+// 注：早期版本曾有 WebDir 字段（默认 "web/dist"）。从 2026 起前端 SPA 已通过
+// //go:embed 打进二进制（见 internal/web 包），不再需要单独的静态目录配置。
+// 如果旧的 config.yaml 里仍有 web_dir，会被 yaml 解析器静默忽略，无需手工清理。
 type ServerConfig struct {
-	Port   int    `yaml:"port"`
-	Mode   string `yaml:"mode"`    // debug / release
-	WebDir string `yaml:"web_dir"` // 前端静态文件目录，默认 "web/dist"
+	Port int    `yaml:"port"`
+	Mode string `yaml:"mode"` // debug / release
 }
 
 // DatabaseConfig 数据库配置
@@ -145,7 +148,7 @@ func Load(path string) (*Config, error) {
 		return nil, err
 	}
 	cfg := &Config{
-		Server: ServerConfig{Port: DefaultPort, Mode: "release", WebDir: "web/dist"},
+		Server: ServerConfig{Port: DefaultPort, Mode: "release"},
 		JWT:    JWTConfig{ExpireHour: 24},
 	}
 	if err := yaml.Unmarshal(data, cfg); err != nil {
@@ -160,7 +163,6 @@ func applyEnvOverrides(cfg *Config) {
 	// 服务器
 	envInt("PORT", &cfg.Server.Port)
 	envStr("GIN_MODE", &cfg.Server.Mode)
-	envStr("WEB_DIR", &cfg.Server.WebDir)
 
 	// 数据库
 	envStr("DB_HOST", &cfg.Database.Host)

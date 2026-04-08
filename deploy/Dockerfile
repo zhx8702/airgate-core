@@ -30,22 +30,30 @@ COPY airgate-sdk/go.mod airgate-sdk/go.sum ./airgate-sdk/
 COPY airgate-core/backend/go.mod airgate-core/backend/go.sum ./airgate-core/backend/
 RUN go work init ./airgate-sdk ./airgate-core/backend && go mod download -x
 
-# 拷贝源码并编译
+# 拷贝源码
 COPY airgate-sdk ./airgate-sdk
 COPY airgate-core/backend ./airgate-core/backend
-RUN cd airgate-core/backend && CGO_ENABLED=0 go build -buildvcs=false -trimpath -o /server ./cmd/server
+
+# 把上一个阶段的前端产物拷进 //go:embed 目录，让 backend 把 SPA 打进二进制
+RUN rm -rf airgate-core/backend/internal/web/webdist && mkdir -p airgate-core/backend/internal/web/webdist
+COPY --from=frontend /build/airgate-core/web/dist/. airgate-core/backend/internal/web/webdist/
+
+# 镜像内的 Version 由 build-arg 注入，与 release workflow 的 git tag 一致
+ARG VERSION=docker
+RUN cd airgate-core/backend && CGO_ENABLED=0 go build -buildvcs=false -trimpath \
+    -ldflags "-X main.Version=${VERSION}" \
+    -o /server ./cmd/server
 
 # ---- 阶段 3: 运行时 ----
 FROM alpine:3.21
 RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
 
+# 二进制完全自包含：前端 SPA 与翻译文件均已 //go:embed 进 binary
 COPY --from=backend /server ./server
-COPY --from=frontend /build/airgate-core/web/dist ./frontend
 COPY airgate-core/deploy/config.docker.yaml ./config.yaml
-COPY airgate-core/backend/locales ./locales
 
-RUN mkdir -p data/plugins
+RUN mkdir -p data/plugins data/uploads
 
 EXPOSE 9517
 

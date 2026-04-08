@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -26,15 +28,41 @@ import (
 	"github.com/DouDOU-start/airgate-core/internal/i18n"
 	"github.com/DouDOU-start/airgate-core/internal/server"
 	"github.com/DouDOU-start/airgate-core/internal/setup"
+	webfs "github.com/DouDOU-start/airgate-core/internal/web"
 )
 
+// Version 由 release workflow 通过 -ldflags "-X main.Version=$tag" 注入。
+// 默认值 "dev" 仅用于本地 go build / go run，正式发版永远来自 git tag。
+var Version = "dev"
+
 func main() {
+	// CLI flags ------------------------------------------------------------
+	// 仅声明少量必要 flag，避免 cobra 之类的额外依赖；其余配置项继续走
+	// 配置文件 + 环境变量两条腿。
+	var (
+		showVersion bool
+		configPath  string
+	)
+	flag.BoolVar(&showVersion, "version", false, "打印版本号并退出")
+	flag.StringVar(&configPath, "config", "", "配置文件路径，默认为环境变量 CONFIG_PATH 或 ./config.yaml")
+	flag.Parse()
+
+	if showVersion {
+		fmt.Printf("airgate-core %s %s/%s\n", Version, runtime.GOOS, runtime.GOARCH)
+		return
+	}
+
+	// 如果 --config 提供了路径，把它写回环境变量，让后续 config.ConfigPath() 看到
+	if configPath != "" {
+		_ = os.Setenv("CONFIG_PATH", configPath)
+	}
+
 	// 默认初始化日志（配置加载前先用默认值）
 	sdk.InitLogger("core", "info", "text")
-	slog.Info("AirGate Core 启动中...", "sdk_version", sdk.SDKVersion)
+	slog.Info("AirGate Core 启动中...", "version", Version, "sdk_version", sdk.SDKVersion)
 
-	// 加载国际化
-	_ = i18n.Load("locales")
+	// 加载国际化（翻译文件已 //go:embed 进二进制）
+	_ = i18n.LoadEmbedded()
 
 	// 检查是否需要安装
 	if setup.NeedsSetup() {
@@ -68,16 +96,24 @@ func startSetupServer() {
 		close(done)
 	})
 
-	// 静态文件服务（前端）
-	webDir := os.Getenv("WEB_DIR")
-	if webDir == "" {
-		webDir = "web/dist"
+	// 静态文件服务（前端 SPA 来自嵌入资源）
+	distFS, err := webfs.FS()
+	if err != nil {
+		slog.Error("加载嵌入前端失败，安装向导无法启动", "error", err)
+		os.Exit(1)
 	}
-	indexHTML := filepath.Join(webDir, "index.html")
-	r.Static("/assets", filepath.Join(webDir, "assets"))
-	r.StaticFile("/", indexHTML)
+	indexHTML, _ := webfs.IndexHTML()
+	assetsFS, err := fs.Sub(distFS, "assets")
+	if err != nil {
+		slog.Error("嵌入前端缺少 assets 子目录", "error", err)
+		os.Exit(1)
+	}
+	r.StaticFS("/assets", http.FS(assetsFS))
+	r.GET("/", func(c *gin.Context) {
+		c.Data(http.StatusOK, "text/html; charset=utf-8", indexHTML)
+	})
 	r.NoRoute(func(c *gin.Context) {
-		c.File(indexHTML)
+		c.Data(http.StatusOK, "text/html; charset=utf-8", indexHTML)
 	})
 
 	port := config.GetPort()

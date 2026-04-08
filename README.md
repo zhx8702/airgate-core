@@ -86,52 +86,86 @@ type GatewayPlugin interface {
 
 ## 🚀 部署
 
-### 方式 1：一行安装（最简）
+两条路任选其一。两者都可以在生产使用。
 
-宿主机只要装了 Docker，一行命令完成下载、生成密钥、起容器、等待健康：
+| 路径 | 适用场景 | 你需要自备 |
+|---|---|---|
+| **1A. 裸金属 install.sh** | 已经有 PostgreSQL + Redis，想要最轻量的部署，喜欢 systemd | PostgreSQL 15+ / Redis 7+ |
+| **1B. Docker Compose** | 干净的服务器，想一把梭把 pg + redis + core 全部用容器跑起来 | 仅 Docker |
+
+> ⚠️ 二选一，不要混用。如果选 1A 又跑了 1B 的 docker compose，会出现两套数据库实例互相打架。
+
+### 方式 1A：裸金属安装（systemd，自备 PostgreSQL + Redis）
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/install.sh | sudo bash
 ```
 
 [install.sh](deploy/install.sh) 会：
 
-1. 检查 docker / docker compose / curl / openssl 等依赖
-2. 交互询问安装目录（默认 `./airgate`）、HTTP 端口（默认 9517）、镜像 tag
-3. 在安装目录下创建 `data/{postgres,redis,plugins,uploads}` 子目录，所有持久化数据落在这里
-4. 用 `openssl rand` 生成 `DB_PASSWORD` / `REDIS_PASSWORD` / `JWT_SECRET`，写入 `.env`（权限 600）
-5. 拉镜像、`docker compose up -d`、等待 `/healthz` 就绪
-6. 打印访问地址和后续命令
+1. 检测 OS / 架构（linux/amd64 或 linux/arm64）
+2. 从 GitHub Releases 下载对应平台的 `airgate-core-{os}-{arch}` 二进制（前端 SPA 与翻译文件已经 `//go:embed` 进 binary，单文件即可运行）
+3. 安装到 `/opt/airgate-core/airgate-core`，sha256 校验
+4. 创建系统用户 `airgate` 与目录 `/etc/airgate-core` / `/var/lib/airgate-core`
+5. 安装 systemd 服务 `airgate-core.service`
 
-启动完成后访问 `http://<your-host>:9517`，安装向导会**自动跳过 DB / Redis 配置**（环境变量已就绪），只需要建管理员账号即可。然后进入 **插件管理 → 插件市场** 按需安装插件。
+脚本**不会**自动启动服务，也**不会**写 `config.yaml` —— 是为了让你审查一遍后再启动：
 
-> 不喜欢 `curl | bash`？先下载再执行：`curl -fsSL .../install.sh -o install.sh && bash install.sh`。
-> CI 场景：`NON_INTERACTIVE=1 AIRGATE_DIR=/srv/airgate bash install.sh`。
+```bash
+sudo systemctl start airgate-core
+sudo systemctl enable airgate-core
 
-### 方式 1b：手动 Docker Compose
+# 然后浏览器访问 http://<your-host>:9517，向导会引导你输入：
+#   - PostgreSQL 连接（已运行的 pg 实例）
+#   - Redis 连接（已运行的 redis 实例）
+#   - 管理员账号
+# 所有信息会写入 /etc/airgate-core/config.yaml
+```
 
-如果你想完全自己控制每一步、或者要把部署纳入自己的 ansible / k8s helmfile 之类的体系：
+进入管理后台后到 **插件管理 → 插件市场** 按需安装 gateway-openai / payment-epay / airgate-health 等插件（`/var/lib/airgate-core/plugins` 持久化）。
+
+**升级 / 卸载**：
+
+```bash
+# 升级到最新版本（保留配置和数据）
+curl -sSL https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/install.sh | sudo bash -s -- upgrade
+
+# 安装指定版本
+curl -sSL https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/install.sh | sudo bash -s -- -v v0.1.0
+
+# 卸载（默认保留 /etc/airgate-core 与 /var/lib/airgate-core）
+curl -sSL https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/install.sh | sudo bash -s -- uninstall -y
+```
+
+**常用命令**：
+
+```bash
+sudo systemctl status airgate-core    # 状态
+sudo journalctl -u airgate-core -f    # 日志
+sudo systemctl restart airgate-core   # 重启
+```
+
+### 方式 1B：Docker Compose（自带 PostgreSQL + Redis）
 
 ```bash
 mkdir airgate && cd airgate
+curl -sSL https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/docker-deploy.sh | bash
 
-# 下载部署文件
-curl -O https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/docker-compose.yml
-curl -O https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/.env.example
-mv .env.example .env
-
-# 改三个必填项：DB_PASSWORD / REDIS_PASSWORD / JWT_SECRET
-vim .env
-
-# 准备持久化目录（避免 docker 用 root 身份创建后续读写不便）
-mkdir -p data/postgres data/redis data/plugins data/uploads
-
-# 启动
+# 检查生成的文件后启动
 docker compose up -d
 docker compose logs -f core
 ```
 
-启动完成后访问 `http://<your-host>:9517`，按引导创建管理员账号。所有数据落在 `./data/`，备份直接 `tar czf backup.tgz data .env` 即可。
+[docker-deploy.sh](deploy/docker-deploy.sh) 只准备文件 —— 不会替你 `up -d`，方便你审查后再启动：
+
+1. 检查 docker / docker compose 依赖
+2. 在当前目录创建 `data/{postgres,redis,plugins,uploads}` 子目录
+3. 下载 `docker-compose.yml`
+4. 用 `openssl rand` 生成 `DB_PASSWORD` / `REDIS_PASSWORD` / `JWT_SECRET` 写入 `.env`（权限 600）
+
+启动后访问 `http://<your-host>:9517`，安装向导**自动跳过 DB / Redis 配置**（环境变量已就绪），只需要建管理员账号即可。
+
+所有持久化数据落在 `./data/`，备份直接 `tar czf backup.tgz data .env` 即可。
 
 **关键环境变量**（完整列表见 [.env.example](deploy/.env.example)）：
 
@@ -146,9 +180,9 @@ docker compose logs -f core
 | `AIRGATE_IMAGE_TAG` | 镜像版本，默认 `latest`，可固定到 `v0.x.y` | ❌ |
 | `API_KEY_SECRET` | 用户 API Key 加密密钥，hex 编码 ≥64 字符 | ❌ |
 
-### 方式 2：源码运行（开发）
+### 方式 2：源码开发
 
-适合二次开发或想完整在容器里跑全家桶的场景。两条路任选其一：
+适合二次开发或贡献者。两条路任选其一：
 
 **A. 全容器（推荐，宿主机零依赖）**
 
@@ -165,8 +199,6 @@ docker compose -f deploy/docker-compose.dev.yml up
 
 [deploy/docker-compose.dev.yml](deploy/docker-compose.dev.yml) 会拉起 postgres + redis，构建 sdk / core 前端，最后用 `go run ./cmd/server` 启动 core，全部跑在容器里。访问 `http://localhost:9517` 即可。
 
-启动后是干净的 core，进入管理后台 → **插件管理 → 插件市场** 即可一键安装 gateway-openai / payment-epay / airgate-health（`data/plugins` 是持久 volume，装一次后续重启不会丢）。
-
 **B. 宿主机直跑**
 
 需要 Go 1.25+、Node 22+、本地 Postgres + Redis，以及兄弟目录 [`airgate-sdk`](https://github.com/DouDOU-start/airgate-sdk)：
@@ -182,53 +214,7 @@ make dev       # 启动前后端开发服务器
 
 更多命令见 `make help`。
 
-### 方式 3：服务器源码构建（自托管，不走 registry）
-
-适合**单机自部署、不想配 GitHub Actions / 镜像仓库**的场景：直接在生产服务器上 git pull 源码、本地 `docker build` 出镜像、用生产 compose 跑起来。整条链路在服务器自闭环，不依赖 ghcr.io，也不需要 push 到任何 registry。
-
-```bash
-# 1. 选一个部署目录，并排克隆 sdk + core（Dockerfile 要求两者同父目录）
-sudo mkdir -p /opt/airgate && cd /opt/airgate
-sudo git clone https://github.com/DouDOU-start/airgate-sdk.git
-sudo git clone https://github.com/DouDOU-start/airgate-core.git
-
-# 2. 本地构建镜像（构建上下文必须是父目录 .）
-cd /opt/airgate
-sudo docker build -f airgate-core/deploy/Dockerfile -t airgate-core:local .
-
-# 3. 准备运行目录与 .env（与源码目录解耦，便于备份）
-sudo mkdir -p /opt/airgate/run && cd /opt/airgate/run
-sudo cp /opt/airgate/airgate-core/deploy/docker-compose.yml .
-sudo cp /opt/airgate/airgate-core/deploy/.env.example .env
-
-# 4. 编辑 .env：填三个必填密码 + 把镜像指向本地构建产物
-sudo vim .env
-# 关键三行：
-#   AIRGATE_IMAGE=airgate-core
-#   AIRGATE_IMAGE_TAG=local
-#   DB_PASSWORD=$(openssl rand -hex 24)      # 实际填上生成的值
-#   REDIS_PASSWORD=$(openssl rand -hex 24)
-#   JWT_SECRET=$(openssl rand -hex 32)
-
-# 5. 启动
-sudo docker compose up -d
-sudo docker compose logs -f core
-```
-
-启动完成后访问 `http://<your-host>:9517`，按引导创建管理员账号。生产 compose 会带来正确的 named volume / healthcheck / restart 策略 / ulimits，与方式 1 完全等价，唯一区别只是镜像来源换成了本地构建。
-
-**升级**（同样在服务器上）：
-
-```bash
-cd /opt/airgate/airgate-sdk && sudo git pull
-cd /opt/airgate/airgate-core && sudo git pull
-cd /opt/airgate
-sudo docker build -f airgate-core/deploy/Dockerfile -t airgate-core:local .
-cd /opt/airgate/run
-sudo docker compose up -d   # 镜像 ID 变化会触发 core 容器重建
-```
-
-> ⚠️ **不要使用方式 2 的 dev compose 上生产**。dev compose 用 `go run` 启动、源码 bind-mount 进容器、密码全部硬编码（`airgate` / `airgate-dev` / `airgate-docker-secret-change-me`），仅供本地开发。生产必须通过 `docker build` 产出静态镜像，并使用 [deploy/docker-compose.yml](deploy/docker-compose.yml) + .env 的真实密码。
+> ⚠️ **不要使用 dev compose 上生产**。它用 `go run` 启动、源码 bind-mount 进容器、密码全部硬编码（`airgate` / `airgate-dev`），仅供本地开发。生产请走方式 1A 或 1B。
 
 ## 🏗 架构
 
@@ -286,28 +272,35 @@ airgate-core/
 │       ├── pages/admin/      # 管理页面
 │       ├── shared/api/       # API 客户端
 │       └── i18n/             # zh / en 文案
-├── deploy/                   # Docker 部署
-│   ├── install.sh            # 一行安装脚本（curl | bash）
-│   ├── docker-compose.yml    # 生产编排（拉取 ghcr.io 镜像）
-│   ├── docker-compose.dev.yml# 开发编排（源码挂载）
-│   ├── Dockerfile            # 多阶段构建
-│   ├── config.docker.yaml    # 镜像内置默认配置
-│   └── .env.example          # 环境变量模板
+├── deploy/                       # 部署
+│   ├── install.sh                # 裸金属安装脚本（systemd，curl | sudo bash）
+│   ├── docker-deploy.sh          # docker compose 部署准备脚本（curl | bash）
+│   ├── airgate-core.service      # systemd unit
+│   ├── docker-compose.yml        # 生产编排（拉取 ghcr.io 镜像）
+│   ├── docker-compose.dev.yml    # 开发编排（源码挂载）
+│   ├── Dockerfile                # 多阶段构建
+│   ├── config.docker.yaml        # 镜像内置默认配置
+│   └── .env.example              # docker 部署的环境变量模板
 ├── .github/workflows/
-│   ├── ci.yml                # PR 检查
-│   └── release.yml           # tag 触发，buildx 多架构 push 到 ghcr.io
+│   ├── ci.yml                    # PR 检查
+│   └── release.yml               # tag 触发：多架构镜像 + 跨平台二进制
 └── Makefile
 ```
 
 ## 🔧 运维要点
 
 - **健康检查**：`GET /healthz` 公开端点，docker / k8s 直接用
-- **数据持久化**：所有数据落在 `./data/{postgres,redis,plugins,uploads}` 四个 bind mount 子目录，备份只需 `tar czf backup.tgz data .env`
-- **升级**：改 `.env` 里的 `AIRGATE_IMAGE_TAG` → `docker compose pull && docker compose up -d`
-- **数据库迁移**：Ent schema 变更通过 `make ent` 生成代码，启动时自动 migrate
+- **二进制完全自包含**：前端 SPA 与翻译文件均通过 `//go:embed` 打进二进制，install.sh 部署只有一个文件，没有额外的静态资源目录需要管理
+- **数据持久化**：
+  - **裸金属（1A）**：`/var/lib/airgate-core/{plugins,uploads}` + `/etc/airgate-core/config.yaml`，PostgreSQL / Redis 由用户自行管理
+  - **Docker（1B）**：所有数据落在 `./data/{postgres,redis,plugins,uploads}` 四个 bind mount，备份只需 `tar czf backup.tgz data .env`
+- **升级**：
+  - 裸金属：`curl -sSL .../install.sh | sudo bash -s -- upgrade`
+  - Docker：改 `.env` 里的 `AIRGATE_IMAGE_TAG` → `docker compose pull && docker compose up -d`
+- **数据库迁移**：Ent schema 变更通过 `make ent` 生成代码，core 启动时自动 migrate
 - **插件升级**：管理后台插件市场点刷新 → 卸载旧版本 → 重新安装
 
-> **存量用户从 named volume 迁移**：旧版 compose 使用 `postgres_data` / `redis_data` / `airgate_plugins` / `airgate_uploads` 四个命名 volume，新版改为 `./data/*` bind mount。迁移步骤：
+> **Docker 存量用户从 named volume 迁移**：旧版 compose 使用 `postgres_data` / `redis_data` / `airgate_plugins` / `airgate_uploads` 四个命名 volume，新版改为 `./data/*` bind mount。迁移步骤：
 > ```bash
 > docker compose down
 > mkdir -p data/postgres data/redis data/plugins data/uploads
@@ -315,7 +308,6 @@ airgate-core/
 > docker run --rm -v <project>_redis_data:/from    -v $(pwd)/data/redis:/to    alpine cp -a /from/. /to/
 > docker run --rm -v <project>_airgate_plugins:/from -v $(pwd)/data/plugins:/to alpine cp -a /from/. /to/
 > docker run --rm -v <project>_airgate_uploads:/from -v $(pwd)/data/uploads:/to alpine cp -a /from/. /to/
-> # 拉取新 compose
 > curl -O https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/docker-compose.yml
 > docker compose up -d
 > # 验证一切正常后再删除旧的命名 volume

@@ -1,0 +1,36 @@
+[Unit]
+Description=AirGate Core - Pluggable AI Gateway Runtime
+Documentation=https://github.com/DouDOU-start/airgate-core
+After=network.target postgresql.service redis.service redis-server.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=simple
+User=airgate
+Group=airgate
+WorkingDirectory=/opt/airgate-core
+ExecStart=/opt/airgate-core/airgate-core --config /etc/airgate-core/config.yaml
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=airgate-core
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/airgate-core /etc/airgate-core /var/lib/airgate-core
+
+# 进程级文件描述符限制（与 docker compose 部署对齐）
+LimitNOFILE=65536
+
+# 默认环境变量；首次启动后用户应当通过 install.sh 或手工编辑配置：
+#  - CONFIG_PATH 可以由 --config 覆盖
+#  - PLUGINS_DIR 默认 /var/lib/airgate-core/plugins
+Environment=GIN_MODE=release
+Environment=PLUGINS_DIR=/var/lib/airgate-core/plugins
+
+[Install]
+WantedBy=multi-user.target

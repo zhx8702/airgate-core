@@ -1,210 +1,448 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # ============================================================
-# AirGate Core 一行安装脚本
+# AirGate Core - 裸金属安装脚本（systemd）
 #
 # 用法：
-#   curl -fsSL https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/install.sh | bash
+#   curl -sSL https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/install.sh | sudo bash
 #
-# 或带参数（先 download 再执行更安全可审计）：
-#   curl -fsSL https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/install.sh -o install.sh
-#   bash install.sh
+# 或带子命令：
+#   sudo bash install.sh install    # 安装最新版本（默认动作）
+#   sudo bash install.sh upgrade    # 升级到最新版本
+#   sudo bash install.sh uninstall  # 卸载（保留 /etc/airgate-core 与 /var/lib/airgate-core）
+#   sudo bash install.sh -v v0.x.y  # 安装指定版本
 #
-# 环境变量覆盖（可选）：
-#   AIRGATE_DIR     安装目录            默认: ./airgate
-#   AIRGATE_PORT    HTTP 端口           默认: 9517
-#   AIRGATE_BRANCH  从 GitHub 拉哪个分支 默认: master
-#   AIRGATE_TAG     固定镜像版本         默认: latest
-#   NON_INTERACTIVE 跳过所有交互（CI 用） 默认: 0
+# 前置条件：
+#   - Linux x86_64 / arm64
+#   - 已运行的 PostgreSQL 15+
+#   - 已运行的 Redis 7+
+#   - root 权限（systemd 需要）
+#
+# 这个脚本会做：
+#   1. 从 GitHub Releases 下载对应平台的 airgate-core 二进制（前端 SPA 已内嵌）
+#   2. 安装到 /opt/airgate-core/airgate-core
+#   3. 创建系统用户 airgate
+#   4. 创建 /etc/airgate-core / /var/lib/airgate-core 目录
+#   5. 安装 systemd 服务 airgate-core.service
+#
+# 它故意不替你启动服务、不写 config.yaml —— 装完之后请：
+#   sudo systemctl start airgate-core
+#   sudo systemctl enable airgate-core
+#   浏览器打开 http://<your-host>:9517 走安装向导
+#
+# 安装向导会引导你输入 PostgreSQL / Redis 连接信息和管理员账号，
+# 写入 /etc/airgate-core/config.yaml。
+#
+# 想要自带 PostgreSQL + Redis 的 Docker Compose 部署？请改用 deploy/docker-deploy.sh。
 # ============================================================
 
-set -euo pipefail
+set -e
 
-# ---- 颜色输出 ----
-if [[ -t 1 ]]; then
-  C_RESET='\033[0m'; C_BOLD='\033[1m'; C_DIM='\033[2m'
-  C_RED='\033[31m'; C_GREEN='\033[32m'; C_YELLOW='\033[33m'; C_BLUE='\033[34m'; C_CYAN='\033[36m'
+# ---- Constants ----
+GITHUB_REPO="DouDOU-start/airgate-core"
+INSTALL_DIR="/opt/airgate-core"
+CONFIG_DIR="/etc/airgate-core"
+DATA_DIR="/var/lib/airgate-core"
+SERVICE_NAME="airgate-core"
+SERVICE_USER="airgate"
+
+# Colors
+if [ -t 1 ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[0;34m'
+    CYAN='\033[0;36m'
+    NC='\033[0m'
 else
-  C_RESET=''; C_BOLD=''; C_DIM=''; C_RED=''; C_GREEN=''; C_YELLOW=''; C_BLUE=''; C_CYAN=''
+    RED=''
+    GREEN=''
+    YELLOW=''
+    BLUE=''
+    CYAN=''
+    NC=''
 fi
 
-info()    { printf '%b\n' "${C_CYAN}==>${C_RESET} $*"; }
-ok()      { printf '%b\n' "${C_GREEN}✓${C_RESET} $*"; }
-warn()    { printf '%b\n' "${C_YELLOW}!${C_RESET} $*"; }
-err()     { printf '%b\n' "${C_RED}✗${C_RESET} $*" >&2; }
-section() { printf '\n%b\n' "${C_BOLD}${C_BLUE}── $* ──${C_RESET}"; }
+# ---- Logging ----
+print_info()    { echo -e "${BLUE}[信息]${NC} $1"; }
+print_success() { echo -e "${GREEN}[成功]${NC} $1"; }
+print_warning() { echo -e "${YELLOW}[警告]${NC} $1"; }
+print_error()   { echo -e "${RED}[错误]${NC} $1" >&2; }
 
-# ---- 横幅 ----
-cat <<'BANNER'
+# ---- Banner ----
+print_banner() {
+    cat <<'BANNER'
 
-    ╔═══════════════════════════════════════╗
-    ║         AirGate Core Installer        ║
-    ║   Pluggable AI Gateway · One-liner    ║
-    ╚═══════════════════════════════════════╝
+    ╔═══════════════════════════════════════════════╗
+    ║          AirGate Core Installer               ║
+    ║       Pluggable AI Gateway · Bare Metal       ║
+    ╚═══════════════════════════════════════════════╝
 
 BANNER
-
-# ---- 默认参数 ----
-AIRGATE_DIR="${AIRGATE_DIR:-./airgate}"
-AIRGATE_PORT="${AIRGATE_PORT:-9517}"
-AIRGATE_BRANCH="${AIRGATE_BRANCH:-master}"
-AIRGATE_TAG="${AIRGATE_TAG:-latest}"
-NON_INTERACTIVE="${NON_INTERACTIVE:-0}"
-
-REPO_RAW_URL="https://raw.githubusercontent.com/DouDOU-start/airgate-core/${AIRGATE_BRANCH}/deploy"
-
-# ---- 依赖检查 ----
-section "环境检查"
-
-require_cmd() {
-  if ! command -v "$1" >/dev/null 2>&1; then
-    err "未找到命令: $1${2:+，请先安装 $2}"
-    exit 1
-  fi
-  ok "$1"
 }
 
-require_cmd docker "Docker"
-
-# 兼容 docker-compose 老版本（v1）和 docker compose 新插件（v2）
-if docker compose version >/dev/null 2>&1; then
-  COMPOSE="docker compose"
-  ok "docker compose (v2)"
-elif command -v docker-compose >/dev/null 2>&1; then
-  COMPOSE="docker-compose"
-  ok "docker-compose (v1, 兼容模式)"
-else
-  err "未找到 docker compose / docker-compose，请安装 Docker Compose"
-  exit 1
-fi
-
-require_cmd curl
-require_cmd openssl
-
-# ---- 交互式参数 ----
-prompt() {
-  local var=$1 msg=$2 default=$3 reply
-  if [[ "$NON_INTERACTIVE" == "1" ]]; then
-    eval "$var=\"\$default\""
-    return
-  fi
-  printf '%b' "${C_DIM}?${C_RESET} ${msg} ${C_DIM}[${default}]${C_RESET}: " > /dev/tty
-  read -r reply < /dev/tty || reply=""
-  eval "$var=\"\${reply:-\$default}\""
+# ---- Check root ----
+check_root() {
+    if [ "$(id -u)" -ne 0 ]; then
+        print_error "请使用 root 权限运行（sudo bash install.sh）"
+        exit 1
+    fi
 }
 
-section "安装参数"
-prompt AIRGATE_DIR  "安装目录"           "$AIRGATE_DIR"
-prompt AIRGATE_PORT "HTTP 监听端口"       "$AIRGATE_PORT"
-prompt AIRGATE_TAG  "镜像版本 (latest 或 v0.x.y)" "$AIRGATE_TAG"
+# ---- Detect OS / arch ----
+detect_platform() {
+    OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+    ARCH=$(uname -m)
 
-# 把 ~ 展开
-AIRGATE_DIR="${AIRGATE_DIR/#\~/$HOME}"
+    case "$ARCH" in
+        x86_64) ARCH="amd64" ;;
+        aarch64|arm64) ARCH="arm64" ;;
+        *)
+            print_error "不支持的架构: $ARCH（仅支持 amd64 / arm64）"
+            exit 1
+            ;;
+    esac
 
-# ---- 准备目录 ----
-section "准备目录 ${AIRGATE_DIR}"
+    case "$OS" in
+        linux) OS="linux" ;;
+        darwin)
+            print_error "macOS 不支持 systemd，请使用 Docker Compose 部署：deploy/docker-deploy.sh"
+            exit 1
+            ;;
+        *)
+            print_error "不支持的操作系统: $OS"
+            exit 1
+            ;;
+    esac
 
-if [[ -e "$AIRGATE_DIR" ]] && [[ -n "$(ls -A "$AIRGATE_DIR" 2>/dev/null || true)" ]]; then
-  warn "目录 ${AIRGATE_DIR} 已存在且非空"
-  if [[ -f "$AIRGATE_DIR/docker-compose.yml" ]]; then
-    if [[ "$NON_INTERACTIVE" == "1" ]]; then
-      err "已存在 docker-compose.yml，请先备份或删除目录后重试（NON_INTERACTIVE 模式不会覆盖）"
-      exit 1
+    print_info "检测到平台: ${OS}/${ARCH}"
+}
+
+# ---- Check dependencies ----
+check_dependencies() {
+    local missing=()
+    command -v curl >/dev/null 2>&1 || missing+=("curl")
+    command -v sha256sum >/dev/null 2>&1 || missing+=("sha256sum (coreutils)")
+    command -v systemctl >/dev/null 2>&1 || missing+=("systemctl (systemd)")
+
+    if [ ${#missing[@]} -gt 0 ]; then
+        print_error "缺少依赖: ${missing[*]}"
+        print_info "请先安装这些工具后再运行本脚本"
+        exit 1
     fi
-    printf '%b' "${C_YELLOW}?${C_RESET} 检测到已有部署，是否覆盖 docker-compose.yml？.env 与 ./data 不会被动 [y/N]: " > /dev/tty
-    read -r ans < /dev/tty || ans=""
-    if [[ "$ans" != "y" && "$ans" != "Y" ]]; then
-      info "已取消安装。如需重新部署，请清空 ${AIRGATE_DIR} 后重试。"
-      exit 0
+}
+
+# ---- Get latest version ----
+get_latest_version() {
+    print_info "获取最新版本..."
+    LATEST_VERSION=$(curl -fsSL --connect-timeout 10 --max-time 30 \
+        "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" 2>/dev/null \
+        | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+
+    if [ -z "$LATEST_VERSION" ]; then
+        print_error "获取最新版本失败，请检查网络"
+        exit 1
     fi
-  fi
-fi
 
-mkdir -p "$AIRGATE_DIR"
-cd "$AIRGATE_DIR"
-mkdir -p data/postgres data/redis data/plugins data/uploads
+    print_info "最新版本: $LATEST_VERSION"
+}
 
-ok "目录就绪：$(pwd)"
+# ---- Validate explicit version ----
+validate_version() {
+    local v="$1"
+    [[ "$v" =~ ^v ]] || v="v$v"
+    print_info "校验版本 $v ..."
+    local code
+    code=$(curl -fsSL -o /dev/null -w "%{http_code}" --connect-timeout 10 --max-time 30 \
+        "https://api.github.com/repos/${GITHUB_REPO}/releases/tags/${v}" 2>/dev/null || echo "000")
+    if [ "$code" != "200" ]; then
+        print_error "版本 $v 不存在（GitHub 返回 $code）"
+        exit 1
+    fi
+    LATEST_VERSION="$v"
+    print_info "已选择版本: $LATEST_VERSION"
+}
 
-# ---- 下载 docker-compose.yml ----
-section "下载 docker-compose.yml"
-curl -fsSL "${REPO_RAW_URL}/docker-compose.yml" -o docker-compose.yml
-ok "已下载到 $(pwd)/docker-compose.yml"
+# ---- Get currently installed version ----
+get_current_version() {
+    if [ -f "$INSTALL_DIR/airgate-core" ]; then
+        "$INSTALL_DIR/airgate-core" --version 2>/dev/null \
+            | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "unknown"
+    else
+        echo "not_installed"
+    fi
+}
 
-# ---- 生成 / 复用 .env ----
-section "生成 .env"
+# ---- Download and install binary ----
+download_and_install_binary() {
+    local asset="airgate-core-${OS}-${ARCH}"
+    local url="https://github.com/${GITHUB_REPO}/releases/download/${LATEST_VERSION}/${asset}"
+    local checksum_url="${url}.sha256"
 
-if [[ -f .env ]]; then
-  warn ".env 已存在，沿用现有密钥（不会覆盖）"
-else
-  DB_PASSWORD="$(openssl rand -hex 24)"
-  REDIS_PASSWORD="$(openssl rand -hex 24)"
-  JWT_SECRET="$(openssl rand -hex 32)"
+    print_info "下载 ${asset} ..."
+    TEMP_DIR=$(mktemp -d)
+    trap 'rm -rf "$TEMP_DIR"' EXIT
 
-  cat > .env <<EOF
-# AirGate Core 部署配置（由 install.sh 自动生成于 $(date '+%Y-%m-%d %H:%M:%S')）
-# 任何修改需要 docker compose up -d 重启生效
-# 数据库 / Redis 密码相关说明见 README.md
+    if ! curl -fL --progress-bar "$url" -o "$TEMP_DIR/$asset"; then
+        print_error "下载失败: $url"
+        exit 1
+    fi
 
-AIRGATE_IMAGE=ghcr.io/doudou-start/airgate-core
-AIRGATE_IMAGE_TAG=${AIRGATE_TAG}
+    print_info "校验 SHA256 ..."
+    if curl -fsSL "$checksum_url" -o "$TEMP_DIR/${asset}.sha256" 2>/dev/null; then
+        local expected actual
+        expected=$(awk '{print $1}' "$TEMP_DIR/${asset}.sha256")
+        actual=$(sha256sum "$TEMP_DIR/$asset" | awk '{print $1}')
+        if [ "$expected" != "$actual" ]; then
+            print_error "校验失败"
+            print_error "  期望: $expected"
+            print_error "  实际: $actual"
+            exit 1
+        fi
+        print_success "校验通过"
+    else
+        print_warning "未找到 .sha256 文件，跳过校验"
+    fi
 
-PORT=${AIRGATE_PORT}
-BIND_HOST=0.0.0.0
-TZ=Asia/Shanghai
+    mkdir -p "$INSTALL_DIR"
+    install -m 0755 "$TEMP_DIR/$asset" "$INSTALL_DIR/airgate-core"
+    print_success "二进制已安装到 $INSTALL_DIR/airgate-core"
+}
 
-DB_PASSWORD=${DB_PASSWORD}
-REDIS_PASSWORD=${REDIS_PASSWORD}
-JWT_SECRET=${JWT_SECRET}
+# ---- Create system user ----
+create_user() {
+    if id "$SERVICE_USER" &>/dev/null; then
+        print_info "系统用户 $SERVICE_USER 已存在"
+    else
+        print_info "创建系统用户 $SERVICE_USER ..."
+        # /bin/sh 是为了兼容 systemd ExecStartPost 之类的脚本调用，
+        # 不分配 home / 不允许登录（无密码）。
+        useradd -r -s /bin/sh -d "$INSTALL_DIR" -c "AirGate Core service" "$SERVICE_USER"
+        print_success "用户已创建"
+    fi
+}
 
-API_KEY_SECRET=
-PLUGINS_MARKETPLACE_GITHUB_TOKEN=
-EOF
-  chmod 600 .env
-  ok "已生成 .env（所有密钥随机，权限 600）"
-fi
+# ---- Setup directories ----
+setup_directories() {
+    print_info "创建目录与权限 ..."
+    mkdir -p "$INSTALL_DIR" "$CONFIG_DIR" "$DATA_DIR/plugins" "$DATA_DIR/uploads"
+    chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR" "$DATA_DIR"
+    chown -R "$SERVICE_USER:$SERVICE_USER" "$CONFIG_DIR"
+    chmod 750 "$CONFIG_DIR"
+    print_success "目录就绪"
+}
 
-# ---- 拉镜像并启动 ----
-section "拉取镜像并启动容器"
-$COMPOSE pull
-$COMPOSE up -d
-ok "容器已启动"
+# ---- Install systemd unit ----
+install_service() {
+    local unit_url="https://raw.githubusercontent.com/${GITHUB_REPO}/master/deploy/airgate-core.service"
+    print_info "下载并安装 systemd unit ..."
+    if ! curl -fsSL "$unit_url" -o "/etc/systemd/system/${SERVICE_NAME}.service"; then
+        print_error "下载 systemd unit 失败"
+        exit 1
+    fi
+    systemctl daemon-reload
+    print_success "systemd 服务已安装到 /etc/systemd/system/${SERVICE_NAME}.service"
+}
 
-# ---- 等待健康 ----
-section "等待 core 就绪"
-attempts=0
-max_attempts=30
-until curl -fsS "http://127.0.0.1:${AIRGATE_PORT}/healthz" >/dev/null 2>&1; do
-  attempts=$((attempts + 1))
-  if [[ $attempts -ge $max_attempts ]]; then
-    warn "core 在 ${max_attempts}s 内未就绪，请用 '$COMPOSE logs -f core' 排查"
-    break
-  fi
-  sleep 1
-done
-[[ $attempts -lt $max_attempts ]] && ok "core 已就绪"
+# ---- Detect public IP for completion message ----
+detect_public_ip() {
+    PUBLIC_IP=$(curl -fsSL --connect-timeout 5 --max-time 10 https://ipinfo.io/ip 2>/dev/null || true)
+    [ -n "$PUBLIC_IP" ] || PUBLIC_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "<your-host>")
+}
 
-# ---- 完成 ----
-cat <<DONE
+# ---- Print install completion ----
+print_install_complete() {
+    detect_public_ip
+    cat <<DONE
 
-${C_GREEN}${C_BOLD}✓ 安装完成${C_RESET}
+=================================================
+${GREEN}✓ AirGate Core ${LATEST_VERSION} 安装完成${NC}
+=================================================
 
-  访问地址 : ${C_CYAN}http://<your-host>:${AIRGATE_PORT}${C_RESET}
-  安装目录 : ${C_CYAN}$(pwd)${C_RESET}
-  数据目录 : ${C_CYAN}$(pwd)/data${C_RESET}
-  环境变量 : ${C_CYAN}$(pwd)/.env${C_RESET}  ${C_DIM}(权限 600，含随机密钥)${C_RESET}
+  二进制   : ${CYAN}${INSTALL_DIR}/airgate-core${NC}
+  配置目录 : ${CYAN}${CONFIG_DIR}${NC}
+  数据目录 : ${CYAN}${DATA_DIR}${NC}
+  systemd  : ${CYAN}/etc/systemd/system/${SERVICE_NAME}.service${NC}
 
-${C_BOLD}下一步${C_RESET}
-  1. 浏览器打开上面的访问地址
-  2. 系统安装向导 → 由于 .env 已配置好 DB / Redis，向导会自动跳过这两步，
-     只需建立管理员账号即可
-  3. 进入管理后台 → 插件管理 → 插件市场 → 按需安装插件
+${BLUE}下一步${NC}
 
-${C_BOLD}常用命令${C_RESET}
-  $COMPOSE logs -f core      # 查看日志
-  $COMPOSE restart           # 重启
-  $COMPOSE down              # 停止
-  $COMPOSE pull && $COMPOSE up -d   # 升级镜像
+  1. 启动服务：
+     ${CYAN}sudo systemctl start ${SERVICE_NAME}${NC}
 
-${C_DIM}文档：https://github.com/DouDOU-start/airgate-core${C_RESET}
+  2. 设置开机自启：
+     ${CYAN}sudo systemctl enable ${SERVICE_NAME}${NC}
+
+  3. 浏览器打开安装向导：
+     ${CYAN}http://${PUBLIC_IP}:9517${NC}
+
+     向导会引导你完成：
+       - PostgreSQL 连接配置
+       - Redis 连接配置
+       - 创建管理员账号
+
+     最终的连接信息会写到 ${CONFIG_DIR}/config.yaml。
+
+${BLUE}常用命令${NC}
+
+  sudo systemctl status ${SERVICE_NAME}    # 查看状态
+  sudo journalctl -u ${SERVICE_NAME} -f    # 查看日志
+  sudo systemctl restart ${SERVICE_NAME}   # 重启
+  sudo systemctl stop ${SERVICE_NAME}      # 停止
+
+${BLUE}卸载${NC}
+
+  curl -sSL https://raw.githubusercontent.com/${GITHUB_REPO}/master/deploy/install.sh | sudo bash -s -- uninstall
 
 DONE
+}
+
+# ---- Upgrade ----
+upgrade() {
+    if [ ! -f "$INSTALL_DIR/airgate-core" ]; then
+        print_error "尚未安装，请先运行 install"
+        exit 1
+    fi
+
+    local current
+    current=$(get_current_version)
+    print_info "当前版本: $current"
+
+    if [ -z "${LATEST_VERSION:-}" ]; then
+        get_latest_version
+    fi
+
+    if [ "$current" = "$LATEST_VERSION" ] || [ "$current" = "${LATEST_VERSION#v}" ]; then
+        print_warning "已是最新版本 ($LATEST_VERSION)"
+        return
+    fi
+
+    print_info "升级 $current → $LATEST_VERSION"
+
+    if systemctl is-active --quiet "$SERVICE_NAME"; then
+        print_info "停止服务 ..."
+        systemctl stop "$SERVICE_NAME"
+    fi
+
+    cp "$INSTALL_DIR/airgate-core" "$INSTALL_DIR/airgate-core.backup.$(date +%Y%m%d%H%M%S)"
+    print_info "已备份旧版本到 ${INSTALL_DIR}/airgate-core.backup.*"
+
+    download_and_install_binary
+    chown "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/airgate-core"
+
+    print_info "启动服务 ..."
+    systemctl start "$SERVICE_NAME"
+
+    print_success "升级完成: $(get_current_version)"
+}
+
+# ---- Uninstall ----
+uninstall() {
+    print_warning "即将卸载 AirGate Core："
+    echo "  - 停止并禁用 systemd 服务"
+    echo "  - 删除 ${INSTALL_DIR}（含二进制与备份）"
+    echo "  - 删除 systemd unit 文件"
+    echo ""
+    echo "  ${YELLOW}保留${NC} ${CONFIG_DIR}（配置）"
+    echo "  ${YELLOW}保留${NC} ${DATA_DIR}（数据 / 已安装的插件）"
+    echo "  ${YELLOW}保留${NC} 系统用户 ${SERVICE_USER}"
+    echo ""
+
+    if [ "${ASSUME_YES:-0}" != "1" ]; then
+        if [ -e /dev/tty ] && [ -r /dev/tty ]; then
+            read -r -p "确认卸载？输入 'yes' 继续: " ans < /dev/tty || ans=""
+            [ "$ans" = "yes" ] || { print_info "已取消"; exit 0; }
+        else
+            print_error "非交互模式下卸载需要 ASSUME_YES=1"
+            exit 1
+        fi
+    fi
+
+    if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
+        systemctl stop "$SERVICE_NAME" || true
+    fi
+    if systemctl is-enabled --quiet "$SERVICE_NAME" 2>/dev/null; then
+        systemctl disable "$SERVICE_NAME" || true
+    fi
+
+    rm -f "/etc/systemd/system/${SERVICE_NAME}.service"
+    systemctl daemon-reload
+    rm -rf "$INSTALL_DIR"
+
+    print_success "卸载完成。配置 (${CONFIG_DIR}) 与数据 (${DATA_DIR}) 已保留。"
+    print_info "如需彻底清理：sudo rm -rf ${CONFIG_DIR} ${DATA_DIR} && sudo userdel ${SERVICE_USER}"
+}
+
+# ---- Install (default) ----
+do_install() {
+    if [ -f "$INSTALL_DIR/airgate-core" ]; then
+        print_warning "检测到已安装：$(get_current_version)"
+        print_info "如需升级请运行：sudo bash install.sh upgrade"
+        print_info "如需卸载请运行：sudo bash install.sh uninstall"
+        exit 0
+    fi
+
+    if [ -z "${LATEST_VERSION:-}" ]; then
+        get_latest_version
+    fi
+
+    download_and_install_binary
+    create_user
+    setup_directories
+    install_service
+    chown "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/airgate-core"
+    print_install_complete
+}
+
+# ---- CLI parsing ----
+main() {
+    print_banner
+    check_root
+    detect_platform
+    check_dependencies
+
+    local action="install"
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            install|upgrade|uninstall)
+                action="$1"; shift ;;
+            -v|--version)
+                shift
+                [ $# -gt 0 ] || { print_error "--version 需要一个参数（如 v0.1.0）"; exit 1; }
+                validate_version "$1"
+                shift ;;
+            -y|--yes)
+                ASSUME_YES=1; shift ;;
+            -h|--help)
+                cat <<HELP
+用法: sudo bash install.sh [action] [选项]
+
+Actions:
+  install     安装最新版本（默认）
+  upgrade     升级到最新版本
+  uninstall   卸载（保留配置与数据）
+
+Options:
+  -v, --version <ver>   指定版本（如 v0.1.0）
+  -y, --yes             非交互确认（适用于 uninstall）
+  -h, --help            显示帮助
+
+示例:
+  curl -sSL .../install.sh | sudo bash
+  curl -sSL .../install.sh | sudo bash -s -- -v v0.1.0
+  curl -sSL .../install.sh | sudo bash -s -- uninstall -y
+
+HELP
+                exit 0 ;;
+            *)
+                print_error "未知参数: $1"
+                exit 1 ;;
+        esac
+    done
+
+    case "$action" in
+        install)   do_install ;;
+        upgrade)   upgrade ;;
+        uninstall) uninstall ;;
+    esac
+}
+
+main "$@"

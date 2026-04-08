@@ -1,12 +1,16 @@
 package server
 
 import (
-	"path/filepath"
+	"io/fs"
+	"log/slog"
+	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/DouDOU-start/airgate-core/internal/server/middleware"
 	"github.com/DouDOU-start/airgate-core/internal/setup"
+	webfs "github.com/DouDOU-start/airgate-core/internal/web"
 )
 
 // registerRoutes 注册所有 API 路由
@@ -196,16 +200,26 @@ func (s *Server) registerRoutes() {
 	//                              所以这里仍然走整段 catchall，不能拆成 /status/api/*path
 	//                              （否则 *path 只捕获 /summary，插件路由无法匹配）
 	statusProxy := s.extensionProxy.HandleNamed("airgate-health", "public")
+
+	// 加载嵌入的前端 SPA：所有静态资源通过 //go:embed 打进二进制
+	distFS, err := webfs.FS()
+	if err != nil {
+		slog.Error("加载嵌入前端失败", "error", err)
+		os.Exit(1)
+	}
+	indexHTML, _ := webfs.IndexHTML()
+	assetsFS, err := fs.Sub(distFS, "assets")
+	if err != nil {
+		slog.Error("嵌入前端缺少 assets 子目录", "error", err)
+		os.Exit(1)
+	}
+
 	r.GET("/status", func(c *gin.Context) {
-		webDir := s.cfg.Server.WebDir
-		if webDir == "" {
-			webDir = "web/dist"
-		}
-		c.File(filepath.Join(webDir, "index.html"))
+		c.Data(http.StatusOK, "text/html; charset=utf-8", indexHTML)
 	})
 	r.GET("/status/*path", statusProxy)
 
-	// 上传文件静态服务
+	// 上传文件静态服务（这部分仍然在磁盘上，因为是用户上传的运行时数据）
 	r.Static("/uploads", "data/uploads")
 
 	// 插件前端静态资源（/plugins/{pluginName}/assets/index.js）
@@ -215,15 +229,10 @@ func (s *Server) registerRoutes() {
 	}
 	r.Static("/plugins", pluginDir)
 
-	// 静态文件服务（前端）
-	webDir := s.cfg.Server.WebDir
-	if webDir == "" {
-		webDir = "web/dist"
-	}
-	r.Static("/assets", filepath.Join(webDir, "assets"))
+	// 静态文件服务（前端 SPA）
+	r.StaticFS("/assets", http.FS(assetsFS))
 
 	// NoRoute: 携带 API Key 的请求转发到插件系统，其余返回前端 index.html
-	indexHTML := filepath.Join(webDir, "index.html")
 	apiKeyAuth := middleware.APIKeyAuth(s.db)
 	r.NoRoute(func(c *gin.Context) {
 		// 检查是否携带 Bearer token（API Key 调用）
@@ -237,6 +246,6 @@ func (s *Server) registerRoutes() {
 			s.dynamicRouter.Handle(c)
 			return
 		}
-		c.File(indexHTML)
+		c.Data(http.StatusOK, "text/html; charset=utf-8", indexHTML)
 	})
 }

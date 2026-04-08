@@ -19,6 +19,11 @@ backend/web
 web/node_modules/
 web/dist/
 
+# 嵌入到二进制的前端构建产物（构建时由 Makefile / Dockerfile / release workflow 刷新）
+# 仓库里只保留 .gitkeep
+backend/internal/web/webdist/*
+!backend/internal/web/webdist/.gitkeep
+
 # IDE
 .idea/
 .vscode/

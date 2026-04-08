@@ -14,7 +14,10 @@ env:
   IMAGE_NAME: doudou-start/airgate-core
 
 jobs:
-  build-and-push:
+  # ------------------------------------------------------------
+  # Job 1: 多架构 Docker 镜像（push 到 ghcr.io）
+  # ------------------------------------------------------------
+  build-and-push-image:
     name: Build & Push Multi-arch Image
     runs-on: ubuntu-latest
     steps:
@@ -58,17 +61,110 @@ jobs:
           file: airgate-core/deploy/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
+          build-args: |
+            VERSION=${{ github.ref_name }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # ------------------------------------------------------------
+  # Job 2: 跨平台原生二进制（linux/darwin × amd64/arm64）
+  # 用于裸金属 install.sh 部署 —— 二进制完全自包含，前端 SPA + 翻译文件
+  # 都已 //go:embed 进 binary，不需要附加资源。
+  # ------------------------------------------------------------
+  build-binaries:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone airgate-sdk (go.work replace)
+        run: git clone --depth 1 https://github.com/DouDOU-start/airgate-sdk.git ../airgate-sdk
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build @airgate/theme (sdk frontend dependency)
+        run: cd ../airgate-sdk/frontend && npm ci && npm run build
+
+      - name: Build core frontend
+        run: cd web && npm ci && npm run build
+
+      - name: Embed web/dist into backend
+        run: |
+          rm -rf backend/internal/web/webdist
+          mkdir -p backend/internal/web/webdist
+          cp -r web/dist/. backend/internal/web/webdist/
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Build airgate-core binary
+        env:
+          GOTOOLCHAIN: local
+          CGO_ENABLED: 0
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          echo "Injecting Version=${VERSION}"
+          mkdir -p bin
+          cd backend && go build -buildvcs=false -trimpath \
+            -ldflags "-X 'main.Version=${VERSION}' -s -w" \
+            -o ../bin/airgate-core-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/server
+
+      - name: Generate SHA256
+        run: |
+          cd bin && sha256sum airgate-core-${{ matrix.goos }}-${{ matrix.goarch }} \
+            > airgate-core-${{ matrix.goos }}-${{ matrix.goarch }}.sha256
+
+      - name: Upload binary artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: airgate-core-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
+            bin/airgate-core-${{ matrix.goos }}-${{ matrix.goarch }}
+            bin/airgate-core-${{ matrix.goos }}-${{ matrix.goarch }}.sha256
+          retention-days: 1
+
+  # ------------------------------------------------------------
+  # Job 3: 创建 GitHub Release，把 docker tag 与原生二进制聚合发布
+  # ------------------------------------------------------------
   release-notes:
     name: Create GitHub Release
-    needs: build-and-push
+    needs:
+      - build-and-push-image
+      - build-binaries
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download all binary artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List collected artifacts
+        run: ls -la dist/
 
       - name: Create release with auto-generated notes
         uses: softprops/action-gh-release@v2
@@ -76,7 +172,27 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           generate_release_notes: true
+          files: |
+            dist/airgate-core-*
           body: |
+            ## 部署方式
+
+            ### 1. 一键裸金属安装（自带 systemd）
+
+            ```bash
+            curl -sSL https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/install.sh | sudo bash
+            ```
+
+            前置：自备 PostgreSQL 15+ 与 Redis 7+。脚本会从本 release 拉取对应平台的 `airgate-core-{os}-{arch}` 二进制（前端 SPA 已 //go:embed 进 binary），安装到 `/opt/airgate-core` 并装好 systemd 服务。
+
+            ### 2. Docker Compose（自带 PostgreSQL + Redis）
+
+            ```bash
+            mkdir airgate && cd airgate
+            curl -sSL https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/docker-deploy.sh | bash
+            docker compose up -d
+            ```
+
             ## 镜像
 
             ```bash
@@ -87,6 +203,8 @@ jobs:
 
             支持架构：`linux/amd64` `linux/arm64`
 
-            ## 部署
+            ## 二进制资产
 
-            参考 [deploy/docker-compose.yml](https://github.com/DouDOU-start/airgate-core/blob/${{ github.ref_name }}/deploy/docker-compose.yml) 与 [deploy/.env.example](https://github.com/DouDOU-start/airgate-core/blob/${{ github.ref_name }}/deploy/.env.example)。
+            支持平台：`linux/amd64` `linux/arm64` `darwin/amd64` `darwin/arm64`
+
+            每个二进制都附带 `.sha256` 校验文件，install.sh 会在下载后自动校验。

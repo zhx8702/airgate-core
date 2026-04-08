@@ -9,7 +9,12 @@ OPENAI_ASSETS := $(BACKEND_DIR)/data/plugins/gateway-openai/assets
 EPAY_PLUGIN := ../airgate-epay/web
 EPAY_ASSETS := $(BACKEND_DIR)/data/plugins/payment-epay/assets
 BINARY := $(BACKEND_DIR)/server
+WEBDIST := $(BACKEND_DIR)/internal/web/webdist
 GO := GOTOOLCHAIN=local go
+
+# 版本号：默认从 git 派生（dirty 检测），release workflow 通过 -ldflags 注入。
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+LDFLAGS := -X main.Version=$(VERSION)
 
 .PHONY: help dev dev-backend dev-frontend dev-sdk dev-plugins dev-plugin-openai dev-plugin-epay \
         build build-backend build-frontend \
@@ -63,11 +68,23 @@ dev-frontend: ## 启动前端开发服务器
 
 # ===================== 构建 =====================
 
-build: build-backend build-frontend build-plugins ## 构建前后端及插件
+build: build-frontend build-backend build-plugins ## 构建前后端及插件（顺序：前端 → 嵌入 → 后端）
 
-build-backend: ## 编译后端二进制
-	@cd $(BACKEND_DIR) && $(GO) build -o server ./cmd/server
-	@echo "后端编译完成: $(BINARY)"
+ensure-webdist: ## 把 web/dist 同步到 backend/internal/web/webdist 供 go:embed 使用
+	@if [ -d $(WEB_DIR)/dist ] && [ "$$(ls -A $(WEB_DIR)/dist 2>/dev/null)" ]; then \
+		rm -rf $(WEBDIST); \
+		mkdir -p $(WEBDIST); \
+		cp -r $(WEB_DIR)/dist/. $(WEBDIST)/; \
+		echo "前端产物已同步到 $(WEBDIST)"; \
+	else \
+		echo "[ensure-webdist] $(WEB_DIR)/dist 为空，将使用占位 .gitkeep（go build 仍可通过，但运行时会报缺失前端）"; \
+		mkdir -p $(WEBDIST); \
+		[ -f $(WEBDIST)/.gitkeep ] || touch $(WEBDIST)/.gitkeep; \
+	fi
+
+build-backend: ensure-webdist ## 编译后端二进制（自动嵌入最新前端）
+	@cd $(BACKEND_DIR) && $(GO) build -trimpath -ldflags "$(LDFLAGS)" -o server ./cmd/server
+	@echo "后端编译完成: $(BINARY) (version: $(VERSION))"
 
 build-frontend: ## 构建前端产物
 	@cd $(WEB_DIR) && npm run build

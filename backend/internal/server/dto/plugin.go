@@ -11,8 +11,30 @@ type PluginResp struct {
 	AccountTypes       []AccountTypeResp  `json:"account_types,omitempty"`
 	FrontendPages      []FrontendPageResp `json:"frontend_pages,omitempty"`
 	InstructionPresets []string           `json:"instruction_presets,omitempty"`
+	ConfigSchema       []ConfigFieldResp  `json:"config_schema,omitempty"`
 	HasWebAssets       bool               `json:"has_web_assets"`
 	IsDev              bool               `json:"is_dev"`
+}
+
+// ConfigFieldResp 插件配置字段声明
+type ConfigFieldResp struct {
+	Key         string `json:"key"`
+	Label       string `json:"label,omitempty"`
+	Type        string `json:"type"`
+	Required    bool   `json:"required,omitempty"`
+	Default     string `json:"default,omitempty"`
+	Description string `json:"description,omitempty"`
+	Placeholder string `json:"placeholder,omitempty"`
+}
+
+// PluginConfigResp 插件持久化配置
+type PluginConfigResp struct {
+	Config map[string]string `json:"config"`
+}
+
+// PluginConfigUpdateReq 插件配置更新请求
+type PluginConfigUpdateReq struct {
+	Config map[string]string `json:"config" binding:"required"`
 }
 
 // FrontendPageResp 前端页面声明响应
@@ -21,6 +43,8 @@ type FrontendPageResp struct {
 	Title       string `json:"title"`
 	Icon        string `json:"icon,omitempty"`
 	Description string `json:"description,omitempty"`
+	// Audience: "admin" | "user" | "all"，空字符串视为 "admin"（向后兼容）
+	Audience string `json:"audience,omitempty"`
 }
 
 // InstallGithubReq 从 GitHub 安装插件请求

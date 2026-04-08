@@ -22,6 +22,7 @@ func (Group) Fields() []ent.Field {
 		field.JSON("model_routing", map[string][]int64{}).Optional(),
 		field.String("service_tier").Default(""),
 		field.String("force_instructions").Default(""),
+		field.String("note").Default(""),
 		field.Int("sort_weight").Default(0),
 		field.Time("created_at").Default(timeNow).Immutable(),
 		field.Time("updated_at").Default(timeNow).UpdateDefault(timeNow),

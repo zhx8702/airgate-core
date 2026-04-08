@@ -12,6 +12,7 @@ type GroupResp struct {
 	ModelRouting      map[string][]int64     `json:"model_routing,omitempty"`
 	ServiceTier       string                 `json:"service_tier,omitempty"`
 	ForceInstructions string                 `json:"force_instructions,omitempty"`
+	Note              string                 `json:"note,omitempty"`
 	SortWeight        int                    `json:"sort_weight"`
 
 	// 统计字段（仅管理员列表返回）
@@ -38,6 +39,7 @@ type CreateGroupReq struct {
 	ModelRouting      map[string][]int64     `json:"model_routing"`
 	ServiceTier       string                 `json:"service_tier" binding:"omitempty,oneof=fast flex"`
 	ForceInstructions string                 `json:"force_instructions"`
+	Note              string                 `json:"note"`
 	SortWeight        int                    `json:"sort_weight"`
 }
 
@@ -51,5 +53,6 @@ type UpdateGroupReq struct {
 	ModelRouting      map[string][]int64     `json:"model_routing"`
 	ServiceTier       *string                `json:"service_tier" binding:"omitempty,oneof=fast flex"`
 	ForceInstructions *string                `json:"force_instructions"`
+	Note              *string                `json:"note"`
 	SortWeight        *int                   `json:"sort_weight"`
 }

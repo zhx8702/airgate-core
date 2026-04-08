@@ -17,6 +17,7 @@ func toGroupRespFromDomain(item appgroup.Group) dto.GroupResp {
 		ModelRouting:      item.ModelRouting,
 		ServiceTier:       item.ServiceTier,
 		ForceInstructions: item.ForceInstructions,
+		Note:              item.Note,
 		SortWeight:        item.SortWeight,
 		TimeMixin: dto.TimeMixin{
 			CreatedAt: item.CreatedAt,

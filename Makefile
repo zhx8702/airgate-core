@@ -5,11 +5,14 @@ BACKEND_DIR := backend
 WEB_DIR := web
 SDK_FRONTEND := ../airgate-sdk/frontend
 OPENAI_PLUGIN := ../airgate-openai/web
-PLUGIN_ASSETS := $(BACKEND_DIR)/data/plugins/gateway-openai/assets
+OPENAI_ASSETS := $(BACKEND_DIR)/data/plugins/gateway-openai/assets
+EPAY_PLUGIN := ../airgate-epay/web
+EPAY_ASSETS := $(BACKEND_DIR)/data/plugins/payment-epay/assets
 BINARY := $(BACKEND_DIR)/server
 GO := GOTOOLCHAIN=local go
 
-.PHONY: help dev dev-backend dev-frontend dev-sdk dev-plugins build build-backend build-frontend \
+.PHONY: help dev dev-backend dev-frontend dev-sdk dev-plugins dev-plugin-openai dev-plugin-epay \
+        build build-backend build-frontend \
         build-plugins sync-plugins \
         ent lint fmt test clean install ci pre-commit setup-hooks \
         docker-build docker-rebuild docker-up docker-down docker-restart docker-dev
@@ -31,9 +34,19 @@ dev: ## 同时启动 SDK watch + 插件 watch + 前后端开发服务器
 dev-sdk: ## 启动 SDK 主题 watch 模式（修改 token 自动编译）
 	@cd $(SDK_FRONTEND) && npm run dev
 
-dev-plugins: ## 启动插件前端 watch 模式（修改后自动构建并同步到 core）
-	@echo "启动插件前端 watch → $(PLUGIN_ASSETS)/"
-	@cd $(OPENAI_PLUGIN) && npx vite build --watch --outDir ../../airgate-core/$(PLUGIN_ASSETS) 2>&1 | grep -v 'not inside project root'
+dev-plugins: ## 启动所有插件前端 watch 模式（修改后自动构建并同步到 core）
+	@echo "启动插件前端 watch："
+	@echo "  - openai → $(OPENAI_ASSETS)/"
+	@echo "  - epay   → $(EPAY_ASSETS)/"
+	@$(MAKE) dev-plugin-openai &
+	@$(MAKE) dev-plugin-epay &
+	@wait
+
+dev-plugin-openai: ## 单独 watch openai 插件前端
+	@cd $(OPENAI_PLUGIN) && npx vite build --watch --outDir ../../airgate-core/$(OPENAI_ASSETS) 2>&1 | grep -v 'not inside project root'
+
+dev-plugin-epay: ## 单独 watch epay 插件前端
+	@cd $(EPAY_PLUGIN) && npx vite build --watch --outDir ../../airgate-core/$(EPAY_ASSETS) 2>&1 | grep -v 'not inside project root'
 
 dev-backend: ## 启动后端（带热重载，需要 air）
 	@cd $(BACKEND_DIR) && \
@@ -63,12 +76,17 @@ build-frontend: ## 构建前端产物
 build-plugins: sync-plugins ## 构建插件前端并同步到 core
 	@echo "插件前端构建完成"
 
-sync-plugins: ## 构建 openai 插件前端并同步到 data/plugins/
+sync-plugins: ## 构建所有插件前端并同步到 data/plugins/
 	@echo "构建并同步 openai 插件前端..."
 	@cd $(OPENAI_PLUGIN) && npm run build
-	@mkdir -p $(PLUGIN_ASSETS)
-	@cp $(OPENAI_PLUGIN)/dist/index.js $(PLUGIN_ASSETS)/index.js
-	@echo "openai 插件前端已同步到 $(PLUGIN_ASSETS)/"
+	@mkdir -p $(OPENAI_ASSETS)
+	@cp $(OPENAI_PLUGIN)/dist/index.js $(OPENAI_ASSETS)/index.js
+	@echo "openai 插件前端已同步到 $(OPENAI_ASSETS)/"
+	@echo "构建并同步 epay 插件前端..."
+	@cd $(EPAY_PLUGIN) && npm run build
+	@mkdir -p $(EPAY_ASSETS)
+	@cp $(EPAY_PLUGIN)/dist/index.js $(EPAY_ASSETS)/index.js
+	@echo "epay 插件前端已同步到 $(EPAY_ASSETS)/"
 
 # ===================== 代码生成 =====================
 

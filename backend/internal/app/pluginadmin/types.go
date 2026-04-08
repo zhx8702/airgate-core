@@ -15,8 +15,11 @@ type Manager interface {
 	InstallFromGithub(context.Context, string) error
 	Uninstall(context.Context, string) error
 	ReloadDev(context.Context, string) error
+	ReloadInstance(context.Context, string) error
 	IsDev(string) bool
 	GetInstance(string) *plugin.PluginInstance
+	GetPluginConfig(context.Context, string) (map[string]string, error)
+	UpdatePluginConfig(context.Context, string, map[string]string) error
 }
 
 // MarketplaceReader 定义插件市场读取能力。
@@ -36,6 +39,7 @@ type PluginMeta struct {
 	AccountTypes       []sdk.AccountType
 	FrontendPages      []sdk.FrontendPage
 	InstructionPresets []string
+	ConfigSchema       []sdk.ConfigField
 	HasWebAssets       bool
 	IsDev              bool
 }

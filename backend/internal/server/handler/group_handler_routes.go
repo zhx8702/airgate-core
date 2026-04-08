@@ -127,6 +127,7 @@ func (h *GroupHandler) CreateGroup(c *gin.Context) {
 		ModelRouting:      req.ModelRouting,
 		ServiceTier:       req.ServiceTier,
 		ForceInstructions: req.ForceInstructions,
+		Note:              req.Note,
 		SortWeight:        req.SortWeight,
 	})
 	if err != nil {
@@ -161,6 +162,7 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 		ModelRouting:      req.ModelRouting,
 		ServiceTier:       req.ServiceTier,
 		ForceInstructions: req.ForceInstructions,
+		Note:              req.Note,
 		SortWeight:        req.SortWeight,
 	})
 	if err != nil {

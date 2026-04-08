@@ -54,6 +54,7 @@ export function GroupFormModal({
     subscription_type: group?.subscription_type ?? 'standard' as const,
     sort_weight: group?.sort_weight ?? 0,
     force_instructions: group?.force_instructions ?? '',
+    note: group?.note ?? '',
   });
 
   const [quotas, setQuotas] = useState(
@@ -68,6 +69,7 @@ export function GroupFormModal({
       subscription_type: form.subscription_type as 'standard' | 'subscription',
       quotas: form.subscription_type === 'subscription' ? buildQuotas(quotas) : undefined,
       force_instructions: form.force_instructions || undefined,
+      note: form.note,
     });
   };
 
@@ -169,6 +171,14 @@ export function GroupFormModal({
           }
           hint={t('groups.sort_weight_hint')}
           icon={<ArrowUpDown className="w-4 h-4" />}
+        />
+
+        <Input
+          label={t('groups.note')}
+          value={form.note}
+          onChange={(e) => setForm({ ...form, note: e.target.value })}
+          hint={t('groups.note_hint')}
+          placeholder={t('groups.note_placeholder')}
         />
 
         {/* 强制 Instructions — 仅插件声明了预设时显示 */}

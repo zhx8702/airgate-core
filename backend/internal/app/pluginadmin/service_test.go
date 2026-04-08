@@ -43,8 +43,15 @@ func (s pluginAdminManagerStub) InstallFromBinary(context.Context, string, []byt
 func (s pluginAdminManagerStub) InstallFromGithub(context.Context, string) error         { return nil }
 func (s pluginAdminManagerStub) Uninstall(context.Context, string) error                 { return nil }
 func (s pluginAdminManagerStub) ReloadDev(context.Context, string) error                 { return nil }
+func (s pluginAdminManagerStub) ReloadInstance(context.Context, string) error            { return nil }
 func (s pluginAdminManagerStub) IsDev(string) bool                                       { return false }
 func (s pluginAdminManagerStub) GetInstance(string) *plugin.PluginInstance               { return nil }
+func (s pluginAdminManagerStub) GetPluginConfig(context.Context, string) (map[string]string, error) {
+	return nil, nil
+}
+func (s pluginAdminManagerStub) UpdatePluginConfig(context.Context, string, map[string]string) error {
+	return nil
+}
 
 type pluginMarketplaceStub struct {
 	listAvailable func(context.Context) ([]plugin.MarketplacePlugin, error)

@@ -225,6 +225,7 @@ export interface GroupResp {
   model_routing?: Record<string, number[]>;
   service_tier?: 'fast' | 'flex';
   force_instructions?: string;
+  note?: string;
   sort_weight: number;
   account_active: number;
   account_error: number;
@@ -248,6 +249,7 @@ export interface CreateGroupReq {
   model_routing?: Record<string, number[]>;
   service_tier?: 'fast' | 'flex';
   force_instructions?: string;
+  note?: string;
   sort_weight?: number;
 }
 
@@ -260,6 +262,7 @@ export interface UpdateGroupReq {
   model_routing?: Record<string, number[]>;
   service_tier?: 'fast' | 'flex';
   force_instructions?: string;
+  note?: string;
   sort_weight?: number;
 }
 
@@ -502,6 +505,17 @@ export interface PluginResp {
     title: string;
     icon?: string;
     description?: string;
+    /** "admin" | "user" | "all"，空字符串视为 "admin"（向后兼容） */
+    audience?: string;
+  }>;
+  config_schema?: Array<{
+    key: string;
+    label?: string;
+    type: string;
+    required?: boolean;
+    default?: string;
+    description?: string;
+    placeholder?: string;
   }>;
   instruction_presets?: string[];
   has_web_assets?: boolean;

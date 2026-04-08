@@ -162,6 +162,20 @@ func (gu *GroupUpdate) SetNillableForceInstructions(s *string) *GroupUpdate {
 	return gu
 }
 
+// SetNote sets the "note" field.
+func (gu *GroupUpdate) SetNote(s string) *GroupUpdate {
+	gu.mutation.SetNote(s)
+	return gu
+}
+
+// SetNillableNote sets the "note" field if the given value is not nil.
+func (gu *GroupUpdate) SetNillableNote(s *string) *GroupUpdate {
+	if s != nil {
+		gu.SetNote(*s)
+	}
+	return gu
+}
+
 // SetSortWeight sets the "sort_weight" field.
 func (gu *GroupUpdate) SetSortWeight(i int) *GroupUpdate {
 	gu.mutation.ResetSortWeight()
@@ -477,6 +491,9 @@ func (gu *GroupUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := gu.mutation.ForceInstructions(); ok {
 		_spec.SetField(group.FieldForceInstructions, field.TypeString, value)
+	}
+	if value, ok := gu.mutation.Note(); ok {
+		_spec.SetField(group.FieldNote, field.TypeString, value)
 	}
 	if value, ok := gu.mutation.SortWeight(); ok {
 		_spec.SetField(group.FieldSortWeight, field.TypeInt, value)
@@ -861,6 +878,20 @@ func (guo *GroupUpdateOne) SetNillableForceInstructions(s *string) *GroupUpdateO
 	return guo
 }
 
+// SetNote sets the "note" field.
+func (guo *GroupUpdateOne) SetNote(s string) *GroupUpdateOne {
+	guo.mutation.SetNote(s)
+	return guo
+}
+
+// SetNillableNote sets the "note" field if the given value is not nil.
+func (guo *GroupUpdateOne) SetNillableNote(s *string) *GroupUpdateOne {
+	if s != nil {
+		guo.SetNote(*s)
+	}
+	return guo
+}
+
 // SetSortWeight sets the "sort_weight" field.
 func (guo *GroupUpdateOne) SetSortWeight(i int) *GroupUpdateOne {
 	guo.mutation.ResetSortWeight()
@@ -1206,6 +1237,9 @@ func (guo *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error
 	}
 	if value, ok := guo.mutation.ForceInstructions(); ok {
 		_spec.SetField(group.FieldForceInstructions, field.TypeString, value)
+	}
+	if value, ok := guo.mutation.Note(); ok {
+		_spec.SetField(group.FieldNote, field.TypeString, value)
 	}
 	if value, ok := guo.mutation.SortWeight(); ok {
 		_spec.SetField(group.FieldSortWeight, field.TypeInt, value)

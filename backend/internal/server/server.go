@@ -65,7 +65,10 @@ func NewServer(cfg *config.Config, db *ent.Client, rdb *redis.Client) *Server {
 	if pluginDir == "" {
 		pluginDir = "data/plugins"
 	}
-	pluginMgr := plugin.NewManager(pluginDir, cfg.Log.Level)
+	// coreBaseURL 让 extension 插件回调 core admin API（如 health 插件的 prober）。
+	// 走 127.0.0.1 + 实际监听端口；如果用户用 PORT 环境变量改了端口，cfg.Server.Port 会跟着变。
+	coreBaseURL := fmt.Sprintf("http://127.0.0.1:%d", cfg.Server.Port)
+	pluginMgr := plugin.NewManager(pluginDir, cfg.Log.Level, cfg.Database.DSN(), coreBaseURL, cfg.APIKeySecret(), db)
 	forwarder := plugin.NewForwarder(db, pluginMgr, sched, concurrency, limiter, calculator, recorder)
 
 	marketOpts := []plugin.MarketplaceOption{

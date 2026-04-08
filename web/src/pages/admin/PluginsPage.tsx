@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { pluginsApi } from '../../shared/api/plugins';
@@ -14,7 +14,7 @@ import { Badge } from '../../shared/components/Badge';
 import { Input } from '../../shared/components/Input';
 import {
   Trash2, Download, Loader2, RefreshCw,
-  Package, User, Tag, Plus, Upload, Github,
+  Package, User, Tag, Plus, Upload, Github, Settings,
 } from 'lucide-react';
 import type { PluginResp, MarketplacePluginResp } from '../../shared/types';
 
@@ -33,6 +33,7 @@ export default function PluginsPage() {
   const [activeTab, setActiveTab] = useState<'installed' | 'marketplace'>('installed');
   const [uninstallTarget, setUninstallTarget] = useState<PluginResp | null>(null);
   const [installOpen, setInstallOpen] = useState(false);
+  const [configTarget, setConfigTarget] = useState<PluginResp | null>(null);
 
   // 已安装插件列表
   const { data: pluginsData, isLoading: pluginsLoading, refetch: refetchPlugins } = useQuery({
@@ -152,6 +153,16 @@ export default function PluginsPage() {
       title: t('common.actions'),
       render: (row) => (
         <div className="flex gap-1 justify-center">
+          {row.config_schema && row.config_schema.length > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={<Settings className="w-3.5 h-3.5" />}
+              onClick={() => setConfigTarget(row)}
+            >
+              配置
+            </Button>
+          )}
           {row.is_dev && (
             <Button
               size="sm"
@@ -275,7 +286,156 @@ export default function PluginsPage() {
         loading={uninstallMutation.isPending}
         danger
       />
+
+      {/* 配置编辑 */}
+      <PluginConfigModal
+        plugin={configTarget}
+        onClose={() => setConfigTarget(null)}
+        onSaved={() => {
+          setConfigTarget(null);
+          refetchPlugins();
+        }}
+      />
     </div>
+  );
+}
+
+// ============================================================================
+// 插件配置编辑 Modal
+// ============================================================================
+function PluginConfigModal({
+  plugin,
+  onClose,
+  onSaved,
+}: {
+  plugin: PluginResp | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const [values, setValues] = useState<Record<string, string>>({});
+  const open = !!plugin;
+
+  // 拉取持久化配置作为初始值
+  const { data: configData, isLoading } = useQuery({
+    queryKey: ['plugin-config', plugin?.name],
+    queryFn: () => pluginsApi.getConfig(plugin!.name),
+    enabled: open,
+  });
+
+  useEffect(() => {
+    if (!plugin) {
+      setValues({});
+      return;
+    }
+    // 用 schema 中的 default 兜底，再用持久化值覆盖
+    const init: Record<string, string> = {};
+    plugin.config_schema?.forEach((f) => {
+      if (f.default !== undefined && f.default !== '') {
+        init[f.key] = f.default;
+      }
+    });
+    if (configData?.config) {
+      Object.assign(init, configData.config);
+    }
+    setValues(init);
+  }, [plugin, configData]);
+
+  const saveMutation = useMutation({
+    mutationFn: (cfg: Record<string, string>) => pluginsApi.updateConfig(plugin!.name, cfg),
+    onSuccess: () => {
+      toast('success', '配置已保存，插件已重新加载');
+      onSaved();
+    },
+    onError: (err: Error) => toast('error', err.message),
+  });
+
+  function handleSave() {
+    // 必填校验
+    const missing = (plugin?.config_schema || [])
+      .filter((f) => f.required && !values[f.key])
+      .map((f) => f.label || f.key);
+    if (missing.length > 0) {
+      toast('error', `以下字段必填: ${missing.join(', ')}`);
+      return;
+    }
+    saveMutation.mutate(values);
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={`配置 - ${plugin?.display_name || plugin?.name || ''}`}
+      width="640px"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={saveMutation.isPending}>
+            取消
+          </Button>
+          <Button onClick={handleSave} loading={saveMutation.isPending}>
+            保存并重新加载
+          </Button>
+        </>
+      }
+    >
+      {isLoading ? (
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="w-5 h-5 animate-spin text-primary" />
+        </div>
+      ) : (
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+          {(plugin?.config_schema || []).map((field) => {
+            const inputType =
+              field.type === 'password' ? 'password' :
+              field.type === 'int' || field.type === 'float' ? 'number' :
+              'text';
+
+            // bool 渲染为复选框
+            if (field.type === 'bool') {
+              const checked = values[field.key] === 'true';
+              return (
+                <div key={field.key}>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => setValues({ ...values, [field.key]: e.target.checked ? 'true' : 'false' })}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-[13px] font-medium text-text-secondary">
+                      {field.label || field.key}
+                      {field.required && <span className="text-danger ml-1">*</span>}
+                    </span>
+                  </label>
+                  {field.description && (
+                    <p className="mt-1 ml-6 text-xs text-text-tertiary">{field.description}</p>
+                  )}
+                </div>
+              );
+            }
+
+            return (
+              <div key={field.key}>
+                <Input
+                  type={inputType}
+                  label={`${field.label || field.key}${field.required ? ' *' : ''}`}
+                  value={values[field.key] || ''}
+                  placeholder={field.placeholder}
+                  onChange={(e) => setValues({ ...values, [field.key]: e.target.value })}
+                  hint={field.description}
+                />
+              </div>
+            );
+          })}
+          {(!plugin?.config_schema || plugin.config_schema.length === 0) && (
+            <p className="text-sm text-text-tertiary text-center py-4">
+              该插件未声明任何配置项
+            </p>
+          )}
+        </div>
+      )}
+    </Modal>
   );
 }
 

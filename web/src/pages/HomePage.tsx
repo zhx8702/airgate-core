@@ -1,10 +1,10 @@
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useSiteSettings, defaultLogoUrl } from '../app/providers/SiteSettingsProvider';
 import { useTheme } from '../app/providers/ThemeProvider';
 import { getToken } from '../shared/api/client';
 import {
-  Zap, Shield, Globe, ArrowRight, Sun, Moon, Code, BarChart3, KeyRound, Layers,
+  Zap, Shield, Globe, ArrowRight, Sun, Moon, Code, BarChart3, KeyRound, Layers, Activity,
 } from 'lucide-react';
 
 export default function HomePage() {
@@ -45,6 +45,13 @@ export default function HomePage() {
           <span className="text-base font-bold tracking-tight">{site.site_name || 'AirGate'}</span>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            to="/status"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text transition-colors"
+          >
+            <Activity className="w-3.5 h-3.5" />
+            {t('nav.status')}
+          </Link>
           {site.doc_url && (
             <a
               href={site.doc_url}
@@ -157,6 +164,11 @@ export default function HomePage() {
               </a>
             </>
           )}
+          <span className="w-px h-3 bg-[var(--ag-border)]" />
+          <Link to="/status" className="inline-flex items-center gap-1 hover:text-text transition-colors">
+            <Activity className="w-3 h-3" />
+            {t('nav.status')}
+          </Link>
         </div>
       </footer>
     </div>

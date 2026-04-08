@@ -77,7 +77,27 @@ export default defineConfig({
     proxy: {
       '/api': BACKEND,
       '/uploads': BACKEND,
-      '/plugins': BACKEND,
+      // 注意：只代理插件 assets 的请求路径（用 bypass 函数细分）。
+      // /plugins/{name}/{页面} 是 SPA 路由（由 PluginPage 内部加载组件），
+      // 必须让 vite 自己 fallback 到 index.html，**不能**整路代理到 core。
+      // 否则 core 的 r.Static("/plugins", ...) 会把它当成文件 404 → 浏览器拿到 HTML
+      // → MIME 解析失败。
+      '/plugins': {
+        target: BACKEND,
+        bypass: (req) => {
+          // 仅 /plugins/{name}/assets/... 这类静态资源放给 core；其余 SPA 路由
+          // 直接返回 false 让 vite 走默认 SPA fallback 流程。
+          if (req.url && /^\/plugins\/[^/]+\/assets\//.test(req.url)) {
+            return null; // 走代理
+          }
+          return req.url; // 让 vite 处理（最终落到 index.html）
+        },
+      },
+      // 公开状态页 API（airgate-health 插件，无需登录）
+      // 注意：只代理 /status/api/* 与 /status/assets/*，根路径 /status 与子路径
+      // /status/xxx 留给 SPA 自己渲染（StatusPage 组件）
+      '/status/api': BACKEND,
+      '/status/assets': BACKEND,
       '/setup/status': BACKEND,
       '/setup/test-db': BACKEND,
       '/setup/test-redis': BACKEND,

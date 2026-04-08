@@ -155,16 +155,20 @@ func init() {
 	groupDescForceInstructions := groupFields[8].Descriptor()
 	// group.DefaultForceInstructions holds the default value on creation for the force_instructions field.
 	group.DefaultForceInstructions = groupDescForceInstructions.Default.(string)
+	// groupDescNote is the schema descriptor for note field.
+	groupDescNote := groupFields[9].Descriptor()
+	// group.DefaultNote holds the default value on creation for the note field.
+	group.DefaultNote = groupDescNote.Default.(string)
 	// groupDescSortWeight is the schema descriptor for sort_weight field.
-	groupDescSortWeight := groupFields[9].Descriptor()
+	groupDescSortWeight := groupFields[10].Descriptor()
 	// group.DefaultSortWeight holds the default value on creation for the sort_weight field.
 	group.DefaultSortWeight = groupDescSortWeight.Default.(int)
 	// groupDescCreatedAt is the schema descriptor for created_at field.
-	groupDescCreatedAt := groupFields[10].Descriptor()
+	groupDescCreatedAt := groupFields[11].Descriptor()
 	// group.DefaultCreatedAt holds the default value on creation for the created_at field.
 	group.DefaultCreatedAt = groupDescCreatedAt.Default.(func() time.Time)
 	// groupDescUpdatedAt is the schema descriptor for updated_at field.
-	groupDescUpdatedAt := groupFields[11].Descriptor()
+	groupDescUpdatedAt := groupFields[12].Descriptor()
 	// group.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	group.DefaultUpdatedAt = groupDescUpdatedAt.Default.(func() time.Time)
 	// group.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

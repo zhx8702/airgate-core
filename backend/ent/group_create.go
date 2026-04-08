@@ -119,6 +119,20 @@ func (gc *GroupCreate) SetNillableForceInstructions(s *string) *GroupCreate {
 	return gc
 }
 
+// SetNote sets the "note" field.
+func (gc *GroupCreate) SetNote(s string) *GroupCreate {
+	gc.mutation.SetNote(s)
+	return gc
+}
+
+// SetNillableNote sets the "note" field if the given value is not nil.
+func (gc *GroupCreate) SetNillableNote(s *string) *GroupCreate {
+	if s != nil {
+		gc.SetNote(*s)
+	}
+	return gc
+}
+
 // SetSortWeight sets the "sort_weight" field.
 func (gc *GroupCreate) SetSortWeight(i int) *GroupCreate {
 	gc.mutation.SetSortWeight(i)
@@ -291,6 +305,10 @@ func (gc *GroupCreate) defaults() {
 		v := group.DefaultForceInstructions
 		gc.mutation.SetForceInstructions(v)
 	}
+	if _, ok := gc.mutation.Note(); !ok {
+		v := group.DefaultNote
+		gc.mutation.SetNote(v)
+	}
 	if _, ok := gc.mutation.SortWeight(); !ok {
 		v := group.DefaultSortWeight
 		gc.mutation.SetSortWeight(v)
@@ -342,6 +360,9 @@ func (gc *GroupCreate) check() error {
 	}
 	if _, ok := gc.mutation.ForceInstructions(); !ok {
 		return &ValidationError{Name: "force_instructions", err: errors.New(`ent: missing required field "Group.force_instructions"`)}
+	}
+	if _, ok := gc.mutation.Note(); !ok {
+		return &ValidationError{Name: "note", err: errors.New(`ent: missing required field "Group.note"`)}
 	}
 	if _, ok := gc.mutation.SortWeight(); !ok {
 		return &ValidationError{Name: "sort_weight", err: errors.New(`ent: missing required field "Group.sort_weight"`)}
@@ -413,6 +434,10 @@ func (gc *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := gc.mutation.ForceInstructions(); ok {
 		_spec.SetField(group.FieldForceInstructions, field.TypeString, value)
 		_node.ForceInstructions = value
+	}
+	if value, ok := gc.mutation.Note(); ok {
+		_spec.SetField(group.FieldNote, field.TypeString, value)
+		_node.Note = value
 	}
 	if value, ok := gc.mutation.SortWeight(); ok {
 		_spec.SetField(group.FieldSortWeight, field.TypeInt, value)

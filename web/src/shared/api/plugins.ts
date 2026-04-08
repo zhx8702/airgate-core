@@ -1,4 +1,4 @@
-import { get, post, upload } from './client';
+import { get, post, put, upload } from './client';
 import type {
   PluginResp, MarketplacePluginResp, PageReq, PagedData,
 } from '../types';
@@ -6,6 +6,8 @@ import type {
 export const pluginsApi = {
   list: (params?: PageReq) =>
     get<PagedData<PluginResp>>('/api/v1/admin/plugins', params),
+  // 普通用户可访问的精简插件菜单（仅 name + frontend_pages，用于侧边栏）
+  menu: () => get<PagedData<PluginResp>>('/api/v1/plugins/menu'),
   uninstall: (name: string) => post<void>(`/api/v1/admin/plugins/${name}/uninstall`),
   reload: (name: string) => post<void>(`/api/v1/admin/plugins/${name}/reload`),
   marketplace: (params?: PageReq) =>
@@ -25,4 +27,10 @@ export const pluginsApi = {
   // 通用插件 RPC 调用，action 由插件自行定义
   rpc: <T = unknown>(name: string, action: string, body?: unknown) =>
     post<T>(`/api/v1/admin/plugins/${name}/rpc/${action}`, body),
+  // 读取插件配置
+  getConfig: (name: string) =>
+    get<{ config: Record<string, string> }>(`/api/v1/admin/plugins/${name}/config`),
+  // 更新插件配置（自动 reload 插件）
+  updateConfig: (name: string, config: Record<string, string>) =>
+    put<void>(`/api/v1/admin/plugins/${name}/config`, { config }),
 };

@@ -1,14 +1,15 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import * as ReactJSXRuntime from 'react/jsx-runtime';
-import { StrictMode } from 'react';
+import { StrictMode, useState, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import { AuthProvider } from './app/providers/AuthProvider';
 import { ThemeProvider } from './app/providers/ThemeProvider';
 import { SiteSettingsProvider } from './app/providers/SiteSettingsProvider';
-import { ToastProvider } from './shared/components/Toast';
+import { ToastProvider, useToast } from './shared/components/Toast';
+import { ConfirmModal } from './shared/components/Modal';
 import { router } from './app/router';
 import './i18n';
 import './index.css';
@@ -19,6 +20,66 @@ import './index.css';
   'react-dom': ReactDOM,
   'react/jsx-runtime': ReactJSXRuntime,
 };
+
+// PluginAPIBridge 把 core 内的运行时能力暴露到 window.airgate，供插件前端调用。
+// 插件不能直接 useToast() —— 它们的 React 通过 shim 共享，但 ToastContext 只在
+// core 的模块图里。挂全局函数是最低耦合的做法，且对插件来说只是一个普通的 window
+// 调用，完全不需要引入额外依赖。
+//
+// 目前暴露：
+//   - window.airgate.toast(kind, message, title?)        — 同 useToast().toast
+//   - window.airgate.confirm(message, options?)          — 返回 Promise<boolean>
+//
+// 必须在 ToastProvider 内渲染，否则 useToast 拿到的是默认 noop。
+type ConfirmOptions = { title?: string; danger?: boolean };
+type ConfirmRequest = ConfirmOptions & { message: string; resolve: (ok: boolean) => void };
+
+function PluginAPIBridge() {
+  const { toast } = useToast();
+  // 单 modal 队列：同一时刻最多展示一个 confirm；新的请求会直接 resolve(false)
+  // 上一个未决的旧请求（这种"打断"语义跟原生 window.confirm 阻塞行为不同，
+  // 但避免了堆叠多个 modal 把 UI 弄花）。
+  const [pending, setPending] = useState<ConfirmRequest | null>(null);
+  const pendingRef = useRef<ConfirmRequest | null>(null);
+  pendingRef.current = pending;
+
+  useEffect(() => {
+    const w = window as unknown as {
+      airgate?: {
+        toast: typeof toast;
+        confirm: (message: string, options?: ConfirmOptions) => Promise<boolean>;
+      };
+    };
+    w.airgate = {
+      toast,
+      confirm: (message, options) =>
+        new Promise<boolean>((resolve) => {
+          // 打断上一个未决的请求
+          if (pendingRef.current) {
+            pendingRef.current.resolve(false);
+          }
+          setPending({ message, resolve, ...options });
+        }),
+    };
+  }, [toast]);
+
+  const handleClose = (ok: boolean) => {
+    const cur = pendingRef.current;
+    if (cur) cur.resolve(ok);
+    setPending(null);
+  };
+
+  return (
+    <ConfirmModal
+      open={pending !== null}
+      onClose={() => handleClose(false)}
+      onConfirm={() => handleClose(true)}
+      title={pending?.title ?? '请确认'}
+      message={pending?.message ?? ''}
+      danger={pending?.danger}
+    />
+  );
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,6 +95,7 @@ createRoot(document.getElementById('root')!).render(
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
+          <PluginAPIBridge />
           <SiteSettingsProvider>
             <AuthProvider>
               <RouterProvider router={router} />

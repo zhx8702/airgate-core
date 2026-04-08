@@ -30,6 +30,18 @@ func toPluginResp(item apppluginadmin.PluginMeta) dto.PluginResp {
 			Title:       page.Title,
 			Icon:        page.Icon,
 			Description: page.Description,
+			Audience:    page.Audience,
+		})
+	}
+	for _, field := range item.ConfigSchema {
+		resp.ConfigSchema = append(resp.ConfigSchema, dto.ConfigFieldResp{
+			Key:         field.Key,
+			Label:       field.Label,
+			Type:        field.Type,
+			Required:    field.Required,
+			Default:     field.Default,
+			Description: field.Description,
+			Placeholder: field.Placeholder,
 		})
 	}
 	return resp

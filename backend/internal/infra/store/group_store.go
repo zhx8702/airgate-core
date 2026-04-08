@@ -97,6 +97,7 @@ func (s *GroupStore) Create(ctx context.Context, input appgroup.CreateInput) (ap
 		SetSubscriptionType(entgroup.SubscriptionType(input.SubscriptionType)).
 		SetServiceTier(input.ServiceTier).
 		SetForceInstructions(input.ForceInstructions).
+		SetNote(input.Note).
 		SetSortWeight(input.SortWeight)
 
 	if input.Quotas != nil {
@@ -141,6 +142,9 @@ func (s *GroupStore) Update(ctx context.Context, id int, input appgroup.UpdateIn
 	}
 	if input.ForceInstructions != nil {
 		builder = builder.SetForceInstructions(*input.ForceInstructions)
+	}
+	if input.Note != nil {
+		builder = builder.SetNote(*input.Note)
 	}
 	if input.SortWeight != nil {
 		builder = builder.SetSortWeight(*input.SortWeight)
@@ -334,6 +338,7 @@ func mapGroup(item *ent.Group) appgroup.Group {
 		ModelRouting:      appgroupCloneModelRouting(item.ModelRouting),
 		ServiceTier:       item.ServiceTier,
 		ForceInstructions: item.ForceInstructions,
+		Note:              item.Note,
 		SortWeight:        item.SortWeight,
 		CreatedAt:         item.CreatedAt,
 		UpdatedAt:         item.UpdatedAt,

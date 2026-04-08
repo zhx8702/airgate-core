@@ -119,7 +119,8 @@
     "admin": "Admin",
     "user": "User",
     "docs": "Docs",
-    "contact": "Contact"
+    "contact": "Contact",
+    "status": "Status"
   },
 
   "auth": {
@@ -434,7 +435,10 @@
     "capacity": "Capacity",
     "usage": "Usage",
     "today_cost": "Today",
-    "total_cost": "Total"
+    "total_cost": "Total",
+    "note": "Note",
+    "note_hint": "Operational note shown in the Health Monitor group table",
+    "note_placeholder": "e.g. Vendor outage / Quota exhausted / Temporarily disabled"
   },
 
   "api_keys": {
@@ -820,5 +824,28 @@
     "install_failed": "Installation failed: {{error}}",
     "run_install": "Run Installation",
     "installing_btn": "Installing..."
+  },
+
+  "status_page": {
+    "title": "Service Status",
+    "subtitle": "Uptime over the past 7 days, auto-refresh every minute",
+    "refresh": "Refresh",
+    "all_operational": "All Systems Operational",
+    "partial_degraded": "Partial Service Degradation",
+    "major_outage": "Major Outage",
+    "no_data": "No monitoring data",
+    "load_failed": "Failed to load",
+    "loading": "Loading…",
+    "no_monitor_data": "No monitoring data",
+    "maintenance": "Maintenance",
+    "system_maintenance": "System under maintenance",
+    "back_to_login": "Back to login",
+    "operational": "Operational",
+    "degraded": "Degraded",
+    "outage": "Outage",
+    "unknown": "Unknown",
+    "no_data_short": "No data",
+    "days_ago": "{{count}} days ago",
+    "today": "Today"
   }
 }

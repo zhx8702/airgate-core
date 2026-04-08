@@ -56,6 +56,7 @@ type Group struct {
 	ModelRouting      map[string][]int64
 	ServiceTier       string
 	ForceInstructions string
+	Note              string
 	SortWeight        int
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
@@ -98,6 +99,7 @@ type CreateInput struct {
 	ModelRouting      map[string][]int64
 	ServiceTier       string
 	ForceInstructions string
+	Note              string
 	SortWeight        int
 }
 
@@ -111,6 +113,7 @@ type UpdateInput struct {
 	ModelRouting      map[string][]int64
 	ServiceTier       *string
 	ForceInstructions *string
+	Note              *string
 	SortWeight        *int
 }
 

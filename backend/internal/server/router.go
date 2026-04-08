@@ -74,6 +74,9 @@ func (s *Server) registerRoutes() {
 		userGroup.GET("/usage/stats", handlers.Usage.UserUsageStats)
 		userGroup.GET("/usage/trend", handlers.Usage.UserUsageTrend)
 
+		// 插件菜单（精简元信息：仅返回 name + frontend_pages，所有登录用户可访问，
+		// 用于前端 AppShell 渲染插件提供的页面菜单项）
+		userGroup.GET("/plugins/menu", handlers.Plugin.ListPluginMenu)
 	}
 
 	// === 管理员路由（需要 JWT + AdminOnly，支持管理员 API Key） ===
@@ -135,6 +138,8 @@ func (s *Server) registerRoutes() {
 
 		// 插件管理
 		adminGroup.GET("/plugins", handlers.Plugin.ListPlugins)
+		adminGroup.GET("/plugins/:name/config", handlers.Plugin.GetPluginConfig)
+		adminGroup.PUT("/plugins/:name/config", handlers.Plugin.UpdatePluginConfig)
 		adminGroup.POST("/plugins/upload", handlers.Plugin.UploadPlugin)
 		adminGroup.POST("/plugins/install-github", handlers.Plugin.InstallFromGithub)
 		adminGroup.POST("/plugins/:name/uninstall", handlers.Plugin.UninstallPlugin)
@@ -167,6 +172,38 @@ func (s *Server) registerRoutes() {
 	{
 		extGroup.Any("/:pluginName/*path", s.extensionProxy.Handle)
 	}
+
+	// === Extension 插件用户级 API 路由（仅 JWT，普通用户可访问） ===
+	// 用于支付插件等面向用户的扩展，让普通用户能调用插件接口（创建充值订单、查询自己订单等）。
+	// 插件需自行根据 X-Airgate-User-ID 头识别用户，并校验数据归属。
+	extUserGroup := r.Group("/api/v1/ext-user")
+	extUserGroup.Use(middleware.JWTAuth(s.jwtMgr, s.db))
+	{
+		extUserGroup.Any("/:pluginName/*path", s.extensionProxy.Handle)
+	}
+
+	// === 支付回调路由（无需认证，由插件自行验签） ===
+	// 第三方支付平台异步通知（epay/支付宝/微信等）通过此路径转发到对应插件。
+	r.Any("/api/v1/payment-callback/:pluginName/*path", s.extensionProxy.Handle)
+
+	// === 公开状态页路由 ===
+	// 设计：
+	//   - GET /status            → 返回前端 SPA 的 index.html，由 SPA 内的 StatusPage 组件渲染
+	//                              （登录前后均可访问，体验与其他页面一致）
+	//   - GET /status/*path      → 转发到 airgate-health 插件（API + assets）
+	//                              注意：通配符 *path 必须捕获完整的子路径，例如
+	//                              /status/api/summary → 插件看到 /api/summary
+	//                              所以这里仍然走整段 catchall，不能拆成 /status/api/*path
+	//                              （否则 *path 只捕获 /summary，插件路由无法匹配）
+	statusProxy := s.extensionProxy.HandleNamed("airgate-health", "public")
+	r.GET("/status", func(c *gin.Context) {
+		webDir := s.cfg.Server.WebDir
+		if webDir == "" {
+			webDir = "web/dist"
+		}
+		c.File(filepath.Join(webDir, "index.html"))
+	})
+	r.GET("/status/*path", statusProxy)
 
 	// 上传文件静态服务
 	r.Static("/uploads", "data/uploads")

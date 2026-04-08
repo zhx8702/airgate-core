@@ -25,6 +25,7 @@ import SettingsPage from '../pages/admin/SettingsPage';
 import ProfilePage from '../pages/user/ProfilePage';
 import UserKeysPage from '../pages/user/UserKeysPage';
 import UserUsagePage from '../pages/user/UserUsagePage';
+import StatusPage from '../pages/StatusPage';
 
 // 登录、安装、首页不常用，保持懒加载
 const SetupPage = lazy(() => import('../pages/SetupPage'));
@@ -97,6 +98,19 @@ const homeRoute = createRoute({
       <PublicHomePage />
     </Suspense>
   ),
+});
+
+// 公开状态页路由 —— 登录前后均可访问
+// 登录后通过 authStatusRoute 进入（套 AppShell），未登录通过 publicStatusRoute 进入（独立布局）
+// 这里是未登录入口；登录态会在 beforeLoad 中重定向到 authLayout 下的同名路径
+const publicStatusRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/status',
+  beforeLoad: () => {
+    // 已登录用户继续渲染（StatusPage 内部判断），未登录也直接渲染
+    // 不做 setup 检查，状态页是最公开的入口
+  },
+  component: StatusPage,
 });
 
 // 登录页（无需认证，懒加载）
@@ -189,6 +203,7 @@ const routeTree = rootRoute.addChildren([
   setupRoute,
   homeRoute,
   loginRoute,
+  publicStatusRoute,
   authLayout.addChildren([
     dashboardRoute,
     adminLayout.addChildren([

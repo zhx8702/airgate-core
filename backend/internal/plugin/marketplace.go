@@ -122,9 +122,9 @@ var officialPlugins = []MarketplacePlugin{
 	{
 		Name:        "payment-epay",
 		Version:     "0.1.0",
-		Description: "易支付接入插件",
+		Description: "多渠道支付插件：易支付 / 支付宝官方 / 微信支付官方",
 		Author:      "AirGate",
-		Type:        "payment",
+		Type:        "extension",
 		GithubRepo:  "DouDOU-start/airgate-epay",
 	},
 }

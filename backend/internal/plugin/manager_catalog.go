@@ -1,12 +1,18 @@
 package plugin
 
 import (
+	"context"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
 	sdk "github.com/DouDOU-start/airgate-sdk"
 	sdkgrpc "github.com/DouDOU-start/airgate-sdk/grpc"
+
+	"github.com/DouDOU-start/airgate-core/ent"
+	pluginent "github.com/DouDOU-start/airgate-core/ent/plugin"
 )
 
 // GetExtensionByName 根据插件名查找 extension 类型插件。
@@ -174,6 +180,7 @@ func (m *Manager) GetAllPluginMeta() []PluginMeta {
 			Type:               inst.Type,
 			Platform:           inst.Platform,
 			InstructionPresets: inst.InstructionPresets,
+			ConfigSchema:       cloneConfigSchema(inst.ConfigSchema),
 			IsDev:              isDev,
 		}
 		if types, ok := m.accountTypeCache[inst.Platform]; ok {
@@ -189,6 +196,91 @@ func (m *Manager) GetAllPluginMeta() []PluginMeta {
 		metas = append(metas, meta)
 	}
 	return metas
+}
+
+// GetPluginConfig 读取插件的当前配置（来自 DB 持久化）。
+// 用于「编辑配置」UI 展示当前值。
+func (m *Manager) GetPluginConfig(ctx context.Context, name string) (map[string]string, error) {
+	if m.db == nil {
+		return map[string]string{}, nil
+	}
+	resolved := m.resolveName(name)
+	row, err := m.db.Plugin.Query().Where(pluginent.NameEQ(resolved)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return map[string]string{}, nil
+		}
+		return nil, fmt.Errorf("查询插件配置失败: %w", err)
+	}
+	out := make(map[string]string, len(row.Config))
+	for k, v := range row.Config {
+		out[k] = fmt.Sprintf("%v", v)
+	}
+	return out, nil
+}
+
+// UpdatePluginConfig 把用户提交的配置写入 DB。
+// 仅写入；调用方负责后续 reload 让插件生效。
+// 当 Plugin 行不存在时（dev 插件场景）会自动创建一条占位记录。
+func (m *Manager) UpdatePluginConfig(ctx context.Context, name string, config map[string]string) error {
+	if m.db == nil {
+		return fmt.Errorf("数据库未初始化")
+	}
+	resolved := m.resolveName(name)
+	cfgJSON := make(map[string]interface{}, len(config))
+	for k, v := range config {
+		cfgJSON[k] = v
+	}
+
+	row, err := m.db.Plugin.Query().Where(pluginent.NameEQ(resolved)).Only(ctx)
+	if err != nil {
+		if !ent.IsNotFound(err) {
+			return fmt.Errorf("查询插件失败: %w", err)
+		}
+		// 不存在则创建一条记录（dev / 未持久化的插件）
+		inst := m.GetInstance(resolved)
+		create := m.db.Plugin.Create().SetName(resolved).SetConfig(cfgJSON)
+		if inst != nil {
+			create = create.SetVersion(inst.Version).SetPlatform(inst.Platform)
+			if inst.Type == "extension" || inst.Type == "gateway" {
+				create = create.SetType(pluginent.Type(inst.Type))
+			}
+		}
+		if _, err := create.Save(ctx); err != nil {
+			return fmt.Errorf("创建插件配置失败: %w", err)
+		}
+		return nil
+	}
+	if _, err := row.Update().SetConfig(cfgJSON).Save(ctx); err != nil {
+		return fmt.Errorf("更新插件配置失败: %w", err)
+	}
+	return nil
+}
+
+// ReloadInstance 用最新 DB 配置重启一个已加载的插件实例（dev 与正式都支持）。
+// dev 插件走 ReloadDev（重新 go run）；正式插件走 stopPlugin + 重新启动二进制。
+func (m *Manager) ReloadInstance(ctx context.Context, name string) error {
+	resolved := m.resolveName(name)
+	if m.IsDev(resolved) {
+		return m.ReloadDev(ctx, resolved)
+	}
+	inst := m.GetInstance(resolved)
+	if inst == nil {
+		return fmt.Errorf("插件 %s 不存在或未运行", name)
+	}
+	binaryDir := inst.BinaryDir
+	if binaryDir == "" {
+		binaryDir = resolved
+	}
+	binaryPath := filepath.Join(m.pluginDir, binaryDir, binaryDir)
+	if _, err := os.Stat(binaryPath); err != nil {
+		return fmt.Errorf("插件二进制不存在: %s", binaryPath)
+	}
+	m.stopPlugin(resolved)
+	if _, err := m.startPlugin(ctx, binaryDir, exec.Command(binaryPath), binaryDir); err != nil {
+		return fmt.Errorf("重启插件失败: %w", err)
+	}
+	return nil
 }
 
 // HasWebAssets 检查插件是否有前端资源。
@@ -274,4 +366,8 @@ func cloneAccountTypes(input []sdk.AccountType) []sdk.AccountType {
 
 func cloneFrontendPages(input []sdk.FrontendPage) []sdk.FrontendPage {
 	return append([]sdk.FrontendPage(nil), input...)
+}
+
+func cloneConfigSchema(input []sdk.ConfigField) []sdk.ConfigField {
+	return append([]sdk.ConfigField(nil), input...)
 }

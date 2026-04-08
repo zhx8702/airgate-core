@@ -12,7 +12,98 @@ import (
 
 	sdk "github.com/DouDOU-start/airgate-sdk"
 	sdkgrpc "github.com/DouDOU-start/airgate-sdk/grpc"
+
+	"github.com/DouDOU-start/airgate-core/ent"
+	pluginent "github.com/DouDOU-start/airgate-core/ent/plugin"
+	settingent "github.com/DouDOU-start/airgate-core/ent/setting"
+	"github.com/DouDOU-start/airgate-core/internal/auth"
 )
+
+// buildInitConfig 构造传递给插件 Init() 的配置 map。
+//
+// 内容来源（优先级从低到高）：
+//  1. 系统自动注入（管理员不必填、也不允许覆盖）：
+//     - sdk.ConfigKeyLogLevel  来自 core 配置 log.level
+//     - db_dsn                 来自 core 配置 database 节，让插件复用 core 数据库
+//     - core_base_url          core 自身 HTTP 监听根地址，供插件回调 core admin API
+//     - admin_api_key          从 settings 表读 admin_api_key_encrypted 解密而来
+//     （未生成时不注入，插件以软失败方式运行）
+//  2. 用户配置：DB ent.Plugin.Config (JSONB) — 由管理员通过 UI 写入
+//
+// 用户配置不允许覆盖系统字段（防止管理员误填把 db_dsn 改成不可用的串）。
+// 当 DB 中没有该插件记录或 config 为空时，仅返回系统字段。
+// 这里刻意不报错：缺配置只是让插件以"未配置态"加载，UI 仍然可见。
+func (m *Manager) buildInitConfig(ctx context.Context, name string) map[string]interface{} {
+	cfg := map[string]interface{}{
+		sdk.ConfigKeyLogLevel: m.logLevel,
+	}
+	if m.coreDSN != "" {
+		cfg["db_dsn"] = m.coreDSN
+	}
+	if m.coreBaseURL != "" {
+		cfg["core_base_url"] = m.coreBaseURL
+	}
+	if key := m.lookupAdminAPIKey(ctx); key != "" {
+		cfg["admin_api_key"] = key
+	}
+	if m.db == nil {
+		return cfg
+	}
+	row, err := m.db.Plugin.Query().Where(pluginent.NameEQ(name)).Only(ctx)
+	if err != nil {
+		// not found 是常态，不打 warn
+		if !ent.IsNotFound(err) {
+			slog.Warn("读取插件 DB 配置失败", "plugin", name, "error", err)
+		}
+		return cfg
+	}
+	for k, v := range row.Config {
+		if _, exists := cfg[k]; exists {
+			continue // 系统字段不被用户覆盖
+		}
+		cfg[k] = v
+	}
+	return cfg
+}
+
+// lookupAdminAPIKey 从 settings 表读取 admin_api_key_encrypted 并解密为明文。
+//
+// 返回空串的常见情况：
+//   - 管理员还没在「系统设置 → 安全与认证」生成过 admin key（settings 表里没行）
+//   - apiKeySecret 与加密时不一致（用户中途改了 API_KEY_SECRET）
+//
+// 任何失败都只 warn，不返回 error —— 调用方据此决定不注入 admin_api_key 字段，
+// 让插件以软失败方式继续运行（airgate-health 在 admin_api_key 缺失时不启 prober，
+// 但插件仍然可见、仍能展示历史数据）。
+func (m *Manager) lookupAdminAPIKey(ctx context.Context) string {
+	if m.db == nil || m.apiKeySecret == "" {
+		return ""
+	}
+	const (
+		settingKey   = "admin_api_key_encrypted"
+		settingGroup = "security"
+	)
+	row, err := m.db.Setting.Query().
+		Where(settingent.KeyEQ(settingKey), settingent.GroupEQ(settingGroup)).
+		Only(ctx)
+	if err != nil {
+		if !ent.IsNotFound(err) {
+			slog.Warn("查询 admin_api_key_encrypted 失败", "error", err)
+		}
+		return ""
+	}
+	if row.Value == "" {
+		return ""
+	}
+	plain, err := auth.DecryptAPIKey(row.Value, m.apiKeySecret)
+	if err != nil {
+		slog.Warn("解密 admin_api_key 失败，将不注入到插件",
+			"error", err,
+			"hint", "API_KEY_SECRET 可能跟生成 admin key 时不一致")
+		return ""
+	}
+	return plain
+}
 
 // LoadAll 启动时扫描插件目录，发现可执行二进制则直接加载。
 func (m *Manager) LoadAll(ctx context.Context) error {
@@ -158,9 +249,7 @@ func (m *Manager) startGatewayPlugin(ctx context.Context, client *goplugin.Clien
 		return "", fmt.Errorf("插件未提供有效的 ID/name")
 	}
 
-	initConfig := map[string]interface{}{
-		sdk.ConfigKeyLogLevel: m.logLevel,
-	}
+	initConfig := m.buildInitConfig(ctx, canonicalName)
 	pluginCtx := newCorePluginContext(initConfig, canonicalName)
 	if err := gateway.Init(pluginCtx); err != nil {
 		client.Kill()
@@ -189,6 +278,7 @@ func (m *Manager) startGatewayPlugin(ctx context.Context, client *goplugin.Clien
 		Platform:           platform,
 		Type:               pluginType,
 		InstructionPresets: info.InstructionPresets,
+		ConfigSchema:       cloneConfigSchema(info.ConfigSchema),
 		Client:             client,
 		Gateway:            gateway,
 	}
@@ -226,9 +316,7 @@ func (m *Manager) startExtensionPlugin(ctx context.Context, client *goplugin.Cli
 		return "", fmt.Errorf("插件未提供有效的 ID/name")
 	}
 
-	initConfig := map[string]interface{}{
-		sdk.ConfigKeyLogLevel: m.logLevel,
-	}
+	initConfig := m.buildInitConfig(ctx, canonicalName)
 	pluginCtx := newCorePluginContext(initConfig, canonicalName)
 	if err := ext.Init(pluginCtx); err != nil {
 		client.Kill()
@@ -248,15 +336,16 @@ func (m *Manager) startExtensionPlugin(ctx context.Context, client *goplugin.Cli
 	}
 
 	instance := &PluginInstance{
-		Name:        canonicalName,
-		SourceName:  normalizePluginName(requestedName),
-		BinaryDir:   normalizePluginName(binaryDir),
-		DisplayName: info.Name,
-		Version:     info.Version,
-		Author:      info.Author,
-		Type:        pluginType,
-		Client:      client,
-		Extension:   ext,
+		Name:         canonicalName,
+		SourceName:   normalizePluginName(requestedName),
+		BinaryDir:    normalizePluginName(binaryDir),
+		DisplayName:  info.Name,
+		Version:      info.Version,
+		Author:       info.Author,
+		Type:         pluginType,
+		ConfigSchema: cloneConfigSchema(info.ConfigSchema),
+		Client:       client,
+		Extension:    ext,
 	}
 
 	m.mu.Lock()
@@ -268,6 +357,10 @@ func (m *Manager) startExtensionPlugin(ctx context.Context, client *goplugin.Cli
 	m.mu.Unlock()
 
 	m.extractPluginWebAssets(canonicalName, ext)
+
+	// 启动插件声明的后台任务调度（如 epay 的 expire_pending_orders）。
+	// 必须在 instance 已写入 m.instances 之后，因为 stopPlugin 通过 instance 取消。
+	m.startExtensionBackgroundTasks(instance)
 
 	if normalizePluginName(requestedName) != "" && canonicalName != normalizePluginName(requestedName) {
 		slog.Info("插件名称已统一到 Info().ID", "requested_name", requestedName, "canonical_name", canonicalName)
@@ -292,6 +385,12 @@ func (m *Manager) stopPlugin(name string) {
 	delete(m.frontendPageCache, inst.Name)
 	m.unregisterAliasesLocked(inst.Name, inst.SourceName, inst.BinaryDir)
 	m.mu.Unlock()
+
+	// 先停后台任务调度器，再走插件 Stop —— 避免 ticker 在 plugin 进程被 Kill
+	// 之后还往 dead client 发 RPC，造成一堆 connection refused 噪音。
+	if inst.stopBackground != nil {
+		inst.stopBackground()
+	}
 
 	if inst.Gateway != nil {
 		if err := inst.Gateway.Stop(context.Background()); err != nil {

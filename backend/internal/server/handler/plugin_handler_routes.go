@@ -23,6 +23,63 @@ func (h *PluginHandler) ListPlugins(c *gin.Context) {
 	response.Success(c, response.PagedData(resp, int64(len(resp)), 1, len(resp)))
 }
 
+// GetPluginConfig 读取插件已持久化的配置（用于编辑配置 UI 回显）。
+func (h *PluginHandler) GetPluginConfig(c *gin.Context) {
+	name := c.Param("name")
+	cfg, err := h.service.GetConfig(c.Request.Context(), name)
+	if err != nil {
+		response.InternalError(c, "读取插件配置失败: "+err.Error())
+		return
+	}
+	if cfg == nil {
+		cfg = map[string]string{}
+	}
+	response.Success(c, dto.PluginConfigResp{Config: cfg})
+}
+
+// UpdatePluginConfig 更新插件配置并触发 reload。
+func (h *PluginHandler) UpdatePluginConfig(c *gin.Context) {
+	name := c.Param("name")
+	var req dto.PluginConfigUpdateReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求格式错误: "+err.Error())
+		return
+	}
+	if req.Config == nil {
+		req.Config = map[string]string{}
+	}
+	if err := h.service.UpdateConfig(c.Request.Context(), name, req.Config); err != nil {
+		response.InternalError(c, "更新插件配置失败: "+err.Error())
+		return
+	}
+	response.Success(c, nil)
+}
+
+// ListPluginMenu 返回精简的插件菜单元信息（仅含 name + frontend_pages）。
+// 普通登录用户即可访问，前端 AppShell 据此渲染插件提供的页面菜单。
+// 不会泄露插件配置或账号类型等敏感信息。
+func (h *PluginHandler) ListPluginMenu(c *gin.Context) {
+	list := h.service.List()
+	resp := make([]dto.PluginResp, 0, len(list))
+	for _, item := range list {
+		if len(item.FrontendPages) == 0 {
+			continue
+		}
+		menuItem := dto.PluginResp{Name: item.Name, Type: item.Type}
+		for _, page := range item.FrontendPages {
+			menuItem.FrontendPages = append(menuItem.FrontendPages, dto.FrontendPageResp{
+				Path:        page.Path,
+				Title:       page.Title,
+				Icon:        page.Icon,
+				Description: page.Description,
+				Audience:    page.Audience,
+			})
+		}
+		resp = append(resp, menuItem)
+	}
+	response.Success(c, response.PagedData(resp, int64(len(resp)), 1, len(resp)))
+}
+
 // UploadPlugin 上传安装插件。
 func (h *PluginHandler) UploadPlugin(c *gin.Context) {
 	file, err := c.FormFile("file")

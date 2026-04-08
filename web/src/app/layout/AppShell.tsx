@@ -31,6 +31,7 @@ import {
   BookOpen,
   MessageCircle,
   Github,
+  Activity,
 } from 'lucide-react';
 
 interface AppShellProps {
@@ -68,31 +69,58 @@ const apiKeyMenuItems: MenuItem[] = [
   { path: '/usage', labelKey: 'nav.my_usage', icon: <BarChart3 className="w-[18px] h-[18px]" />, sectionKey: 'nav.personal' },
 ];
 
-function usePluginMenuItems(isAdmin: boolean): MenuItem[] {
+/**
+ * 拉取插件菜单：所有登录用户均可调用 /plugins/menu，再按 page.audience 过滤显示。
+ *   audience = "admin"（或空，向后兼容）— 仅管理员可见，挂在「插件」分组
+ *   audience = "user"                    — 仅普通用户可见（管理员不显示），挂在「个人中心」分组
+ *   audience = "all"                     — 所有登录用户可见，按当前角色挂分组
+ */
+function usePluginMenuItems(isAdmin: boolean): { adminItems: MenuItem[]; userItems: MenuItem[] } {
   const { data } = useQuery({
     queryKey: queryKeys.pluginsMenu(),
-    queryFn: () => pluginsApi.list(),
+    queryFn: () => pluginsApi.menu(),
     staleTime: 60_000,
-    enabled: isAdmin,
   });
 
-  if (!data?.list) return [];
+  if (!data?.list) return { adminItems: [], userItems: [] };
 
-  const items: MenuItem[] = [];
-  let first = true;
+  const adminItems: MenuItem[] = [];
+  const userItems: MenuItem[] = [];
+  let firstAdmin = true;
+  let firstUser = true;
+
   for (const p of data.list) {
     if (!p.frontend_pages?.length) continue;
     for (const page of p.frontend_pages) {
-      items.push({
+      const audience = page.audience || 'admin';
+      const showInUser =
+        audience === 'user' || (audience === 'all' && !isAdmin);
+      const showInAdmin =
+        isAdmin && (audience === 'admin' || audience === 'all');
+
+      const item: MenuItem = {
         path: `/plugins/${p.name}${page.path}`,
         labelKey: page.title,
         icon: <Puzzle className="w-[18px] h-[18px]" />,
-        ...(first ? { sectionKey: 'nav.plugins' } : {}),
-      });
-      first = false;
+      };
+
+      if (showInAdmin) {
+        adminItems.push({
+          ...item,
+          ...(firstAdmin ? { sectionKey: 'nav.plugins' } : {}),
+        });
+        firstAdmin = false;
+      }
+      if (showInUser) {
+        userItems.push({
+          ...item,
+          ...(firstUser ? { sectionKey: 'nav.personal' } : {}),
+        });
+        firstUser = false;
+      }
     }
   }
-  return items;
+  return { adminItems, userItems };
 }
 
 export function AppShell({ children }: AppShellProps) {
@@ -121,15 +149,21 @@ export function AppShell({ children }: AppShellProps) {
 
   const isAdmin = user?.role === 'admin';
   const isAPIKeySession = !!(user?.api_key_id && user.api_key_id > 0);
-  const pluginMenuItems = usePluginMenuItems(isAdmin && !isAPIKeySession);
+  const { adminItems: pluginAdminItems, userItems: pluginUserItems } = usePluginMenuItems(isAdmin);
   const adminUserItems = userMenuItems
     .filter((item) => item.path !== '/')
     .map((item, i) => (i === 0 ? { ...item, sectionKey: 'nav.personal' } : item));
+  // 不论 admin 还是普通用户视图，pluginUserItems 都会紧跟一个已有的「个人中心」section
+  // （admin 视图：adminUserItems；普通用户视图：userMenuItems），所以必须剥掉首项的
+  // sectionKey 避免 sections 数组里出现两个同名 section header → 渲染成两个「我的账户」。
+  const pluginUserItemsMerged = pluginUserItems.map((item, i) =>
+    i === 0 ? { path: item.path, labelKey: item.labelKey, icon: item.icon } : item,
+  );
   const menuItems = isAPIKeySession
     ? apiKeyMenuItems
     : isAdmin
-      ? [...adminMenuItems, ...pluginMenuItems, ...adminUserItems]
-      : [...userMenuItems, ...pluginMenuItems];
+      ? [...adminMenuItems, ...pluginAdminItems, ...adminUserItems, ...pluginUserItemsMerged]
+      : [...userMenuItems, ...pluginUserItemsMerged];
 
   const sections: Array<{ titleKey?: string; items: MenuItem[] }> = [];
   let currentSection: { titleKey?: string; items: MenuItem[] } | null = null;
@@ -295,6 +329,14 @@ export function AppShell({ children }: AppShellProps) {
             <h2 className="text-sm font-semibold text-text">{pageTitle}</h2>
           </div>
           <div className="flex items-center gap-1.5">
+            {/* Service status */}
+            <Link
+              to="/status"
+              className="flex items-center justify-center w-8 h-8 rounded-[10px] text-text-tertiary hover:text-text-secondary hover:bg-bg-hover transition-colors"
+              title={t('nav.status')}
+            >
+              <Activity className="w-3.5 h-3.5" />
+            </Link>
             {/* GitHub */}
             <a
               href="https://github.com/DouDOU-start/airgate-core"

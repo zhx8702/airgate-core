@@ -35,11 +35,27 @@ func (s *Service) List() []PluginMeta {
 			AccountTypes:       append([]sdk.AccountType(nil), item.AccountTypes...),
 			FrontendPages:      append([]sdk.FrontendPage(nil), item.FrontendPages...),
 			InstructionPresets: append([]string(nil), item.InstructionPresets...),
+			ConfigSchema:       append([]sdk.ConfigField(nil), item.ConfigSchema...),
 			HasWebAssets:       item.HasWebAssets,
 			IsDev:              item.IsDev,
 		})
 	}
 	return result
+}
+
+// GetConfig 读取插件持久化的配置（隐藏 password 类型字段的值，仅返回 key 列表）。
+func (s *Service) GetConfig(ctx context.Context, name string) (map[string]string, error) {
+	return s.manager.GetPluginConfig(ctx, name)
+}
+
+// UpdateConfig 写入插件配置并触发 reload。
+//
+// 注意 reload 失败不会回滚配置：用户应当看到错误后修改配置再重试。
+func (s *Service) UpdateConfig(ctx context.Context, name string, config map[string]string) error {
+	if err := s.manager.UpdatePluginConfig(ctx, name, config); err != nil {
+		return err
+	}
+	return s.manager.ReloadInstance(ctx, name)
 }
 
 // Upload 从二进制安装插件。

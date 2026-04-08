@@ -120,7 +120,9 @@ export default function UserUsagePage() {
   const list = data?.list ?? [];
   const total = data?.total ?? 0;
 
-  const columns = useUsageColumns();
+  const { user } = useAuth();
+  const customerScope = !!user?.api_key_id;
+  const columns = useUsageColumns({ customerScope });
 
   return (
     <div>

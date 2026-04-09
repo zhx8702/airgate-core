@@ -10,11 +10,13 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
+	"github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/yaml.v3"
@@ -22,8 +24,6 @@ import (
 	"github.com/DouDOU-start/airgate-core/ent"
 	"github.com/DouDOU-start/airgate-core/ent/migrate"
 	"github.com/DouDOU-start/airgate-core/internal/config"
-
-	_ "github.com/lib/pq"
 )
 
 var installMu sync.Mutex
@@ -131,11 +131,35 @@ func NeedsSetup() bool {
 	return count == 0
 }
 
-// TestDBConnection 测试数据库连接
+// TestDBConnection 测试数据库连接。
+//
+// 如果目标库不存在（PostgreSQL 错误码 3D000），会自动连到 `postgres` 系统库
+// 执行 CREATE DATABASE 后重试，对安装向导用户透明 —— 用户填了一个不存在的库名
+// 意味着他期望工具帮他建库。
+//
+// 这个行为只在安装向导阶段触发（NeedsSetup() == true 时被调用），生产运行时
+// 不会走到这里。如果连 `postgres` 系统库或 CREATE DATABASE 也失败（权限不足等），
+// 返回拼接后的错误信息，用户可以看到具体原因。
 func TestDBConnection(host string, port int, user, password, dbname, sslmode string) error {
 	if sslmode == "" {
 		sslmode = "disable"
 	}
+	if err := pingDatabase(host, port, user, password, dbname, sslmode); err != nil {
+		if !isDatabaseNotExistError(err) {
+			return err
+		}
+		slog.Info("目标数据库不存在，尝试自动创建", "dbname", dbname)
+		if createErr := createDatabase(host, port, user, password, dbname, sslmode); createErr != nil {
+			return fmt.Errorf("数据库 %q 不存在且自动创建失败: %w", dbname, createErr)
+		}
+		slog.Info("数据库创建成功，重试连接", "dbname", dbname)
+		return pingDatabase(host, port, user, password, dbname, sslmode)
+	}
+	return nil
+}
+
+// pingDatabase 打开连接并 ping 一次，是 TestDBConnection 的底层 helper。
+func pingDatabase(host string, port int, user, password, dbname, sslmode string) error {
 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		host, port, user, password, dbname, sslmode)
 	db, err := sql.Open("postgres", dsn)
@@ -147,7 +171,54 @@ func TestDBConnection(host string, port int, user, password, dbname, sslmode str
 			slog.Warn("关闭测试数据库连接失败", "error", err)
 		}
 	}()
-	return db.PingContext(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return db.PingContext(ctx)
+}
+
+// isDatabaseNotExistError 检测 lib/pq 返回的"目标库不存在"错误。
+// PostgreSQL 错误码 3D000 = invalid_catalog_name。
+func isDatabaseNotExistError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if pqErr, ok := err.(*pq.Error); ok {
+		return pqErr.Code == "3D000"
+	}
+	// lib/pq 在某些路径下也可能返回非 *pq.Error 的字符串错误
+	return strings.Contains(err.Error(), "does not exist")
+}
+
+// createDatabase 连到 PostgreSQL 系统库 `postgres` 执行 CREATE DATABASE。
+// 通过 quoteIdentifier 防止用户在数据库名里塞 SQL 注入（虽然安装向导通常没人这么干，
+// 但 CREATE DATABASE 不支持参数占位符，必须自己拼字符串，所以这一步是必须的）。
+func createDatabase(host string, port int, user, password, dbname, sslmode string) error {
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=postgres sslmode=%s",
+		host, port, user, password, sslmode)
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		return fmt.Errorf("连接 postgres 系统库失败: %w", err)
+	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			slog.Warn("关闭 postgres 系统库连接失败", "error", err)
+		}
+	}()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		return fmt.Errorf("ping postgres 系统库失败: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, "CREATE DATABASE "+quoteIdentifier(dbname)); err != nil {
+		return err
+	}
+	return nil
+}
+
+// quoteIdentifier 把 PostgreSQL 标识符用双引号包起来，并把内部的双引号转义为两个双引号。
+// 这是 PostgreSQL 标准的标识符引用方式，参考 lib/pq 的 QuoteIdentifier。
+func quoteIdentifier(name string) string {
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
 }
 
 // TestRedisConnection 测试 Redis 连接

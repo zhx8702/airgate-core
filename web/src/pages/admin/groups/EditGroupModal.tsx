@@ -70,7 +70,7 @@ export function GroupFormModal({
   const { data: copySourceData } = useQuery({
     queryKey: ['groups-for-copy', form.platform],
     queryFn: () =>
-      groupsApi.list({ page: 1, page_size: 1000, platform: form.platform }),
+      groupsApi.list({ page: 1, page_size: 100, platform: form.platform }),
     enabled: !isEdit && !!form.platform && open,
   });
   const copySourceGroups: GroupResp[] = copySourceData?.list ?? [];

@@ -208,10 +208,6 @@ For other systems see the [official install docs](https://caddyserver.com/docs/i
 Replace the file contents with the following, then change the domain and email:
 
 ```caddyfile
-{
-    email admin@example.com   # Let's Encrypt notification email
-}
-
 airgate.example.com {
     encode zstd gzip
 
@@ -257,7 +253,7 @@ On the first reload Caddy contacts Let's Encrypt automatically; within a few sec
 
 - **Don't drop `flush_interval -1`** — without it Caddy buffers the response and SSE / streaming endpoints turn into "all-at-once" replies.
 - **Bump the timeouts** — large-model inference can take minutes; Caddy's default reverse-proxy timeouts are too short.
-- **Port 80 must be open** — Let's Encrypt uses HTTP-01 to validate; if 80 is blocked, no certificate. While debugging, you can temporarily add `acme_ca https://acme-staging-v02.api.letsencrypt.org/directory` under `email` to switch to staging and avoid the production rate limits.
+- **Port 80 must be open** — Let's Encrypt uses HTTP-01 to validate; if 80 is blocked, no certificate. While debugging, add a `{ acme_ca https://acme-staging-v02.api.letsencrypt.org/directory }` global block at the top of the file to switch to staging and avoid the production rate limits.
 - **To close direct access on 9517** — change `core.ports` in [deploy/docker-compose.yml](deploy/docker-compose.yml) to `127.0.0.1:9517:9517` so only Caddy can reach it from outside; for the bare-metal install, set the listen address to `127.0.0.1` in `config.yaml`.
 
 ### Method 2: Run from Source (Development)

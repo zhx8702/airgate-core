@@ -208,10 +208,6 @@ sudo apt update && sudo apt install -y caddy
 把下面内容覆盖进去，改掉域名和邮箱即可：
 
 ```caddyfile
-{
-    email admin@example.com   # Let's Encrypt 通知邮箱
-}
-
 airgate.example.com {
     encode zstd gzip
 
@@ -257,7 +253,7 @@ sudo journalctl -u caddy -f                       # 看证书签发日志
 
 - **`flush_interval -1` 不能省**：默认会缓冲响应，SSE / 流式接口会变成"一次性返回"。
 - **超时一定要放宽**：大模型推理动辄几分钟，Caddy 默认反代超时不够。
-- **80 端口必须开**：Let's Encrypt 用 HTTP-01 验证，80 不通就签不到证书。调试期可在 `email` 下面临时加 `acme_ca https://acme-staging-v02.api.letsencrypt.org/directory` 切到 staging，避开正式环境的速率限制。
+- **80 端口必须开**：Let's Encrypt 用 HTTP-01 验证，80 不通就签不到证书。调试期可在文件最上面加一段 `{ acme_ca https://acme-staging-v02.api.letsencrypt.org/directory }` 切到 staging，避开正式环境的速率限制。
 - **想关掉 9517 直连**：把 [deploy/docker-compose.yml](deploy/docker-compose.yml) 里 `core.ports` 改成 `127.0.0.1:9517:9517`，外网就只能从 Caddy 进来；裸金属部署同理，在 `config.yaml` 里把监听地址改成 `127.0.0.1`。
 
 ### 方式 2：源码开发

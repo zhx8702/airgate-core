@@ -383,11 +383,14 @@ export function Table<T extends Record<string, any>>({
 
   return (
     <div className="space-y-4">
-      <div
-        className="border border-glass-border bg-bg-elevated shadow-sm rounded-xl overflow-auto"
-        style={autoHeight ? undefined : { maxHeight: '494px' }}
-      >
-        {tableEl}
+      {/* 外层负责边框 + 圆角裁剪；内层负责滚动。这样滚动条的方角不会戳出 rounded-xl */}
+      <div className="border border-glass-border bg-bg-elevated shadow-sm rounded-xl overflow-hidden">
+        <div
+          className="overflow-auto"
+          style={autoHeight ? undefined : { maxHeight: '494px' }}
+        >
+          {tableEl}
+        </div>
       </div>
 
       {/* 分页 */}

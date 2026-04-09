@@ -68,7 +68,10 @@ export function GroupFormModal({
       ...form,
       subscription_type: form.subscription_type as 'standard' | 'subscription',
       quotas: form.subscription_type === 'subscription' ? buildQuotas(quotas) : undefined,
-      force_instructions: form.force_instructions || undefined,
+      // 不能用 `|| undefined` —— 那会把空字符串（即"不覆盖"）也吞掉，
+      // 导致后端 ForceInstructions 指针为 nil 直接跳过更新，无法从 cc 切回不覆盖。
+      // 空串需要真实下发，让后端把字段更新为空字符串。
+      force_instructions: form.force_instructions ?? '',
       note: form.note,
     });
   };

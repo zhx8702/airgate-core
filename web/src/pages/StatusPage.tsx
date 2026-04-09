@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
-import { Activity, ArrowLeft, RefreshCw } from 'lucide-react';
+import { Activity, ArrowLeft, RefreshCw, XCircle } from 'lucide-react';
 import { useAuth } from '../app/providers/AuthProvider';
 import { useSiteSettings, defaultLogoUrl } from '../app/providers/SiteSettingsProvider';
-import { Alert } from '../shared/components/Alert';
 import { Card } from '../shared/components/Card';
 import { AppShell } from '../app/layout/AppShell';
 
@@ -103,7 +102,12 @@ function StatusContent({ hideHeader = false }: { hideHeader?: boolean } = {}) {
         </div>
       )}
 
-      {err && <Alert variant="error">{t('status_page.load_failed')}: {err}</Alert>}
+      {err && (
+        <div className="flex items-center gap-2 rounded-[8px] border border-danger/20 bg-danger-subtle px-3 py-1.5 text-xs text-danger">
+          <XCircle className="w-3.5 h-3.5 flex-shrink-0" />
+          <span className="min-w-0 truncate">{t('status_page.load_failed')}: {err}</span>
+        </div>
+      )}
 
       {!data && !err && (
         <Card>

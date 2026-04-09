@@ -8,6 +8,7 @@ import { useAuth } from '../app/providers/AuthProvider';
 import { useSiteSettings, defaultLogoUrl } from '../app/providers/SiteSettingsProvider';
 import { authApi } from '../shared/api/auth';
 import { useTheme } from '../app/providers/ThemeProvider';
+import { useStatusPageEnabled } from '../shared/hooks/useStatusPageEnabled';
 import { ApiError } from '../shared/api/client';
 import { Mail, Lock, User, ArrowRight, Sun, Moon, ShieldCheck, Key, Activity } from 'lucide-react';
 
@@ -329,6 +330,7 @@ export default function LoginPage() {
   const { t } = useTranslation();
   const { theme, toggleTheme } = useTheme();
   const site = useSiteSettings();
+  const statusPageEnabled = useStatusPageEnabled();
   const [activeTab, setActiveTab] = useState<TabKey>('login');
   const [registerSuccess, setRegisterSuccess] = useState(false);
 
@@ -473,13 +475,15 @@ export default function LoginPage() {
 
           {/* 底部 */}
           <div className="mt-6 flex flex-col items-center gap-2">
-            <Link
-              to="/status"
-              className="inline-flex items-center gap-1.5 text-[11px] text-text-tertiary hover:text-primary transition-colors"
-            >
-              <Activity className="w-3 h-3" />
-              {t('nav.status')}
-            </Link>
+            {statusPageEnabled && (
+              <Link
+                to="/status"
+                className="inline-flex items-center gap-1.5 text-[11px] text-text-tertiary hover:text-primary transition-colors"
+              >
+                <Activity className="w-3 h-3" />
+                {t('nav.status')}
+              </Link>
+            )}
             <p className="text-center text-[10px] text-text-tertiary font-mono uppercase tracking-[0.15em]">
               Powered by {site.site_name || 'AirGate'}
             </p>

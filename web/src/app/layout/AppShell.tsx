@@ -8,6 +8,7 @@ import { queryKeys } from '../../shared/queryKeys';
 import { useTheme } from '../providers/ThemeProvider';
 import { useSiteSettings, defaultLogoUrl } from '../providers/SiteSettingsProvider';
 import { useIsMobile } from '../../shared/hooks/useMediaQuery';
+import { useStatusPageEnabled } from '../../shared/hooks/useStatusPageEnabled';
 import {
   LayoutDashboard,
   Users,
@@ -158,6 +159,9 @@ export function AppShell({ children }: AppShellProps) {
   const isAdmin = user?.role === 'admin';
   const isAPIKeySession = !!(user?.api_key_id && user.api_key_id > 0);
   const { adminItems: pluginAdminItems, userItems: pluginUserItems, healthInstalled } = usePluginMenuItems(isAdmin);
+  const statusPageEnabled = useStatusPageEnabled();
+  // 入口可见性：插件已安装 + 公开状态页开关已开启。两者缺一就隐藏，避免点进去看到 404。
+  const showStatusEntry = healthInstalled && statusPageEnabled;
   const adminUserItems = userMenuItems
     .filter((item) => item.path !== '/')
     .map((item, i) => (i === 0 ? { ...item, sectionKey: 'nav.personal' } : item));
@@ -337,8 +341,8 @@ export function AppShell({ children }: AppShellProps) {
             <h2 className="text-sm font-semibold text-text">{pageTitle}</h2>
           </div>
           <div className="flex items-center gap-1.5">
-            {/* Service status — 仅当 airgate-health 插件已安装时显示 */}
-            {healthInstalled && (
+            {/* Service status — 仅当 airgate-health 插件已安装且公开状态页已开启时显示 */}
+            {showStatusEntry && (
               <Link
                 to="/status"
                 className="flex items-center justify-center w-8 h-8 rounded-[10px] text-text-tertiary hover:text-text-secondary hover:bg-bg-hover transition-colors"

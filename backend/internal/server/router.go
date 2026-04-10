@@ -230,6 +230,16 @@ func (s *Server) registerRoutes() {
 	r.GET("/status", statusProxy)
 	r.GET("/status/*path", statusProxy)
 
+	// === cc-switch 通用模板兼容端点（使用 sk-xxx API Key 自鉴权） ===
+	// cc-switch（https://github.com/farion1231/cc-switch）的"通用模板"会
+	// 打 GET {baseUrl}/v1/usage，extractor 依次读 response.remaining /
+	// response.quota.remaining / response.balance 作为剩余额度，并读
+	// response.is_active 作为 key 状态。这里注册 /v1/usage 返回
+	// { is_active, balance } 即可命中。
+	// 必须注册在 NoRoute 之前，否则会被插件动态路由吃掉。
+	// 实现见 cc_compat.go。
+	r.GET("/v1/usage", s.handleCCCompatUserBalance)
+
 	// === OpenClaw 一键接入（公共路由，无需认证） ===
 	// 设计：install.sh 通过 `curl | bash` 分发，因此必须公开；models/info
 	// 也无需鉴权，内容均为管理员已标记为 "可公开" 的元信息。

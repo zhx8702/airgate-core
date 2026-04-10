@@ -22,6 +22,16 @@ export function getToken(): string | null {
 // 查询参数类型
 type QueryParams = Record<string, any>;
 
+// 当前浏览器时区（IANA 名，例如 "Asia/Shanghai"、"America/New_York"）。
+// 自动附加到 GET 请求，保证后端按用户本地时区计算"今天 / 7 天"等边界。
+function browserTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  } catch {
+    return '';
+  }
+}
+
 // 构建请求头
 function buildHeaders(includeContentType: boolean): Record<string, string> {
   const headers: Record<string, string> = {};
@@ -78,6 +88,15 @@ async function request<T>(
         url.searchParams.set(key, String(value));
       }
     });
+  }
+
+  // 给 GET 请求自动附加浏览器时区，后端用它计算"今天 / 7 天"等边界以及解析
+  // YYYY-MM-DD 形式的 start_date / end_date。调用方显式提供的 tz 不会被覆盖。
+  if (method === 'GET' && !url.searchParams.has('tz')) {
+    const tz = browserTimezone();
+    if (tz) {
+      url.searchParams.set('tz', tz);
+    }
   }
 
   const res = await doFetch(url.toString(), {

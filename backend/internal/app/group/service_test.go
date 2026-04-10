@@ -3,6 +3,7 @@ package group
 import (
 	"context"
 	"testing"
+	"time"
 )
 
 func TestListNormalizesPagination(t *testing.T) {
@@ -120,7 +121,7 @@ func (s groupStubRepository) Delete(ctx context.Context, id int) error {
 	return s.delete(ctx, id)
 }
 
-func (s groupStubRepository) StatsForGroups(ctx context.Context, groupIDs []int) (map[int]GroupStats, map[int][]AccountCapacity, error) {
+func (s groupStubRepository) StatsForGroups(ctx context.Context, groupIDs []int, _ time.Time) (map[int]GroupStats, map[int][]AccountCapacity, error) {
 	if s.statsForGroups == nil {
 		return nil, nil, nil
 	}

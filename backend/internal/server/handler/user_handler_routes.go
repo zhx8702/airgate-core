@@ -308,7 +308,7 @@ func (h *UserHandler) AdminListUserKeys(c *gin.Context) {
 		return
 	}
 
-	result, err := h.service.ListAPIKeys(c.Request.Context(), id, page.Page, page.PageSize)
+	result, err := h.service.ListAPIKeys(c.Request.Context(), id, page.Page, page.PageSize, c.Query("tz"))
 	if err != nil {
 		httpCode, message := h.handleError("查询用户密钥失败", "查询失败", err)
 		response.Error(c, httpCode, httpCode, message)

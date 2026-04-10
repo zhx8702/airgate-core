@@ -9,16 +9,16 @@ import (
 	entusagelog "github.com/DouDOU-start/airgate-core/ent/usagelog"
 )
 
-func queryAPIKeyUsage(ctx context.Context, db *ent.Client, keyIDs []int) (map[int]float64, map[int]float64, error) {
+// queryAPIKeyUsage 返回每个 key 的"今日"和"近 30 天"实际成本。
+// todayStart 必须由调用方按用户时区计算好；近 30 天窗口以 todayStart 为锚。
+func queryAPIKeyUsage(ctx context.Context, db *ent.Client, keyIDs []int, todayStart time.Time) (map[int]float64, map[int]float64, error) {
 	todayMap := make(map[int]float64, len(keyIDs))
 	thirtyDayMap := make(map[int]float64, len(keyIDs))
 	if len(keyIDs) == 0 {
 		return todayMap, thirtyDayMap, nil
 	}
 
-	now := time.Now()
-	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	thirtyDaysAgo := now.AddDate(0, 0, -30)
+	thirtyDaysAgo := todayStart.AddDate(0, 0, -29)
 
 	type costRow struct {
 		APIKeyID int     `json:"api_key_usage_logs"`

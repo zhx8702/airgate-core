@@ -4,6 +4,8 @@ import (
 	"context"
 	"sort"
 	"time"
+
+	"github.com/DouDOU-start/airgate-core/internal/pkg/timezone"
 )
 
 // Service 提供仪表盘用例编排。
@@ -21,9 +23,12 @@ func NewService(repo Repository) *Service {
 }
 
 // Stats 查询仪表盘统计。userID 为 0 表示查全部。
-func (s *Service) Stats(ctx context.Context, userID int) (Stats, error) {
-	now := s.now()
-	todayStart := now.Truncate(24 * time.Hour)
+// tz 为调用方的 IANA 时区名（如 "Asia/Shanghai"、"America/New_York"），决定"今天"的起点；
+// 为空或无法解析时回退到服务器本地时区。
+func (s *Service) Stats(ctx context.Context, userID int, tz string) (Stats, error) {
+	loc := timezone.Resolve(tz)
+	now := s.now().In(loc)
+	todayStart := timezone.StartOfDay(now)
 	fiveMinAgo := now.Add(-5 * time.Minute)
 
 	snapshot, err := s.repo.LoadStatsSnapshot(ctx, todayStart, fiveMinAgo, userID)
@@ -59,8 +64,11 @@ func (s *Service) Stats(ctx context.Context, userID int) (Stats, error) {
 }
 
 // Trend 查询仪表盘趋势。
+// query.TZ 决定时间范围边界以及输出时间桶的格式化时区；为空时回退到服务器本地时区。
 func (s *Service) Trend(ctx context.Context, query TrendQuery) (Trend, error) {
-	startTime, endTime := resolveTrendTimeRange(query, s.now())
+	loc := timezone.Resolve(query.TZ)
+	now := s.now().In(loc)
+	startTime, endTime := resolveTrendTimeRange(query, now)
 	logs, err := s.repo.ListTrendLogs(ctx, startTime, endTime, query.UserID)
 	if err != nil {
 		return Trend{}, err
@@ -69,38 +77,41 @@ func (s *Service) Trend(ctx context.Context, query TrendQuery) (Trend, error) {
 	return Trend{
 		ModelDistribution: aggregateModelDistribution(logs),
 		UserRanking:       aggregateUserRanking(logs),
-		TokenTrend:        aggregateTokenTrend(logs, query.Granularity),
-		TopUsers:          aggregateTopUsers(logs, query.Granularity),
+		TokenTrend:        aggregateTokenTrend(logs, query.Granularity, loc),
+		TopUsers:          aggregateTopUsers(logs, query.Granularity, loc),
 	}, nil
 }
 
+// resolveTrendTimeRange 根据查询计算 [startTime, endTime) 区间。
+// now 必须已处于目标时区，这样 startOfDay 和 ParseInLocation 才会使用调用方时区。
 func resolveTrendTimeRange(query TrendQuery, now time.Time) (time.Time, time.Time) {
 	endTime := now
+	loc := now.Location()
 
 	switch query.Range {
 	case "today":
-		return now.Truncate(24 * time.Hour), endTime
+		return timezone.StartOfDay(now), endTime
 	case "7d":
-		return now.AddDate(0, 0, -7).Truncate(24 * time.Hour), endTime
+		return timezone.StartOfDay(now.AddDate(0, 0, -7)), endTime
 	case "30d":
-		return now.AddDate(0, 0, -30).Truncate(24 * time.Hour), endTime
+		return timezone.StartOfDay(now.AddDate(0, 0, -30)), endTime
 	case "90d":
-		return now.AddDate(0, 0, -90).Truncate(24 * time.Hour), endTime
+		return timezone.StartOfDay(now.AddDate(0, 0, -90)), endTime
 	case "custom":
-		startTime := now.AddDate(0, 0, -30).Truncate(24 * time.Hour)
+		startTime := timezone.StartOfDay(now.AddDate(0, 0, -30))
 		if query.StartDate != "" {
-			if parsed, err := time.Parse("2006-01-02", query.StartDate); err == nil {
+			if parsed, err := timezone.ParseDate(query.StartDate, loc); err == nil {
 				startTime = parsed
 			}
 		}
 		if query.EndDate != "" {
-			if parsed, err := time.Parse("2006-01-02", query.EndDate); err == nil {
+			if parsed, err := timezone.ParseDate(query.EndDate, loc); err == nil {
 				endTime = parsed.AddDate(0, 0, 1)
 			}
 		}
 		return startTime, endTime
 	default:
-		return now.Truncate(24 * time.Hour), endTime
+		return timezone.StartOfDay(now), endTime
 	}
 }
 
@@ -155,11 +166,11 @@ func aggregateUserRanking(logs []TrendLog) []UserRanking {
 	return result
 }
 
-func aggregateTokenTrend(logs []TrendLog, granularity string) []TimeBucket {
+func aggregateTokenTrend(logs []TrendLog, granularity string, loc *time.Location) []TimeBucket {
 	layout := trendTimeLayout(granularity)
 	bucketMap := make(map[string]*TimeBucket)
 	for _, item := range logs {
-		key := item.CreatedAt.Format(layout)
+		key := item.CreatedAt.In(loc).Format(layout)
 		bucket := bucketMap[key]
 		if bucket == nil {
 			bucket = &TimeBucket{Time: key}
@@ -180,7 +191,7 @@ func aggregateTokenTrend(logs []TrendLog, granularity string) []TimeBucket {
 	return result
 }
 
-func aggregateTopUsers(logs []TrendLog, granularity string) []UserTrend {
+func aggregateTopUsers(logs []TrendLog, granularity string, loc *time.Location) []UserTrend {
 	type userTotal struct {
 		UserID int
 		Email  string
@@ -219,7 +230,7 @@ func aggregateTopUsers(logs []TrendLog, granularity string) []UserTrend {
 		if !topUserSet[item.UserID] {
 			continue
 		}
-		key := item.CreatedAt.Format(layout)
+		key := item.CreatedAt.In(loc).Format(layout)
 		if userBuckets[item.UserID] == nil {
 			userBuckets[item.UserID] = make(map[string]int64)
 		}

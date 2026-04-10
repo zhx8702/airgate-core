@@ -251,7 +251,8 @@ func (s *UserStore) GetAPIKeyInfo(ctx context.Context, keyID int) (appuser.APIKe
 }
 
 // ListAPIKeys 查询指定用户的 API Key 列表。
-func (s *UserStore) ListAPIKeys(ctx context.Context, userID, page, pageSize int) ([]appuser.APIKey, int64, error) {
+// todayStart 必须由调用方按用户时区计算好。
+func (s *UserStore) ListAPIKeys(ctx context.Context, userID, page, pageSize int, todayStart time.Time) ([]appuser.APIKey, int64, error) {
 	query := s.db.APIKey.Query().
 		Where(entapikey.HasUserWith(entuser.IDEQ(userID))).
 		WithGroup()
@@ -274,7 +275,7 @@ func (s *UserStore) ListAPIKeys(ctx context.Context, userID, page, pageSize int)
 	for _, item := range items {
 		keyIDs = append(keyIDs, item.ID)
 	}
-	todayUsage, thirtyDayUsage, err := queryAPIKeyUsage(ctx, s.db, keyIDs)
+	todayUsage, thirtyDayUsage, err := queryAPIKeyUsage(ctx, s.db, keyIDs, todayStart)
 	if err != nil {
 		return nil, 0, err
 	}

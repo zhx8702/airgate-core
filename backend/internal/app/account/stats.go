@@ -3,6 +3,8 @@ package account
 import (
 	"sort"
 	"time"
+
+	"github.com/DouDOU-start/airgate-core/internal/pkg/timezone"
 )
 
 const (
@@ -22,13 +24,15 @@ func NormalizePage(page, pageSize int) (int, int) {
 }
 
 // ResolveStatsRange 解析统计时间范围。
+// now 应已处于调用方时区（即 now.In(timezone.Resolve(query.TZ))），
+// 这样 today / startDate / endDate 都按用户期望的"本地一天"对齐。
 func ResolveStatsRange(now time.Time, query StatsQuery) (time.Time, time.Time, error) {
 	location := now.Location()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, location)
+	today := timezone.StartOfDay(now)
 
 	var startDate time.Time
 	if query.StartDate != "" {
-		parsed, err := time.ParseInLocation("2006-01-02", query.StartDate, location)
+		parsed, err := timezone.ParseDate(query.StartDate, location)
 		if err != nil {
 			return time.Time{}, time.Time{}, ErrInvalidDateRange
 		}
@@ -37,11 +41,11 @@ func ResolveStatsRange(now time.Time, query StatsQuery) (time.Time, time.Time, e
 
 	var endDate time.Time
 	if query.EndDate != "" {
-		parsed, err := time.ParseInLocation("2006-01-02", query.EndDate, location)
+		parsed, err := timezone.ParseDate(query.EndDate, location)
 		if err != nil {
 			return time.Time{}, time.Time{}, ErrInvalidDateRange
 		}
-		endDate = time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 23, 59, 59, 0, location)
+		endDate = timezone.EndOfDay(parsed)
 	}
 
 	if startDate.IsZero() {
@@ -58,8 +62,10 @@ func ResolveStatsRange(now time.Time, query StatsQuery) (time.Time, time.Time, e
 }
 
 // BuildStatsResult 聚合账号统计结果。
+// 入参 now 同样应已处于调用方时区。
 func BuildStatsResult(account Account, logs []UsageLog, now, startDate, endDate time.Time) StatsResult {
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	location := now.Location()
+	today := timezone.StartOfDay(now)
 	totalDays := int(endDate.Sub(startDate).Hours()/24) + 1
 
 	result := StatsResult{
@@ -77,7 +83,8 @@ func BuildStatsResult(account Account, logs []UsageLog, now, startDate, endDate 
 	var totalDurationMs int64
 
 	for _, log := range logs {
-		dateKey := log.CreatedAt.Format("2006-01-02")
+		// 按用户时区对齐日期 key，避免 UTC 切换导致跨日错位
+		dateKey := log.CreatedAt.In(location).Format("2006-01-02")
 
 		result.Range.Count++
 		result.Range.InputTokens += log.InputTokens

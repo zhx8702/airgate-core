@@ -18,7 +18,7 @@ type Repository interface {
 	Create(context.Context, CreateInput) (Group, error)
 	Update(context.Context, int, UpdateInput) (Group, error)
 	Delete(context.Context, int) error
-	StatsForGroups(ctx context.Context, groupIDs []int) (stats map[int]GroupStats, activeAccounts map[int][]AccountCapacity, err error)
+	StatsForGroups(ctx context.Context, groupIDs []int, todayStart time.Time) (stats map[int]GroupStats, activeAccounts map[int][]AccountCapacity, err error)
 }
 
 // ConcurrencyReader 并发读接口。

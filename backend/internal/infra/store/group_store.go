@@ -298,7 +298,8 @@ func (s *GroupStore) Delete(ctx context.Context, id int) error {
 }
 
 // StatsForGroups 批量查询分组统计信息（账号数、容量、用量）。
-func (s *GroupStore) StatsForGroups(ctx context.Context, groupIDs []int) (map[int]appgroup.GroupStats, map[int][]appgroup.AccountCapacity, error) {
+// todayStart 必须由调用方按用户时区计算好；store 层不再自己读 time.Now。
+func (s *GroupStore) StatsForGroups(ctx context.Context, groupIDs []int, todayStart time.Time) (map[int]appgroup.GroupStats, map[int][]appgroup.AccountCapacity, error) {
 	if len(groupIDs) == 0 {
 		return nil, nil, nil
 	}
@@ -357,8 +358,6 @@ func (s *GroupStore) StatsForGroups(ctx context.Context, groupIDs []int) (map[in
 	}
 
 	// 3. 查询每个分组的今日用量
-	now := time.Now()
-	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	var todayRows []struct {
 		GroupID   int     `json:"group_usage_logs"`
 		TotalCost float64 `json:"total_cost"`

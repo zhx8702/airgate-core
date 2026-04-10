@@ -46,16 +46,21 @@ function rangeToDate(range: RangePreset): { start_date: string; end_date: string
   return { start_date: start, end_date: end };
 }
 
-/** 将后端 UTC 时间字符串转为本地时区显示 */
+/** 格式化趋势图时间标签：含小时取 HH:00，纯日期取 MM/DD。
+ *
+ * 后端从 v1 起会按调用方时区（client.ts 自动附带的 tz 参数）格式化桶 key，
+ * 因此 timeStr 已经是用户本地时区下的字符串，前端只需直接截取，不要再做时区换算。
+ */
 function fmtTime(timeStr: string): string {
-  // "2026-04-03 09:00" (UTC) 或 "2026-04-03" (日期)
-  const utcStr = timeStr.includes(' ') ? timeStr.replace(' ', 'T') + ':00Z' : timeStr + 'T00:00:00Z';
-  const d = new Date(utcStr);
-  if (isNaN(d.getTime())) return timeStr;
   if (timeStr.includes(' ')) {
-    return `${String(d.getHours()).padStart(2, '0')}:00`;
+    const time = timeStr.split(' ')[1] ?? '';
+    return time.slice(0, 5) || timeStr;
   }
-  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+  const parts = timeStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[1]}/${parts[2]}`;
+  }
+  return timeStr;
 }
 
 export default function UserOverviewPage() {

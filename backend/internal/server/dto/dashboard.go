@@ -38,7 +38,8 @@ type DashboardStatsResp struct {
 
 // DashboardStatsReq 仪表盘统计查询参数
 type DashboardStatsReq struct {
-	UserID int `form:"user_id"`
+	UserID int    `form:"user_id"`
+	TZ     string `form:"tz"` // IANA 时区名，例如 Asia/Shanghai；为空时使用服务器本地时区
 }
 
 // DashboardTrendReq 仪表盘趋势查询参数
@@ -48,6 +49,7 @@ type DashboardTrendReq struct {
 	StartDate   string `form:"start_date"`
 	EndDate     string `form:"end_date"`
 	UserID      int    `form:"user_id"`
+	TZ          string `form:"tz"` // IANA 时区名；为空时使用服务器本地时区
 }
 
 // DashboardTrendResp 仪表盘趋势响应

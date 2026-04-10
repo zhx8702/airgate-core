@@ -12,6 +12,7 @@ import (
 	entusagelog "github.com/DouDOU-start/airgate-core/ent/usagelog"
 	entuser "github.com/DouDOU-start/airgate-core/ent/user"
 	appusage "github.com/DouDOU-start/airgate-core/internal/app/usage"
+	"github.com/DouDOU-start/airgate-core/internal/pkg/timezone"
 )
 
 // UsageStore 使用 Ent 实现使用记录仓储。
@@ -420,6 +421,7 @@ func applyUsageListFilter(query *ent.UsageLogQuery, filter appusage.ListFilter) 
 		Model:       filter.Model,
 		StartDate:   filter.StartDate,
 		EndDate:     filter.EndDate,
+		TZ:          filter.TZ,
 		ScopedToKey: filter.ScopedToKey,
 	})
 }
@@ -434,13 +436,14 @@ func applyUsageStatsFilter(query *ent.UsageLogQuery, filter appusage.StatsFilter
 	if filter.Model != "" {
 		query = query.Where(entusagelog.ModelContains(filter.Model))
 	}
+	loc := timezone.Resolve(filter.TZ)
 	if filter.StartDate != "" {
-		if parsed, err := time.Parse("2006-01-02", filter.StartDate); err == nil {
+		if parsed, err := timezone.ParseDate(filter.StartDate, loc); err == nil {
 			query = query.Where(entusagelog.CreatedAtGTE(parsed))
 		}
 	}
 	if filter.EndDate != "" {
-		if parsed, err := time.Parse("2006-01-02", filter.EndDate); err == nil {
+		if parsed, err := timezone.ParseDate(filter.EndDate, loc); err == nil {
 			query = query.Where(entusagelog.CreatedAtLT(parsed.AddDate(0, 0, 1)))
 		}
 	}

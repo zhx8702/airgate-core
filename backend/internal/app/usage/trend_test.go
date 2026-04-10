@@ -28,7 +28,7 @@ func TestBuildTrendBuckets_AggregatesAndSorts(t *testing.T) {
 			ActualCost:        0.2,
 			StandardCost:      0.4,
 		},
-	}, "hour")
+	}, "hour", "UTC")
 
 	if got, want := len(buckets), 2; got != want {
 		t.Fatalf("expected %d buckets, got %d", want, got)

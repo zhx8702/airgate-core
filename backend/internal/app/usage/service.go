@@ -102,5 +102,5 @@ func (s *Service) AdminTrend(ctx context.Context, filter TrendFilter) ([]TrendBu
 	if err != nil {
 		return nil, err
 	}
-	return BuildTrendBuckets(entries, filter.Granularity), nil
+	return BuildTrendBuckets(entries, filter.Granularity, filter.TZ), nil
 }

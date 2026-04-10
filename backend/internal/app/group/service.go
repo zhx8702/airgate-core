@@ -1,6 +1,11 @@
 package group
 
-import "context"
+import (
+	"context"
+	"time"
+
+	"github.com/DouDOU-start/airgate-core/internal/pkg/timezone"
+)
 
 // Service 提供分组域用例编排。
 type Service struct {
@@ -33,8 +38,11 @@ func (s *Service) List(ctx context.Context, filter ListFilter) (ListResult, erro
 }
 
 // StatsForGroups 批量查询分组统计信息（含实时容量）。
-func (s *Service) StatsForGroups(ctx context.Context, groupIDs []int) (map[int]GroupStats, error) {
-	stats, activeAccounts, err := s.repo.StatsForGroups(ctx, groupIDs)
+// tz 决定"今日"起点；为空时回退到服务器本地时区。
+func (s *Service) StatsForGroups(ctx context.Context, groupIDs []int, tz string) (map[int]GroupStats, error) {
+	loc := timezone.Resolve(tz)
+	todayStart := timezone.StartOfDay(time.Now().In(loc))
+	stats, activeAccounts, err := s.repo.StatsForGroups(ctx, groupIDs, todayStart)
 	if err != nil {
 		return nil, err
 	}

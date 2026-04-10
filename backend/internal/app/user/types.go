@@ -177,7 +177,9 @@ type Repository interface {
 	UpdateBalance(context.Context, int, BalanceUpdate) (User, error)
 	Delete(context.Context, int) error
 	ListBalanceLogs(context.Context, int, int, int) ([]BalanceLog, int64, error)
-	ListAPIKeys(context.Context, int, int, int) ([]APIKey, int64, error)
+	// ListAPIKeys 查询用户的 API Key 列表。
+	// todayStart 必须由调用方按用户时区计算好。
+	ListAPIKeys(ctx context.Context, userID, page, pageSize int, todayStart time.Time) ([]APIKey, int64, error)
 	GetAPIKeyName(ctx context.Context, keyID int) (string, error)
 	GetAPIKeyInfo(ctx context.Context, keyID int) (APIKeyBrief, error)
 	UpdateBalanceAlert(ctx context.Context, userID int, threshold float64) error

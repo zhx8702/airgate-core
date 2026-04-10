@@ -1,4 +1,4 @@
-import { Link, useNavigate } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useSiteSettings, defaultLogoUrl } from '../app/providers/SiteSettingsProvider';
 import { useTheme } from '../app/providers/ThemeProvider';
@@ -48,13 +48,14 @@ export default function HomePage() {
           <span className="text-base font-bold tracking-tight">{site.site_name || 'AirGate'}</span>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            to="/status"
+          {/* /status 由 health 插件 standalone 渲染，不在 SPA 路由树里，用普通 <a> 跳转 */}
+          <a
+            href="/status"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text transition-colors"
           >
             <Activity className="w-3.5 h-3.5" />
             {t('nav.status')}
-          </Link>
+          </a>
           <a
             href={docs.href}
             {...(docs.isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
@@ -162,10 +163,10 @@ export default function HomePage() {
             {t('home.docs')}
           </a>
           <span className="w-px h-3 bg-[var(--ag-border)]" />
-          <Link to="/status" className="inline-flex items-center gap-1 hover:text-text transition-colors">
+          <a href="/status" className="inline-flex items-center gap-1 hover:text-text transition-colors">
             <Activity className="w-3 h-3" />
             {t('nav.status')}
-          </Link>
+          </a>
         </div>
       </footer>
     </div>

@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"time"
 
 	"github.com/DouDOU-start/airgate-core/ent"
 	entapikey "github.com/DouDOU-start/airgate-core/ent/apikey"
@@ -54,8 +55,8 @@ func (s *APIKeyStore) ListByUser(ctx context.Context, userID int, filter appapik
 }
 
 // KeyUsage 查询 API Key 今日与近 30 天用量。
-func (s *APIKeyStore) KeyUsage(ctx context.Context, keyIDs []int) (map[int]float64, map[int]float64, error) {
-	return queryAPIKeyUsage(ctx, s.db, keyIDs)
+func (s *APIKeyStore) KeyUsage(ctx context.Context, keyIDs []int, todayStart time.Time) (map[int]float64, map[int]float64, error) {
+	return queryAPIKeyUsage(ctx, s.db, keyIDs, todayStart)
 }
 
 // GetGroupAccess 校验用户对分组的访问权限。

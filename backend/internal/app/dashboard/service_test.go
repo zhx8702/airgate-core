@@ -18,7 +18,7 @@ func TestStatsComputesDerivedMetrics(t *testing.T) {
 		},
 	})
 
-	result, err := service.Stats(t.Context(), 0)
+	result, err := service.Stats(t.Context(), 0, "")
 	if err != nil {
 		t.Fatalf("Stats() returned error: %v", err)
 	}

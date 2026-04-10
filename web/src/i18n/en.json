@@ -898,28 +898,5 @@
     "install_failed": "Installation failed: {{error}}",
     "run_install": "Run Installation",
     "installing_btn": "Installing..."
-  },
-
-  "status_page": {
-    "title": "Service Status",
-    "subtitle": "Uptime computed over the past 7 days, trend chart covers the past 90 days, auto-refresh every minute",
-    "refresh": "Refresh",
-    "all_operational": "All Systems Operational",
-    "partial_degraded": "Partial Service Degradation",
-    "major_outage": "Major Outage",
-    "no_data": "No monitoring data",
-    "load_failed": "Failed to load",
-    "loading": "Loading…",
-    "no_monitor_data": "No monitoring data",
-    "maintenance": "Maintenance",
-    "system_maintenance": "System under maintenance",
-    "back_to_login": "Back to login",
-    "operational": "Operational",
-    "degraded": "Degraded",
-    "outage": "Outage",
-    "unknown": "Unknown",
-    "no_data_short": "No data",
-    "days_ago": "{{count}} days ago",
-    "today": "Today"
   }
 }

@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"testing"
+	"time"
 )
 
 func TestAdjustBalanceRejectsInvalidAction(t *testing.T) {
@@ -41,7 +42,7 @@ func TestListAPIKeysNormalizesPagination(t *testing.T) {
 		},
 	})
 
-	result, err := service.ListAPIKeys(t.Context(), 7, 0, 0)
+	result, err := service.ListAPIKeys(t.Context(), 7, 0, 0, "")
 	if err != nil {
 		t.Fatalf("ListAPIKeys returned error: %v", err)
 	}
@@ -81,7 +82,7 @@ func (s stubRepository) UpdateBalanceAlert(_ context.Context, _ int, _ float64) 
 func (s stubRepository) SetBalanceAlertNotified(_ context.Context, _ int, _ bool) error {
 	return nil
 }
-func (s stubRepository) ListAPIKeys(ctx context.Context, userID, page, pageSize int) ([]APIKey, int64, error) {
+func (s stubRepository) ListAPIKeys(ctx context.Context, userID, page, pageSize int, _ time.Time) ([]APIKey, int64, error) {
 	if s.listAPIKeys == nil {
 		return nil, 0, nil
 	}

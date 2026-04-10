@@ -464,6 +464,7 @@ func (h *AccountHandler) GetAccountStats(c *gin.Context) {
 	result, err := h.service.GetStats(c.Request.Context(), id, appaccount.StatsQuery{
 		StartDate: c.Query("start_date"),
 		EndDate:   c.Query("end_date"),
+		TZ:        c.Query("tz"),
 	})
 	if err != nil {
 		httpCode, message := h.handleError("查询账号统计失败", "查询统计失败", err)

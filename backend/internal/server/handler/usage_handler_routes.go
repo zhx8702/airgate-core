@@ -41,6 +41,7 @@ func (h *UsageHandler) UserUsage(c *gin.Context) {
 		Model:       query.Model,
 		StartDate:   query.StartDate,
 		EndDate:     query.EndDate,
+		TZ:          c.Query("tz"),
 		ScopedToKey: scoped,
 	})
 	if err != nil {
@@ -88,12 +89,14 @@ func (h *UsageHandler) UserUsageStats(c *gin.Context) {
 		scoped = true
 	}
 
+	tz := c.Query("tz")
 	summary, err := h.service.UserStats(c.Request.Context(), int64(userID), appusage.StatsFilter{
 		APIKeyID:    scopedKey,
 		Platform:    query.Platform,
 		Model:       query.Model,
 		StartDate:   query.StartDate,
 		EndDate:     query.EndDate,
+		TZ:          tz,
 		ScopedToKey: scoped,
 	})
 	if err != nil {
@@ -111,6 +114,7 @@ func (h *UsageHandler) UserUsageStats(c *gin.Context) {
 		Model:       query.Model,
 		StartDate:   query.StartDate,
 		EndDate:     query.EndDate,
+		TZ:          tz,
 		ScopedToKey: scoped,
 	})
 
@@ -187,6 +191,7 @@ func (h *UsageHandler) UserUsageTrend(c *gin.Context) {
 			Model:       query.Model,
 			StartDate:   query.StartDate,
 			EndDate:     query.EndDate,
+			TZ:          c.Query("tz"),
 			ScopedToKey: scoped,
 		},
 		Granularity: granularity,
@@ -237,6 +242,7 @@ func (h *UsageHandler) AdminUsage(c *gin.Context) {
 		Model:     query.Model,
 		StartDate: query.StartDate,
 		EndDate:   query.EndDate,
+		TZ:        c.Query("tz"),
 	})
 	if err != nil {
 		handleUsageError("查询管理员使用记录失败", err)
@@ -265,6 +271,7 @@ func (h *UsageHandler) AdminUsageStats(c *gin.Context) {
 		Model:     query.Model,
 		StartDate: query.StartDate,
 		EndDate:   query.EndDate,
+		TZ:        c.Query("tz"),
 	}, query.GroupBy)
 	if err != nil {
 		handleUsageError("查询管理员聚合统计失败", err)
@@ -290,6 +297,7 @@ func (h *UsageHandler) AdminUsageTrend(c *gin.Context) {
 			Model:     query.Model,
 			StartDate: query.StartDate,
 			EndDate:   query.EndDate,
+			TZ:        c.Query("tz"),
 		},
 		Granularity: query.Granularity,
 	})

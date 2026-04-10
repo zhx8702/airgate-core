@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../shared/components/Button';
 import { Input } from '../shared/components/Input';
@@ -476,13 +476,13 @@ export default function LoginPage() {
           {/* 底部 */}
           <div className="mt-6 flex flex-col items-center gap-2">
             {statusPageEnabled && (
-              <Link
-                to="/status"
+              <a
+                href="/status"
                 className="inline-flex items-center gap-1.5 text-[11px] text-text-tertiary hover:text-primary transition-colors"
               >
                 <Activity className="w-3 h-3" />
                 {t('nav.status')}
-              </Link>
+              </a>
             )}
             <p className="text-center text-[10px] text-text-tertiary font-mono uppercase tracking-[0.15em]">
               Powered by {site.site_name || 'AirGate'}

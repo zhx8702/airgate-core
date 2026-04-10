@@ -64,6 +64,7 @@ type TrendQuery struct {
 	StartDate   string
 	EndDate     string
 	UserID      int
+	TZ          string // IANA 时区名；为空时使用服务器本地时区
 }
 
 // Trend 表示仪表盘趋势结果。

@@ -22,14 +22,22 @@ const PIE_COLORS = decorativePalette.slice(0, 10);
 // 预设时间范围
 type RangePreset = '7d' | '30d' | '90d' | 'custom';
 
+// 按浏览器本地时区拼出 YYYY-MM-DD（不要用 toISOString，那是 UTC，会跨日）。
+function localDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function getPresetDates(preset: RangePreset): { start_date?: string; end_date?: string } {
   if (preset === 'custom') return {};
   const now = new Date();
-  const end = now.toISOString().slice(0, 10);
+  const end = localDateStr(now);
   const days = preset === '7d' ? 7 : preset === '90d' ? 90 : 30;
   const start = new Date(now);
   start.setDate(start.getDate() - (days - 1));
-  return { start_date: start.toISOString().slice(0, 10), end_date: end };
+  return { start_date: localDateStr(start), end_date: end };
 }
 
 // 格式化数字

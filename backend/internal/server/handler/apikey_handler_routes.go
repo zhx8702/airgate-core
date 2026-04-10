@@ -26,7 +26,7 @@ func (h *APIKeyHandler) ListKeys(c *gin.Context) {
 		Page:     page.Page,
 		PageSize: page.PageSize,
 		Keyword:  page.Keyword,
-	})
+	}, c.Query("tz"))
 	if err != nil {
 		httpCode, message := h.handleError("查询密钥列表失败", "查询失败", err)
 		response.Error(c, httpCode, httpCode, message)

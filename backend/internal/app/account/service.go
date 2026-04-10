@@ -9,6 +9,7 @@ import (
 
 	sdk "github.com/DouDOU-start/airgate-sdk"
 
+	"github.com/DouDOU-start/airgate-core/internal/pkg/timezone"
 	"github.com/DouDOU-start/airgate-core/internal/plugin"
 )
 
@@ -460,7 +461,9 @@ func (s *Service) GetStats(ctx context.Context, id int, query StatsQuery) (Stats
 		return StatsResult{}, err
 	}
 
-	startDate, endDate, err := ResolveStatsRange(s.now(), query)
+	loc := timezone.Resolve(query.TZ)
+	now := s.now().In(loc)
+	startDate, endDate, err := ResolveStatsRange(now, query)
 	if err != nil {
 		return StatsResult{}, err
 	}
@@ -470,7 +473,7 @@ func (s *Service) GetStats(ctx context.Context, id int, query StatsQuery) (Stats
 		return StatsResult{}, err
 	}
 
-	return BuildStatsResult(item, logs, s.now(), startDate, endDate), nil
+	return BuildStatsResult(item, logs, now, startDate, endDate), nil
 }
 
 func buildProxyURL(proxyInfo *Proxy) string {

@@ -902,28 +902,5 @@
     "install_failed": "安装失败：{{error}}",
     "run_install": "执行安装",
     "installing_btn": "安装中..."
-  },
-
-  "status_page": {
-    "title": "服务状态",
-    "subtitle": "可用率取最近 7 天，趋势图展示最近 90 天，每分钟自动刷新",
-    "refresh": "刷新",
-    "all_operational": "所有服务运行正常",
-    "partial_degraded": "部分服务出现降级",
-    "major_outage": "存在重大故障",
-    "no_data": "暂无监控数据",
-    "load_failed": "加载失败",
-    "loading": "加载中…",
-    "no_monitor_data": "暂无监控数据",
-    "maintenance": "维护中",
-    "system_maintenance": "系统正在维护",
-    "back_to_login": "返回登录",
-    "operational": "正常",
-    "degraded": "降级",
-    "outage": "故障",
-    "unknown": "未知",
-    "no_data_short": "无数据",
-    "days_ago": "{{count}} 天前",
-    "today": "今天"
   }
 }

@@ -2,8 +2,11 @@ package user
 
 import (
 	"context"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
+
+	"github.com/DouDOU-start/airgate-core/internal/pkg/timezone"
 )
 
 const (
@@ -291,9 +294,12 @@ func (s *Service) GetAPIKeyInfo(ctx context.Context, keyID int) (APIKeyBrief, er
 }
 
 // ListAPIKeys 查询指定用户的 API Key 列表。
-func (s *Service) ListAPIKeys(ctx context.Context, userID, page, pageSize int) (APIKeyList, error) {
+// tz 决定每个 key 的"今日成本"起点；为空时回退到服务器本地时区。
+func (s *Service) ListAPIKeys(ctx context.Context, userID, page, pageSize int, tz string) (APIKeyList, error) {
 	page, pageSize = normalizePage(page, pageSize)
-	list, total, err := s.repo.ListAPIKeys(ctx, userID, page, pageSize)
+	loc := timezone.Resolve(tz)
+	todayStart := timezone.StartOfDay(time.Now().In(loc))
+	list, total, err := s.repo.ListAPIKeys(ctx, userID, page, pageSize, todayStart)
 	if err != nil {
 		return APIKeyList{}, err
 	}

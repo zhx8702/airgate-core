@@ -35,7 +35,7 @@ func (h *GroupHandler) ListGroups(c *gin.Context) {
 	for _, item := range result.List {
 		groupIDs = append(groupIDs, item.ID)
 	}
-	statsMap, _ := h.service.StatsForGroups(ctx, groupIDs)
+	statsMap, _ := h.service.StatsForGroups(ctx, groupIDs, c.Query("tz"))
 
 	list := make([]dto.GroupResp, 0, len(result.List))
 	for _, item := range result.List {

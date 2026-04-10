@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/DouDOU-start/airgate-core/internal/auth"
+	"github.com/DouDOU-start/airgate-core/internal/pkg/timezone"
 )
 
 const (
@@ -24,7 +25,8 @@ func NewService(repo Repository, secret string) *Service {
 }
 
 // ListByUser 查询当前用户的 API Key 列表。
-func (s *Service) ListByUser(ctx context.Context, userID int, filter ListFilter) (ListResult, error) {
+// tz 决定每个 key 的"今日成本"起点；为空时回退到服务器本地时区。
+func (s *Service) ListByUser(ctx context.Context, userID int, filter ListFilter, tz string) (ListResult, error) {
 	page, pageSize := normalizePage(filter.Page, filter.PageSize)
 	filter.Page = page
 	filter.PageSize = pageSize
@@ -38,7 +40,9 @@ func (s *Service) ListByUser(ctx context.Context, userID int, filter ListFilter)
 	for _, item := range list {
 		keyIDs = append(keyIDs, item.ID)
 	}
-	todayMap, thirtyDayMap, err := s.repo.KeyUsage(ctx, keyIDs)
+	loc := timezone.Resolve(tz)
+	todayStart := timezone.StartOfDay(time.Now().In(loc))
+	todayMap, thirtyDayMap, err := s.repo.KeyUsage(ctx, keyIDs, todayStart)
 	if err != nil {
 		return ListResult{}, err
 	}

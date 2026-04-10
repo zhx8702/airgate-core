@@ -21,7 +21,7 @@ func (h *DashboardHandler) Stats(c *gin.Context) {
 		return
 	}
 
-	stats, err := h.service.Stats(c.Request.Context(), req.UserID)
+	stats, err := h.service.Stats(c.Request.Context(), req.UserID, req.TZ)
 	if err != nil {
 		h.handleError("查询仪表盘统计失败", err)
 		response.InternalError(c, "查询失败")
@@ -50,6 +50,7 @@ func (h *DashboardHandler) Trend(c *gin.Context) {
 		StartDate:   req.StartDate,
 		EndDate:     req.EndDate,
 		UserID:      req.UserID,
+		TZ:          req.TZ,
 	})
 	if err != nil {
 		h.handleError("查询仪表盘趋势失败", err)

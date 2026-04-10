@@ -163,13 +163,13 @@ export default function DocsPage() {
             <span className="text-base font-bold tracking-tight">{siteName}</span>
           </Link>
           <div className="flex items-center gap-2">
-            <Link
-              to="/status"
+            <a
+              href="/status"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text transition-colors"
             >
               <Activity className="w-3.5 h-3.5" />
               {t('nav.status')}
-            </Link>
+            </a>
             <button
               onClick={toggleTheme}
               className="flex items-center justify-center w-8 h-8 rounded-lg text-text-tertiary hover:text-text hover:bg-bg-hover transition-colors"

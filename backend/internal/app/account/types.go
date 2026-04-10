@@ -174,6 +174,7 @@ type QuotaRefreshResult struct {
 type StatsQuery struct {
 	StartDate string
 	EndDate   string
+	TZ        string // IANA 时区名；为空时使用服务器本地时区
 }
 
 // PeriodStats 期间汇总。

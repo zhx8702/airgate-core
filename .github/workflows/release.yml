@@ -166,6 +166,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download all binary artifacts
         uses: actions/download-artifact@v4
@@ -179,45 +181,94 @@ jobs:
       - name: List collected artifacts
         run: ls -la dist/
 
-      - name: Create release with auto-generated notes
+      - name: Generate release body
+        env:
+          CURRENT_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          git fetch --force --tags
+
+          prev_tag="$(git describe --tags --abbrev=0 "${CURRENT_TAG}^" 2>/dev/null || true)"
+          if [ -n "$prev_tag" ]; then
+            range="${prev_tag}..${CURRENT_TAG}"
+          else
+            range="${CURRENT_TAG}"
+          fi
+
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "$tmp_dir"' EXIT
+          touch \
+            "$tmp_dir/feat.txt" \
+            "$tmp_dir/fix.txt" \
+            "$tmp_dir/refactor.txt" \
+            "$tmp_dir/perf.txt" \
+            "$tmp_dir/docs.txt" \
+            "$tmp_dir/other.txt"
+
+          while IFS= read -r subject; do
+            [ -n "$subject" ] || continue
+
+            bucket="other"
+            item="$subject"
+
+            if [[ "$subject" =~ ^([[:alpha:]]+)(\(([[:alnum:]_.\/-]+)\))?(!)?:[[:space:]]*(.+)$ ]]; then
+              type="${BASH_REMATCH[1],,}"
+              scope="${BASH_REMATCH[3]}"
+              message="${BASH_REMATCH[5]}"
+              item="$message"
+
+              if [ -n "$scope" ]; then
+                item="$scope: $message"
+              fi
+
+              case "$type" in
+                feat|fix|refactor|perf|docs)
+                  bucket="$type"
+                  ;;
+              esac
+            fi
+
+            printf '%s\n' "$item" >> "$tmp_dir/$bucket.txt"
+          done < <(git log --no-merges --pretty=format:%s "$range")
+
+          append_section() {
+            local title="$1"
+            local file="$2"
+
+            if [ -s "$file" ]; then
+              printf '### %s\n\n' "$title" >> release_body.md
+              while IFS= read -r line; do
+                printf -- '- %s\n' "$line" >> release_body.md
+              done < "$file"
+              printf '\n' >> release_body.md
+            fi
+          }
+
+          printf '## 本版本变更\n\n' > release_body.md
+          if [ -n "$prev_tag" ]; then
+            printf '> 变更范围：`%s..%s`\n\n' "$prev_tag" "$CURRENT_TAG" >> release_body.md
+          else
+            printf '> 变更范围：初始发布\n\n' >> release_body.md
+          fi
+
+          append_section '新增' "$tmp_dir/feat.txt"
+          append_section '修复' "$tmp_dir/fix.txt"
+          append_section '重构' "$tmp_dir/refactor.txt"
+          append_section '性能优化' "$tmp_dir/perf.txt"
+          append_section '文档' "$tmp_dir/docs.txt"
+          append_section '其他调整' "$tmp_dir/other.txt"
+
+          if [ ! -s "$tmp_dir/feat.txt" ] && [ ! -s "$tmp_dir/fix.txt" ] && [ ! -s "$tmp_dir/refactor.txt" ] && [ ! -s "$tmp_dir/perf.txt" ] && [ ! -s "$tmp_dir/docs.txt" ] && [ ! -s "$tmp_dir/other.txt" ]; then
+            printf -- '- 本版本没有检测到可汇总的提交记录。\n\n' >> release_body.md
+          fi
+
+
+      - name: Create release with generated changelog
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
-          generate_release_notes: true
+          body_path: release_body.md
           files: |
             dist/airgate-core-*
-          body: |
-            ## 部署方式
-
-            ### 1. 一键裸金属安装（自带 systemd）
-
-            ```bash
-            curl -sSL https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/install.sh | sudo bash
-            ```
-
-            前置：自备 PostgreSQL 15+ 与 Redis 7+。脚本会从本 release 拉取对应平台的 `airgate-core-{os}-{arch}` 二进制（前端 SPA 已 //go:embed 进 binary），安装到 `/opt/airgate-core` 并装好 systemd 服务。
-
-            ### 2. Docker Compose（自带 PostgreSQL + Redis）
-
-            ```bash
-            mkdir airgate && cd airgate
-            curl -sSL https://raw.githubusercontent.com/DouDOU-start/airgate-core/master/deploy/docker-deploy.sh | bash
-            docker compose up -d
-            ```
-
-            ## 镜像
-
-            ```bash
-            docker pull ghcr.io/doudou-start/airgate-core:${{ github.ref_name }}
-            # 或固定到 latest
-            docker pull ghcr.io/doudou-start/airgate-core:latest
-            ```
-
-            支持架构：`linux/amd64` `linux/arm64`
-
-            ## 二进制资产
-
-            支持平台：`linux/amd64` `linux/arm64` `darwin/amd64` `darwin/arm64`
-
-            每个二进制都附带 `.sha256` 校验文件，install.sh 会在下载后自动校验。

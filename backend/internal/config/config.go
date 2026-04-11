@@ -13,6 +13,12 @@ import (
 // DefaultPort 默认服务端口
 const DefaultPort = 9517
 
+// DefaultHost 默认监听地址
+//
+// 0.0.0.0 = 绑定所有接口，局域网/公网可达（取决于防火墙）
+// 127.0.0.1 = 仅本机可访问（需要通过反向代理或防火墙转发才能暴露）
+const DefaultHost = "0.0.0.0"
+
 // GetPort 获取服务端口（优先环境变量 PORT）
 func GetPort() int {
 	if v := os.Getenv("PORT"); v != "" {
@@ -21,6 +27,16 @@ func GetPort() int {
 		}
 	}
 	return DefaultPort
+}
+
+// GetHost 获取监听地址（优先环境变量 HOST）
+//
+// 仅用于安装向导阶段（还没有 config.yaml 的时候），主服务启动后以 cfg.Server.Host 为准。
+func GetHost() string {
+	if v := os.Getenv("HOST"); v != "" {
+		return v
+	}
+	return DefaultHost
 }
 
 // Config 应用配置
@@ -76,6 +92,12 @@ type DevPlugin struct {
 // //go:embed 打进二进制（见 internal/web 包），不再需要单独的静态目录配置。
 // 如果旧的 config.yaml 里仍有 web_dir，会被 yaml 解析器静默忽略，无需手工清理。
 type ServerConfig struct {
+	// Host 监听地址：
+	//   - "0.0.0.0"（默认）绑定所有网卡，局域网可达
+	//   - "127.0.0.1" 仅本机访问
+	// 为了向后兼容，旧的 config.yaml 没有 host 字段时会在 Load() 里补上默认值 0.0.0.0，
+	// 以保持和老版本一致的行为。
+	Host string `yaml:"host"`
 	Port int    `yaml:"port"`
 	Mode string `yaml:"mode"` // debug / release
 }
@@ -148,11 +170,15 @@ func Load(path string) (*Config, error) {
 		return nil, err
 	}
 	cfg := &Config{
-		Server: ServerConfig{Port: DefaultPort, Mode: "release"},
+		Server: ServerConfig{Host: DefaultHost, Port: DefaultPort, Mode: "release"},
 		JWT:    JWTConfig{ExpireHour: 24},
 	}
 	if err := yaml.Unmarshal(data, cfg); err != nil {
 		return nil, err
+	}
+	// 旧 config.yaml 没有 host 字段时，YAML unmarshal 会把 Host 置空，这里补回默认值
+	if cfg.Server.Host == "" {
+		cfg.Server.Host = DefaultHost
 	}
 	applyEnvOverrides(cfg)
 	return cfg, nil
@@ -161,6 +187,7 @@ func Load(path string) (*Config, error) {
 // applyEnvOverrides 用环境变量覆盖配置值
 func applyEnvOverrides(cfg *Config) {
 	// 服务器
+	envStr("HOST", &cfg.Server.Host)
 	envInt("PORT", &cfg.Server.Port)
 	envStr("GIN_MODE", &cfg.Server.Mode)
 

@@ -116,10 +116,11 @@ func startSetupServer() {
 		c.Data(http.StatusOK, "text/html; charset=utf-8", indexHTML)
 	})
 
+	host := config.GetHost()
 	port := config.GetPort()
-	srv := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: r}
+	srv := &http.Server{Addr: fmt.Sprintf("%s:%d", host, port), Handler: r}
 
-	slog.Info("安装向导服务器启动", "port", port)
+	slog.Info("安装向导服务器启动", "host", host, "port", port)
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("安装向导启动失败", "error", err)

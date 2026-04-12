@@ -3,6 +3,8 @@ package plugin
 import (
 	"errors"
 	"io"
+	"log/slog"
+	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -153,9 +155,18 @@ func (f *Forwarder) Forward(c *gin.Context) {
 		return
 	}
 
+	// 只读元信息（/v1/models 等）快车道：
+	// 这类请求由插件本地注册表合成响应，既不打上游也不产生计费。
+	// 因此不需要账号调度、并发槽、RPM 限流、failover 重试等整条 forwarder 重链路——
+	// 直接构造一个空账号的 ForwardRequest 调用插件即可。
+	if isMetadataOnlyPath(state.requestPath) {
+		f.forwardMetadataOnly(c, state)
+		return
+	}
+
 	// 用户级 + API Key 级并发闸：两个闸门都可独立配置为 0 关闭。
 	// 这里用独立于 state.requestID 的 slot ID，因为 state.requestID 在每次 failover
-	// 的 prepareForwardExecution 里会被重新生成；而这两层槽位跨整个 Forward 请求稳定，
+	// 的 prepareForwardExecution 里会被重新生成；而这两层槽位跨整个 Forward 请求稳定,
 	// 需要一个独立 ID 保证 SADD/SREM 对得上。
 	clientSlotRelease := f.acquireClientSlots(c, state)
 	if clientSlotRelease == nil {
@@ -217,4 +228,40 @@ func (f *Forwarder) Forward(c *gin.Context) {
 	// 此时 OnForwardEnd 已经在最后一次 attempt 的失败分支被调过；这里的 503 是
 	// 整个 forward 流程已耗尽重试次数后的兜底，不再额外触发 middleware。
 	openAIError(c, 503, "server_error", "all_accounts_failed", "所有可用账户均失败，请稍后重试")
+}
+
+// forwardMetadataOnly 处理只读元信息请求（如 /v1/models）。
+//
+// 特点：
+//   - 不需要账号：插件内部由本地注册表合成响应（openai 插件的 buildLocalModelsResponse）
+//   - 不产生计费：不写 usage_log，也不走 middleware 的 begin/end 钩子
+//   - 不占用并发槽和 RPM：这些闸门是用来保护上游账号的，本地合成的请求不涉及上游
+//
+// 失败场景：插件未运行、插件返回空响应 → 502。
+func (f *Forwarder) forwardMetadataOnly(c *gin.Context, state *forwardState) {
+	fwdReq := &sdk.ForwardRequest{
+		// Account 留空：插件对 metadata 路径的判断在 account 访问之前发生
+		Account: &sdk.Account{Platform: state.plugin.Platform},
+		Body:    state.body,
+		Headers: buildForwardHeaders(c.Request.Header, state.keyInfo),
+		Model:   state.model,
+		Stream:  false,
+	}
+	fwdReq.Headers.Set("X-Forwarded-Path", state.requestPath)
+	fwdReq.Headers.Set("X-Forwarded-Method", c.Request.Method)
+
+	result, err := state.plugin.Gateway.Forward(c.Request.Context(), fwdReq)
+	if err != nil {
+		slog.Error("metadata 请求插件失败",
+			"plugin", state.plugin.Name,
+			"path", state.requestPath,
+			"error", err)
+		openAIError(c, http.StatusBadGateway, "server_error", "upstream_error", "metadata 请求插件失败")
+		return
+	}
+	if result == nil || len(result.Body) == 0 {
+		openAIError(c, http.StatusBadGateway, "server_error", "upstream_error", "metadata 请求插件返回空响应")
+		return
+	}
+	writeForwardResponse(c, result)
 }

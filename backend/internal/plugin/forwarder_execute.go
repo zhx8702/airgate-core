@@ -78,6 +78,12 @@ func (f *Forwarder) ensureForwardAllowed(c *gin.Context, state *forwardState) bo
 	//   3. 账号级 max_rpm / 并发槽（在 prepareForwardExecution 里，保护上游）
 	// 1 和 2 在 acquireClientSlots 里取，Forward() 在此函数之后调用。
 
+	// 只读元信息请求（/v1/models、/models 等）不打上游、零成本，
+	// 必须对所有认证通过的 key 放行，不卡余额。
+	if isMetadataOnlyPath(state.requestPath) {
+		return true
+	}
+
 	if state.keyInfo.UserBalance <= 0 {
 		c.JSON(http.StatusPaymentRequired, gin.H{
 			"error": gin.H{
@@ -90,6 +96,17 @@ func (f *Forwarder) ensureForwardAllowed(c *gin.Context, state *forwardState) bo
 	}
 
 	return true
+}
+
+// isMetadataOnlyPath 判断请求路径是否是只读元信息（不消耗配额）。
+// 目前只包含 OpenAI 兼容的 /v1/models（含不带 v1 前缀的变体）。
+// 这类路径在插件内由本地注册表直接合成响应，不打上游也不产生计费。
+func isMetadataOnlyPath(path string) bool {
+	switch path {
+	case "/v1/models", "/models":
+		return true
+	}
+	return false
 }
 
 func (f *Forwarder) selectForwardAccount(c *gin.Context, state *forwardState, excludeIDs ...int) bool {

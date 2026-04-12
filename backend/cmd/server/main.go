@@ -28,12 +28,9 @@ import (
 	"github.com/DouDOU-start/airgate-core/internal/i18n"
 	"github.com/DouDOU-start/airgate-core/internal/server"
 	"github.com/DouDOU-start/airgate-core/internal/setup"
+	"github.com/DouDOU-start/airgate-core/internal/version"
 	webfs "github.com/DouDOU-start/airgate-core/internal/web"
 )
-
-// Version 由 release workflow 通过 -ldflags "-X main.Version=$tag" 注入。
-// 默认值 "dev" 仅用于本地 go build / go run，正式发版永远来自 git tag。
-var Version = "dev"
 
 func main() {
 	// CLI flags ------------------------------------------------------------
@@ -48,7 +45,7 @@ func main() {
 	flag.Parse()
 
 	if showVersion {
-		fmt.Printf("airgate-core %s %s/%s\n", Version, runtime.GOOS, runtime.GOARCH)
+		fmt.Printf("airgate-core %s %s/%s\n", version.Version, runtime.GOOS, runtime.GOARCH)
 		return
 	}
 
@@ -59,7 +56,7 @@ func main() {
 
 	// 默认初始化日志（配置加载前先用默认值）
 	sdk.InitLogger("core", "info", "text")
-	slog.Info("AirGate Core 启动中...", "version", Version, "sdk_version", sdk.SDKVersion)
+	slog.Info("AirGate Core 启动中...", "version", version.Version, "sdk_version", sdk.SDKVersion)
 
 	// 加载国际化（翻译文件已 //go:embed 进二进制）
 	_ = i18n.LoadEmbedded()

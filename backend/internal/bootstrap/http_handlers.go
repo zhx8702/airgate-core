@@ -53,6 +53,7 @@ type HTTPHandlers struct {
 	Dashboard    *handler.DashboardHandler
 	Plugin       *handler.PluginHandler
 	OpenClaw     *handler.OpenClawHandler
+	Version      *handler.VersionHandler
 }
 
 // NewHTTPHandlers 统一构造 HTTP 处理器。
@@ -99,6 +100,7 @@ func NewHTTPHandlers(dep HTTPDependencies) *HTTPHandlers {
 		Dashboard:    handler.NewDashboardHandler(dashboardService),
 		Plugin:       handler.NewPluginHandler(pluginAdminService),
 		OpenClaw:     handler.NewOpenClawHandler(openclawService),
+		Version:      handler.NewVersionHandler(),
 	}
 }
 

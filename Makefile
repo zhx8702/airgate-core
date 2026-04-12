@@ -21,7 +21,7 @@ GO := GOTOOLCHAIN=local go
 
 # 版本号：默认从 git 派生（dirty 检测），release workflow 通过 -ldflags 注入。
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-LDFLAGS := -X main.Version=$(VERSION)
+LDFLAGS := -X github.com/DouDOU-start/airgate-core/internal/version.Version=$(VERSION)
 
 .PHONY: help dev dev-backend dev-frontend dev-sdk dev-plugins dev-plugin-openai dev-plugin-epay dev-plugin-health \
         build build-backend build-frontend \

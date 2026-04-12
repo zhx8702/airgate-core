@@ -182,6 +182,9 @@ func (s *Server) registerRoutes() {
 		// 仪表盘（管理员）
 		adminGroup.GET("/dashboard/stats", handlers.Dashboard.Stats)
 		adminGroup.GET("/dashboard/trend", handlers.Dashboard.Trend)
+
+		// core 版本信息（仅管理员可见，避免对外暴露版本指纹）
+		adminGroup.GET("/version", handlers.Version.GetVersion)
 	}
 
 	// === Extension 插件 API 路由（JWT 认证 + 管理员权限，支持管理员 API Key） ===

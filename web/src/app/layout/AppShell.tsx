@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../providers/AuthProvider';
 import { pluginsApi } from '../../shared/api/plugins';
+import { settingsApi } from '../../shared/api/settings';
 import { queryKeys } from '../../shared/queryKeys';
 import { useTheme } from '../providers/ThemeProvider';
 import { useSiteSettings, defaultLogoUrl } from '../providers/SiteSettingsProvider';
@@ -159,6 +160,15 @@ export function AppShell({ children }: AppShellProps) {
 
   const isAdmin = user?.role === 'admin';
   const isAPIKeySession = !!(user?.api_key_id && user.api_key_id > 0);
+
+  // 仅管理员拉取 core 版本号；普通用户和 API Key 会话不暴露版本指纹。
+  const { data: coreVersion } = useQuery({
+    queryKey: ['core-version'],
+    queryFn: () => settingsApi.getCoreVersion(),
+    enabled: isAdmin && !isAPIKeySession,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  });
   const { adminItems: pluginAdminItems, userItems: pluginUserItems, healthInstalled } = usePluginMenuItems(isAdmin);
   const statusPageEnabled = useStatusPageEnabled();
   // 入口可见性：插件已安装 + 公开状态页开关已开启。两者缺一就隐藏，避免点进去看到 404。
@@ -219,9 +229,19 @@ export function AppShell({ children }: AppShellProps) {
           <img src={site.site_logo || defaultLogoUrl} alt="" className="w-8 h-8 rounded-sm flex-shrink-0 object-cover" />
           {!sidebarCollapsed && (
             <div className="overflow-hidden">
-              <h1 className="text-sm font-semibold text-text tracking-tight whitespace-nowrap">
-                {site.site_name || 'AirGate'}
-              </h1>
+              <div className="flex items-baseline gap-1.5">
+                <h1 className="text-sm font-semibold text-text tracking-tight whitespace-nowrap">
+                  {site.site_name || 'AirGate'}
+                </h1>
+                {coreVersion?.version && (
+                  <span
+                    className="text-[9px] text-text-tertiary font-mono whitespace-nowrap"
+                    title={`${coreVersion.version} · ${coreVersion.platform} · ${coreVersion.go_version}`}
+                  >
+                    {coreVersion.version}
+                  </span>
+                )}
+              </div>
               <p className="text-[9px] text-text-tertiary font-mono tracking-[0.1em] uppercase">
                 {site.site_subtitle || 'Control Panel'}
               </p>

@@ -510,34 +510,28 @@ export default function AccountsPage() {
       render: (row: AccountResp) => {
         const usage = usageData?.accounts?.[String(row.id)];
 
-        // 刷新按钮组件
-        const RefreshBtn = () => {
-          const [loading, setLoading] = useState(false);
-          return (
-            <button
-              title={t('accounts.refresh_usage', '刷新用量')}
-              className="inline-flex items-center justify-center rounded p-0.5 transition-colors hover:bg-[var(--ag-glass-border)]"
-              style={{ color: 'var(--ag-text-tertiary)', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.5 : 1 }}
-              disabled={loading}
-              onClick={async (e) => {
-                e.stopPropagation();
-                setLoading(true);
-                try {
-                  await accountsApi.refreshQuota(row.id);
-                  queryClient.invalidateQueries({ queryKey: queryKeys.accountUsage(platformFilter) });
-                } catch { /* ignore */ }
-                setLoading(false);
-              }}
-            >
-              <RefreshCw size={11} className={loading ? 'animate-spin' : ''} />
-            </button>
-          );
+        // 整个区域可点击刷新
+        const handleRefreshClick = async (e: React.MouseEvent) => {
+          e.stopPropagation();
+          const target = e.currentTarget as HTMLElement;
+          target.style.opacity = '0.5';
+          target.style.pointerEvents = 'none';
+          try {
+            await accountsApi.refreshQuota(row.id);
+            queryClient.invalidateQueries({ queryKey: queryKeys.accountUsage(platformFilter) });
+          } catch { /* ignore */ }
+          target.style.opacity = '1';
+          target.style.pointerEvents = '';
         };
 
         if (!usage) return (
-          <div className="flex items-center gap-1">
+          <div
+            className="flex items-center gap-1 cursor-pointer rounded px-1 py-0.5 transition-colors hover:bg-[var(--ag-glass-border)]"
+            title={t('accounts.refresh_usage', '点击刷新用量')}
+            onClick={handleRefreshClick}
+          >
             <span style={{ color: 'var(--ag-text-tertiary)' }}>-</span>
-            <RefreshBtn />
+            <RefreshCw size={11} style={{ color: 'var(--ag-text-tertiary)' }} />
           </div>
         );
 
@@ -578,10 +572,12 @@ export default function AccountsPage() {
         const badgeStyle = { background: 'var(--ag-bg-surface)', border: '1px solid var(--ag-glass-border)', minWidth: 24 };
 
         return (
-          <div className="flex flex-col gap-1.5 text-[11px] relative group" style={{ fontFamily: 'var(--ag-font-mono)', minWidth: 160 }}>
-            <div className="absolute -top-0.5 -right-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-              <RefreshBtn />
-            </div>
+          <div
+            className="flex flex-col gap-1.5 text-[11px] cursor-pointer rounded px-1 py-0.5 transition-colors hover:bg-[var(--ag-glass-border)]"
+            style={{ fontFamily: 'var(--ag-font-mono)', minWidth: 160 }}
+            title={t('accounts.refresh_usage', '点击刷新用量')}
+            onClick={handleRefreshClick}
+          >
             {windows.map((w, i) => (
               <div key={i} className="flex items-center gap-1.5">
                 <span className="inline-flex items-center justify-center px-1 py-0 rounded text-[10px] font-medium shrink-0" style={badgeStyle}>

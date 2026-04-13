@@ -298,10 +298,17 @@ func (s *Service) GetAccountUsage(ctx context.Context, platform string) (map[str
 
 		reqList := make([]accountUsageRequest, 0, len(accounts))
 		for _, item := range accounts {
+			// 仅查询活跃账号的用量（非活跃账号跳过，避免无意义的 API 调用）
+			if item.Status != "active" {
+				continue
+			}
 			reqList = append(reqList, accountUsageRequest{
 				ID:          item.ID,
 				Credentials: cloneStringMap(item.Credentials),
 			})
+		}
+		if len(reqList) == 0 {
+			continue
 		}
 
 		body, _ := json.Marshal(reqList)

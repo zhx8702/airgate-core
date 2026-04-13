@@ -159,7 +159,7 @@ export default function AccountsPage() {
   const { data: usageData } = useQuery({
     queryKey: queryKeys.accountUsage(platformFilter),
     queryFn: () => accountsApi.usage(platformFilter || ''),
-    refetchInterval: 60_000, // 每分钟刷新
+    refetchInterval: 300_000, // 每 5 分钟刷新
   });
 
   // 创建账号

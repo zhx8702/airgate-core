@@ -19,7 +19,7 @@ func (Account) Fields() []ent.Field {
 		field.JSON("credentials", map[string]string{}).Default(map[string]string{}),
 		field.Enum("status").Values("active", "error", "disabled").Default("active"),
 		field.Int("priority").Default(50).Min(0).Max(999),
-		field.Int("max_concurrency").Default(5),
+		field.Int("max_concurrency").Default(10),
 		field.Float("rate_multiplier").Default(1.0),
 		field.String("error_msg").Default(""),
 		field.Time("last_used_at").Optional().Nillable(),

@@ -132,73 +132,136 @@ export function AccountTestModal({ open, account, onClose }: AccountTestModalPro
 
         for (const line of lines) {
           const trimmed = line.trim();
-          if (!trimmed.startsWith('data: ')) continue;
-          const payload = trimmed.slice(6);
+          if (!trimmed) continue;
 
-          if (payload === '[DONE]') continue;
+          // 收集本行中所有 SSE data 片段。
+          // 正常情况每行只有一个 "data: {...}"，但上游插件可能在 data: 前
+          // 写入非 SSE 内容（如原始错误 JSON），导致一行里出现：
+          //   {"error":...}data: {"type":"test_complete",...}
+          // 因此需要把 "data: " 之后的 JSON 全部提取出来。
+          const ssePayloads: string[] = [];
+          let rawNonSSE = '';
+          const dataPrefix = 'data: ';
+          const firstDataIdx = trimmed.indexOf(dataPrefix);
 
-          try {
-            const data = JSON.parse(payload);
-
-            // 自定义事件（Core 包装）
-            if (data.type === 'test_start') {
-              addLine(t('accounts.test_connected'), 'text-green-400');
-              addLine(t('accounts.test_model_used', { model: data.model }), 'text-cyan-400');
-              addLine(t('accounts.test_sending'), 'text-gray-400');
-              addLine(t('accounts.test_response'), 'text-yellow-400');
-              setStatus('streaming');
-              continue;
+          if (firstDataIdx < 0) {
+            // 整行没有 data: 前缀，可能是上游直接写的错误 JSON
+            rawNonSSE = trimmed;
+          } else {
+            if (firstDataIdx > 0) {
+              rawNonSSE = trimmed.slice(0, firstDataIdx).trim();
             }
-
-            if (data.type === 'test_complete') {
-              // 用 ref 读取已累积的流式内容，避免嵌套 setState 导致重复渲染
-              if (streamingRef.current) {
-                addLine(streamingRef.current, 'text-green-300');
-                streamingRef.current = '';
-                setStreamingContent('');
+            // 提取所有 data: 片段
+            let idx = firstDataIdx;
+            while (idx >= 0 && idx < trimmed.length) {
+              const payloadStart = idx + dataPrefix.length;
+              const nextIdx = trimmed.indexOf(dataPrefix, payloadStart);
+              const payloadStr = nextIdx >= 0
+                ? trimmed.slice(payloadStart, nextIdx).trim()
+                : trimmed.slice(payloadStart).trim();
+              if (payloadStr && payloadStr !== '[DONE]') {
+                ssePayloads.push(payloadStr);
               }
-              if (data.success) {
-                setStatus('success');
-              } else {
-                setStatus('error');
-                setErrorMessage(data.error || '');
+              idx = nextIdx;
+            }
+          }
+
+          // 处理非 SSE 的原始错误 JSON（上游插件直写的 error 响应）
+          // 仅在没有后续 SSE data 片段时才显示（有 test_complete 时由它统一展示）
+          if (rawNonSSE && ssePayloads.length === 0) {
+            try {
+              const raw = JSON.parse(rawNonSSE);
+              let errMsg = '';
+              if (raw?.error) {
+                errMsg = typeof raw.error === 'string'
+                  ? raw.error
+                  : raw.error.message || JSON.stringify(raw.error);
+              } else if (raw?.message) {
+                errMsg = raw.code ? `${raw.code}: ${raw.message}` : raw.message;
               }
-              continue;
+              if (errMsg) {
+                addLine(errMsg, 'text-red-400');
+              }
+            } catch {
+              // 非 JSON，忽略
             }
+          }
 
-            // 插件原始 SSE：Responses API 格式
-            if (data?.type === 'response.output_text.delta' && data?.delta) {
-              streamingRef.current += data.delta;
-              setStreamingContent(streamingRef.current);
-              scrollToBottom();
-              continue;
-            }
+          for (const payload of ssePayloads) {
+            try {
+              const data = JSON.parse(payload);
 
-            // 插件原始 SSE：Chat Completions API 格式
-            if (data?.object === 'chat.completion.chunk') {
-              const content = data.choices?.[0]?.delta?.content;
-              if (content) {
-                streamingRef.current += content;
+              // 自定义事件（Core 包装）
+              if (data.type === 'test_start') {
+                addLine(t('accounts.test_connected'), 'text-green-400');
+                addLine(t('accounts.test_model_used', { model: data.model }), 'text-cyan-400');
+                addLine(t('accounts.test_sending'), 'text-gray-400');
+                addLine(t('accounts.test_response'), 'text-yellow-400');
+                setStatus('streaming');
+                continue;
+              }
+
+              if (data.type === 'test_complete') {
+                if (streamingRef.current) {
+                  addLine(streamingRef.current, 'text-green-300');
+                  streamingRef.current = '';
+                  setStreamingContent('');
+                }
+                if (data.success) {
+                  setStatus('success');
+                } else {
+                  setStatus('error');
+                  setErrorMessage(data.error || '');
+                }
+                continue;
+              }
+
+              // 插件原始 SSE：Responses API 格式
+              if (data?.type === 'response.output_text.delta' && data?.delta) {
+                streamingRef.current += data.delta;
                 setStreamingContent(streamingRef.current);
                 scrollToBottom();
+                continue;
               }
-              continue;
-            }
 
-            // 插件原始 SSE：Anthropic Messages API 格式
-            if (data?.type === 'content_block_delta' && data?.delta?.type === 'text_delta') {
-              const text = data.delta.text;
-              if (text) {
-                streamingRef.current += text;
-                setStreamingContent(streamingRef.current);
-                scrollToBottom();
+              // 插件原始 SSE：Chat Completions API 格式
+              if (data?.object === 'chat.completion.chunk') {
+                const content = data.choices?.[0]?.delta?.content;
+                if (content) {
+                  streamingRef.current += content;
+                  setStreamingContent(streamingRef.current);
+                  scrollToBottom();
+                }
+                continue;
               }
+
+              // 插件原始 SSE：Anthropic Messages API 格式
+              if (data?.type === 'content_block_delta' && data?.delta?.type === 'text_delta') {
+                const text = data.delta.text;
+                if (text) {
+                  streamingRef.current += text;
+                  setStreamingContent(streamingRef.current);
+                  scrollToBottom();
+                }
+              }
+            } catch {
+              // 非 JSON，忽略
             }
-          } catch {
-            // 非 JSON，忽略
           }
         }
       }
+
+      // 流结束后，如果仍处于 connecting/streaming 说明没收到 test_complete，
+      // 强制标记为错误，避免 UI 卡死。
+      setStatus((prev) => {
+        if (prev === 'connecting' || prev === 'streaming') {
+          const fallbackMsg = buffer.trim() || t('accounts.test_error');
+          setErrorMessage(fallbackMsg);
+          addLine(fallbackMsg, 'text-red-400');
+          return 'error';
+        }
+        return prev;
+      });
     } catch (err) {
       if ((err as Error).name === 'AbortError') return;
       setStatus('error');

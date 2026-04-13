@@ -209,7 +209,7 @@ export function CreateAccountModal({
           />
 
           <GroupCheckboxList
-            groups={groupsData?.list ?? []}
+            groups={(groupsData?.list ?? []).filter(g => g.platform === platform)}
             selectedIds={groupIds}
             onChange={setGroupIds}
           />

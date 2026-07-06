@@ -69,11 +69,13 @@ Pull in [airgate-sdk](https://github.com/DouDOU-start/airgate-sdk) and implement
 
 ```go
 type GatewayPlugin interface {
-    Info() PluginInfo                    // Metadata: ID, version, account fields, frontend components
+    Plugin                               // Embedded base interface; Info() metadata: ID, version, account fields, frontend components
     Platform() string                    // Platform key
     Models() []ModelInfo                 // Model list + pricing (used for billing)
     Routes() []RouteDefinition           // HTTP route declarations
-    Forward(ctx, req) (*ForwardResult, error)  // Actual forwarding logic
+    Forward(ctx context.Context, req *ForwardRequest) (ForwardOutcome, error) // Forwarding + business verdict
+    ValidateAccount(ctx context.Context, credentials map[string]string) error // Account credential validation
+    HandleWebSocket(ctx context.Context, conn WebSocketConn) (ForwardOutcome, error) // Optional; return ErrNotSupported if unsupported
 }
 ```
 
@@ -351,7 +353,7 @@ See `make help` for more commands.
 User request ──► Core auth ──► Core picks account ──► Plugin.Forward() ──► Upstream AI API
                                                           │
                                                           ▼
-                                                    ForwardResult
+                                                    ForwardOutcome
                                                   ┌──────┴──────┐
                                               Token usage   Account status
                                               Core bills    Core updates account
@@ -368,7 +370,7 @@ airgate-core/
 │   │   ├── plugin/           # Plugin lifecycle + marketplace + forwarder
 │   │   ├── scheduler/        # Account scheduling
 │   │   ├── billing/          # Billing & usage
-│   │   ├── ratelimit/        # Rate limiting
+│   │   ├── routing/          # Model → account selection
 │   │   └── app/              # Domain use cases
 │   └── ent/                  # Database ORM (Ent)
 ├── web/                      # Admin dashboard (React + Vite)

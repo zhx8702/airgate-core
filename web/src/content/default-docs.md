@@ -4,7 +4,7 @@ AirGate 是一个统一的 AI API 网关：把 OpenAI API Key 与 ChatGPT OAuth 
 
 你可以把现有的 OpenAI SDK、Anthropic SDK、Codex CLI、Claude Code、openclaw 等客户端工具直接指向 AirGate，无需改代码。
 
-> Roadmap：即将支持 Claude（Anthropic）原生上游账号接入，届时 `/v1/messages` 路由会自动优先走原生上游而非协议翻译。
+> 已支持 Claude（Anthropic）原生上游账号接入（gateway-claude 插件）：接入原生上游后，`/v1/messages` 路由优先走原生上游而非协议翻译。
 
 ## 快速开始
 

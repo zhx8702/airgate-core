@@ -69,11 +69,13 @@ AirGate 不是又一个"集成了 N 个 AI 平台"的网关，而是一套**把�
 
 ```go
 type GatewayPlugin interface {
-    Info() PluginInfo                    // 元信息：ID、版本、账号字段、前端组件
+    Plugin                               // 内嵌基础接口，Info() 元信息：ID、版本、账号字段、前端组件
     Platform() string                    // 平台键
     Models() []ModelInfo                 // 模型列表 + 单价（用于计费）
     Routes() []RouteDefinition           // HTTP 路由声明
-    Forward(ctx, req) (*ForwardResult, error)  // 实际转发逻辑
+    Forward(ctx context.Context, req *ForwardRequest) (ForwardOutcome, error) // 转发 + 业务判决
+    ValidateAccount(ctx context.Context, credentials map[string]string) error // 账号凭证校验
+    HandleWebSocket(ctx context.Context, conn WebSocketConn) (ForwardOutcome, error) // 可选，不支持返回 ErrNotSupported
 }
 ```
 
@@ -351,7 +353,7 @@ make dev       # 启动前后端开发服务器
 用户请求 ──► Core 鉴权 ──► Core 选账号 ──► Plugin.Forward() ──► 上游 AI API
                                               │
                                               ▼
-                                         ForwardResult
+                                         ForwardOutcome
                                        ┌──────┴──────┐
                                   token 用量      账号状态反馈
                                   Core 计费       Core 更新账号
@@ -368,7 +370,7 @@ airgate-core/
 │   │   ├── plugin/           # 插件生命周期 + 市场 + 转发
 │   │   ├── scheduler/        # 账号调度
 │   │   ├── billing/          # 计费与用量
-│   │   ├── ratelimit/        # 限流
+│   │   ├── routing/          # 模型 → 账号选择
 │   │   └── app/              # 业务用例（按领域拆分）
 │   └── ent/                  # 数据库 ORM (Ent)
 ├── web/                      # 管理后台 (React + Vite)
